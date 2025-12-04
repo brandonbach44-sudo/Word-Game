@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   ScrollView,
@@ -13,20 +13,66 @@ import { VALID_WORDS } from '../../data/words';
 
 const { width } = Dimensions.get('window');
 
+// Weighted letter selection
+const pickVowel = (): string => {
+  const rand = Math.random() * 100;
+  if (rand < 30) return 'E';      // 30%
+  if (rand < 55) return 'A';      // 25%
+  if (rand < 75) return 'I';      // 20%
+  if (rand < 90) return 'O';      // 15%
+  return 'U';                      // 10%
+};
+
+const pickConsonant = (): string => {
+  const rand = Math.random() * 100;
+  // Common: T, N, S, R, L (~12% each = 60% total)
+  if (rand < 12) return 'T';
+  if (rand < 24) return 'N';
+  if (rand < 36) return 'S';
+  if (rand < 48) return 'R';
+  if (rand < 60) return 'L';
+  // Medium: D, C, H, M, P, F, G, W, B, Y (~4% each = 40% total)
+  if (rand < 64) return 'D';
+  if (rand < 68) return 'C';
+  if (rand < 72) return 'H';
+  if (rand < 76) return 'M';
+  if (rand < 80) return 'P';
+  if (rand < 84) return 'F';
+  if (rand < 88) return 'G';
+  if (rand < 92) return 'W';
+  if (rand < 95) return 'B';
+  if (rand < 98) return 'Y';
+  // Rare: K, V (~1% each)
+  if (rand < 99) return 'K';
+  if (rand < 99.5) return 'V';
+  // Very Rare: J, X, Q, Z (~0.5% total)
+  if (rand < 99.6) return 'J';
+  if (rand < 99.7) return 'X';
+  if (rand < 99.85) return 'Q';
+  return 'Z';
+};
+
 const generateLetters = (count: number): string[] => {
-  const vowels = 'AEIOU';
-  const consonants = 'BCDFGHLMNPRSTWY';
   const letters: string[] = [];
   
-  // Add vowels (roughly 1/3 of letters)
-  const vowelCount = Math.ceil(count / 3);
+  // Determine vowel count based on tile count
+  let vowelCount: number;
+  if (count === 6) {
+    vowelCount = 2;
+  } else if (count === 7) {
+    vowelCount = Math.random() < 0.5 ? 2 : 3;
+  } else {
+    vowelCount = Math.random() < 0.5 ? 2 : 3;
+  }
+  
+  // Add vowels
   for (let i = 0; i < vowelCount; i++) {
-    letters.push(vowels[Math.floor(Math.random() * vowels.length)]);
+    letters.push(pickVowel());
   }
   
   // Add consonants
   for (let i = 0; i < count - vowelCount; i++) {
-    letters.push(consonants[Math.floor(Math.random() * consonants.length)]);
+    letters.push(pickConsonant());
   }
   
   // Shuffle
@@ -67,10 +113,10 @@ export default function WordBuilder() {
     };
   }, [timeLeft, gameMode, gameOver]);
 
-  const startGame = (mode: GameMode, letters: number) => {
+  const startGame = (mode: GameMode, numLetters: number) => {
     setGameMode(mode);
-    setLetterCount(letters);
-    setLetters(generateLetters(letters));
+    setLetterCount(numLetters);
+    setLetters(generateLetters(numLetters));
     setSelectedIndices([]);
     setCurrentWord('');
     setScore(0);
@@ -80,7 +126,18 @@ export default function WordBuilder() {
     setTimeLeft(mode === 'blitz' ? 30 : 90);
   };
 
-  const handleLetterPress = (index: number) => {
+  const handleRefresh = useCallback(() => {
+    setLetters(generateLetters(letterCount));
+    setSelectedIndices([]);
+    setCurrentWord('');
+    setScore(0);
+    setFoundWords([]);
+    setMessage('Tap letters to build words!');
+    setGameOver(false);
+    setTimeLeft(gameMode === 'blitz' ? 30 : 90);
+  }, [letterCount, gameMode]);
+
+  const handleLetterPress = useCallback((index: number) => {
     if (gameOver) return;
     if (selectedIndices.includes(index)) {
       const newSelected = selectedIndices.filter((i: number) => i !== index);
@@ -91,9 +148,9 @@ export default function WordBuilder() {
       setSelectedIndices(newSelected);
       setCurrentWord(newSelected.map((i: number) => letters[i]).join(''));
     }
-  };
+  }, [gameOver, selectedIndices, letters]);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (gameOver) return;
     const word = currentWord.toLowerCase();
     if (word.length < 2) { setMessage('Words must be at least 2 letters!'); return; }
@@ -108,14 +165,14 @@ export default function WordBuilder() {
     } else {
       setMessage('Not a valid word!');
     }
-  };
+  }, [gameOver, currentWord, foundWords, score]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     if (gameOver) return;
     setSelectedIndices([]);
     setCurrentWord('');
     setMessage('Tap letters to build words!');
-  };
+  }, [gameOver]);
 
   const backToMenu = () => {
     setGameMode('menu');
@@ -203,14 +260,14 @@ export default function WordBuilder() {
     );
   }
 
-  const tileSize = getTileSize();
+  const tileSize = useMemo(() => getTileSize(), [letterCount]);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={backToMenu}>
+        <TouchableOpacity onPress={backToMenu} accessibilityRole="button" accessibilityLabel="Back to menu">
           <Text style={styles.backButton}>← Menu</Text>
         </TouchableOpacity>
         <Text style={[styles.timer, timeLeft <= 10 && styles.timerWarning]}>{formatTime(timeLeft)}</Text>
@@ -245,10 +302,10 @@ export default function WordBuilder() {
       </View>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+        <TouchableOpacity style={styles.clearButton} onPress={handleClear} accessibilityRole="button" accessibilityLabel="Clear selection">
           <Text style={styles.buttonText}>Clear</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} accessibilityRole="button" accessibilityLabel="Submit word">
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
       </View>
@@ -263,6 +320,10 @@ export default function WordBuilder() {
           ))}
         </ScrollView>
       </View>
+
+      <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh letters">
+        <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -312,4 +373,6 @@ const styles = StyleSheet.create({
   foundWordsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   foundWordBadge: { backgroundColor: '#16213e', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
   foundWordText: { color: '#4ecca3', fontSize: 14, fontWeight: '600' },
+  refreshButton: { backgroundColor: '#ff9f1c', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, marginBottom: 20 },
+  refreshButtonText: { fontSize: 16, fontWeight: 'bold', color: '#1a1a2e' },
 });
