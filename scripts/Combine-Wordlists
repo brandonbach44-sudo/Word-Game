@@ -1,7 +1,7 @@
 """Combine-Wordlists
 
 Usage examples:
-  python scripts/Combine-Wordlists --base data/words.ts --extra data/anagram_dictionary.txt --min 3 --max 10 --out data/full_words.ts --format ts
+    python scripts/Combine-Wordlists --base data/full_words.ts --extra data/anagram_dictionary.txt --min 3 --max 10 --out data/full_words.ts --format ts
 
 This script:
  - Reads a base words file (TS array or any file with quoted words)
