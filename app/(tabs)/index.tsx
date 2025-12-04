@@ -96,7 +96,7 @@ export default function WordBuilder() {
   const handleSubmit = () => {
     if (gameOver) return;
     const word = currentWord.toLowerCase();
-    if (word.length < 3) { setMessage('Words must be at least 3 letters!'); return; }
+    if (word.length < 2) { setMessage('Words must be at least 2 letters!'); return; }
     if (foundWords.includes(word)) { setMessage('Already found that word!'); return; }
     if (VALID_WORDS.has(word)) {
       const points = word.length * 10;
@@ -129,7 +129,7 @@ export default function WordBuilder() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const levels = [3, 4, 5, 6, 7, 8, 9, 10];
+  const levels = [6, 7, 8];
 
   if (gameMode === 'menu') {
     return (
