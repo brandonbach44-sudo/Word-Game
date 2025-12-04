@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { VALID_WORDS } from '../../data/words';
 
 const { width } = Dimensions.get('window');
@@ -83,13 +83,13 @@ export default function WordBuilder() {
   const handleLetterPress = (index: number) => {
     if (gameOver) return;
     if (selectedIndices.includes(index)) {
-      const newSelected = selectedIndices.filter(i => i !== index);
+      const newSelected = selectedIndices.filter((i: number) => i !== index);
       setSelectedIndices(newSelected);
-      setCurrentWord(newSelected.map(i => letters[i]).join(''));
+      setCurrentWord(newSelected.map((i: number) => letters[i]).join(''));
     } else {
       const newSelected = [...selectedIndices, index];
       setSelectedIndices(newSelected);
-      setCurrentWord(newSelected.map(i => letters[i]).join(''));
+      setCurrentWord(newSelected.map((i: number) => letters[i]).join(''));
     }
   };
 
@@ -176,14 +176,14 @@ export default function WordBuilder() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
         <View style={styles.gameOverContainer}>
-          <Text style={styles.gameOverTitle}>Time's Up!</Text>
+          <Text style={styles.gameOverTitle}>Time&apos;s Up!</Text>
           <Text style={styles.finalScore}>{score}</Text>
           <Text style={styles.finalScoreLabel}>points</Text>
           <Text style={styles.wordsFound}>You found {foundWords.length} words</Text>
           
           <View style={styles.foundWordsContainerGameOver}>
             <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
-              {foundWords.map((word, index) => (
+              {foundWords.map((word: string, index: number) => (
                 <View key={index} style={styles.foundWordBadge}>
                   <Text style={styles.foundWordText}>{word.toUpperCase()}</Text>
                 </View>
@@ -224,7 +224,7 @@ export default function WordBuilder() {
       </View>
 
       <View style={styles.letterGrid}>
-        {letters.map((letter, index) => (
+        {letters.map((letter: string, index: number) => (
           <TouchableOpacity
             key={index}
             style={[
@@ -256,7 +256,7 @@ export default function WordBuilder() {
       <View style={styles.foundWordsContainer}>
         <Text style={styles.foundWordsTitle}>Found Words ({foundWords.length}):</Text>
         <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
-          {foundWords.map((word, index) => (
+          {foundWords.map((word: string, index: number) => (
             <View key={index} style={styles.foundWordBadge}>
               <Text style={styles.foundWordText}>{word.toUpperCase()}</Text>
             </View>

@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MoreGames() {
   const upcomingGames = [

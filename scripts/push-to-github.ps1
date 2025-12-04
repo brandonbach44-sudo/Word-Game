@@ -70,7 +70,9 @@ function Ensure-GitEditor {
     }
     if (-not $editor) {
         # prefer 'code --wait' if available, otherwise fallback to notepad
-        $codePath = (Get-Command code -ErrorAction SilentlyContinue)?.Source
+        $cmd = Get-Command code -ErrorAction SilentlyContinue
+        $codePath = $null
+        if ($cmd) { $codePath = $cmd.Source }
         if ($codePath) {
             git config --global core.editor "code --wait"
             Write-Host "Set git core.editor to 'code --wait'"
@@ -100,7 +102,7 @@ try {
     $name = $null; $email = $null
 }
 if (-not $name -or -not $email) {
-    Write-Warning "Git user.name or user.email not set globally. If you see 'unable to auto-detect email' errors, run:`n  git config --global user.name \"Your Name\"`n  git config --global user.email \"you@example.com\"`
+    Write-Warning "Git user.name or user.email not set globally. If you see 'unable to auto-detect email' errors, run:`n  git config --global user.name \"Your Name\"`n  git config --global user.email \"you@example.com\""
 }
 
 # stage .gitignore first (safe) then everything
@@ -152,7 +154,7 @@ if ($rc -eq 0) {
     exit 0
 } else {
     Write-Warning "Push failed with exit code $rc. Attempting to help resolve common issues."
-    Write-Host "If the remote already has commits, you can run: `n  git pull --rebase origin main`nthen resolve any conflicts and run `git push -u origin main` again."
-    Write-Host "If you'd rather abort and merge instead: `n  git rebase --abort`n  git pull origin main`nresolve conflicts, then `git push -u origin main`"
+    Write-Host "If the remote already has commits, you can run:`n  git pull --rebase origin main`nthen resolve any conflicts and run `git push -u origin main` again."
+    Write-Host "If you'd rather abort and merge instead:`n  git rebase --abort`n  git pull origin main`nresolve conflicts, then `git push -u origin main`"
     exit $rc
 }
