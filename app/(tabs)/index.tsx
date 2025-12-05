@@ -195,7 +195,7 @@ const LiquidGlassButton = ({
 
 // Animated Background Circles Component
 const AnimatedBackground = () => {
-  const [circles, setCircles] = useState<Array<{
+  const [circles, setCircles] = useState<{
     id: number;
     x: Animated.Value;
     y: Animated.Value;
@@ -203,22 +203,22 @@ const AnimatedBackground = () => {
     size: number;
     color: string;
     opacity: number;
-  }>>([]);
+  }[]>([]);
   
   const circleIdRef = useRef(0);
   const maxCirclesRef = useRef(2 + Math.floor(Math.random() * 5)); // Random 2-6
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
 
-  // Colors: teal, red, blue, purple, pink, gold
-  const colors = [
+  // Colors: teal, red, blue, purple, pink, gold (memoized for stable reference)
+  const colors = useMemo(() => [
     '#4ecca3', // teal
     '#e74c3c', // red
     '#3498db', // blue
     '#9b59b6', // purple
     '#e94560', // pink
     '#f39c12', // gold
-  ];
+  ], []);
   
   const createCircle = useCallback((spawnOnScreen: boolean = false) => {
     const id = circleIdRef.current++;
@@ -317,7 +317,7 @@ const AnimatedBackground = () => {
     pulseLoop();
     
     return { id, x, y, scale, size, color, opacity };
-  }, [screenWidth, screenHeight]);
+  }, [screenWidth, screenHeight, colors]);
 
   useEffect(() => {
     // Create initial circles ON SCREEN instantly (no delay)
@@ -680,7 +680,8 @@ export default function WordBuilder() {
     );
   }
 
-  const tileSize = useMemo(() => getTileSize(), [letterCount]);
+  // Compute tile size without hooks to avoid conditional hook usage issues
+  const tileSize = getTileSize();
 
   return (
     <SafeAreaView style={styles.container}>
