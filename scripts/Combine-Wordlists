@@ -1,7 +1,7 @@
 """Combine-Wordlists
 
 Usage examples:
-    python scripts/Combine-Wordlists --base data/full_words.ts --extra data/anagram_dictionary.txt --min 3 --max 10 --out data/full_words.ts --format ts
+    python scripts/Combine-Wordlists --base data/words.ts --extra data/anagram_dictionary.txt --min 3 --max 10 --out data/words.ts --format ts
 
 This script:
  - Reads a base words file (TS array or any file with quoted words)
@@ -21,11 +21,11 @@ from typing import List, Set
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Combine two wordlists into one with filtering and dedupe options")
-    p.add_argument("--base", default="data/full_words.ts", help="Path to base words file (TS array or any file with quoted words)")
+    p.add_argument("--base", default="data/words.ts", help="Path to base words file (TS array or any file with quoted words)")
     p.add_argument("--extra", default="", help="Path to extra wordlist (one word per line). Leave empty to skip extras")
     p.add_argument("--min", type=int, default=3, help="Minimum word length to include")
     p.add_argument("--max", type=int, default=10, help="Maximum word length to include")
-    p.add_argument("--out", default="data/full_words.ts", help="Output path")
+    p.add_argument("--out", default="data/words.ts", help="Output path")
     p.add_argument("--format", choices=("ts", "json", "txt"), default="ts", help="Output format: ts (TypeScript array), json, or txt (one per line)")
     p.add_argument("--sort", choices=("none", "alpha"), default="alpha", help="Sort extra words before appending (default: alpha)")
     p.add_argument("--preserve-base-order", action="store_true", help="Keep base word order first, then extras")
