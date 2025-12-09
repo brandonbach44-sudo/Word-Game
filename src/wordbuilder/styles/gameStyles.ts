@@ -43,12 +43,56 @@ export const styles = StyleSheet.create({
   glassLevelLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   
   // Menu styles
-  menuContainer: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 20, paddingVertical: 40, zIndex: 1 },
+  menuContainer: { 
+    flexGrow: 1, 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingTop: 40,
+    paddingBottom: 100,
+    width: '100%',
+    zIndex: 1 
+  },
   greeting: { fontSize: 24, color: '#4ecca3', marginBottom: 5 },
   menuTitle: { fontSize: 42, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
   menuSubtitle: { fontSize: 18, color: '#888', marginBottom: 30 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#4ecca3', marginBottom: 15, marginTop: 20 },
   levelGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginBottom: 10 },
+  
+  // Top Display Container (for Ink & Score)
+  topDisplayContainer: {
+    position: 'absolute',
+    top: 20,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  topDisplayContainerRight: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+  },
+  
+  // Career Progress Container
+  careerProgressContainer: {
+    width: '100%',
+    maxWidth: 320,
+    marginBottom: 30,
+  },
+  
+  // Bottom Buttons Container (for Stats & Customize)
+  bottomButtonsContainer: {
+    marginTop: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  
+  // Gameplay Ink Display
+  gameplayInkContainer: {
+    position: 'absolute',
+    top: 100,
+    right: 10,
+    zIndex: 5,
+  },
   
   // Game Over styles
   gameOverContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 },
@@ -56,7 +100,7 @@ export const styles = StyleSheet.create({
   finalScore: { fontSize: 72, fontWeight: 'bold', color: '#4ecca3' },
   finalScoreLabel: { fontSize: 24, color: '#888', marginBottom: 10 },
   wordsFound: { fontSize: 18, color: '#fff', marginBottom: 20 },
-  foundWordsContainerGameOver: { height: 150, width: '100%', marginBottom: 20 },
+  foundWordsContainerGameOver: { height: 100, width: '100%', marginBottom: 20 },
   playAgainButton: { backgroundColor: '#4ecca3', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 25, marginBottom: 15 },
   playAgainText: { fontSize: 18, fontWeight: 'bold', color: '#1a1a2e' },
   menuButton: { backgroundColor: 'transparent', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 25, borderWidth: 1, borderColor: '#4ecca3' },
@@ -108,5 +152,60 @@ export const styles = StyleSheet.create({
     width: '100%', 
     paddingHorizontal: 10,
     marginTop: 20,
+  },
+  loadingText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 20,
+  },
+  
+  // Tiers Container (Customize screen)
+  tiersContainer: {
+    width: '100%',
+    marginTop: 20,
+    paddingHorizontal: 0,
+  },
+  
+  // Category Cards (Customize main screen)
+  categoryCardsContainer: {
+    width: '100%',
+    marginTop: 30,
+    gap: 15,
+  },
+  categoryCard: {
+    backgroundColor: '#16213e',
+    borderRadius: 15,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#4ecca3',
+  },
+  categoryCardDisabled: {
+    borderColor: '#333',
+    opacity: 0.6,
+  },
+  categoryIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  categoryTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  categoryDescription: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 10,
+  },
+  categoryEquipped: {
+    fontSize: 12,
+    color: '#4ecca3',
+    fontWeight: '600',
+  },
+  comingSoonBadge: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
   },
 });

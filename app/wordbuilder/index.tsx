@@ -10,35 +10,54 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
-// Components (local to Word Builder)
-import { AnimatedBackground } from './components/AnimatedBackground';
-import { LiquidGlassButton } from './components/LiquidGlassButton';
-import { StatsCard } from './components/StatsCard';
+// Components
+import { AnimatedBackground } from '../../src/wordbuilder/components/AnimatedBackground';
+import { LiquidGlassButton } from '../../src/wordbuilder/components/LiquidGlassButton';
+import { StatsCard } from '../../src/wordbuilder/components/StatsCard';
+import { GameTile } from '../../src/wordbuilder/components/GameTile';
+import { InkDisplay } from '../../src/wordbuilder/components/InkDisplay';
+import { InkBreakdownDisplay } from '../../src/wordbuilder/components/InkBreakdown';
+import { CareerProgress } from '../../src/wordbuilder/components/CareerProgress';
+import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
 
-// Styles (local to Word Builder)
-import { styles } from './styles/gameStyles';
+// Styles
+import { styles } from '../../src/wordbuilder/styles/gameStyles';
 
-// Utils (local to Word Builder)
-import { generateLetters } from './utils/letterGenerator';
-import { calculateWordScore } from './utils/scoring';
+// Utils
+import { generateLetters } from '../../src/wordbuilder/utils/letterGenerator';
+import { calculateWordScore } from '../../src/wordbuilder/utils/scoring';
 import { 
   PlayerStats,
+  PlayerTiles,
+  PlayerEconomy,
+  InkBreakdown,
   loadStats, 
+  loadTiles,
+  loadEconomy,
+  equipCareerTile,
   updateStatsAfterGame,
   getAverageScore,
   getWordsPerGame,
   getFavoriteMode,
   getFavoriteLetterCount,
-} from './utils/storage';
+  getNextCareerTierProgress,
+  resetSessionData,
+  DEBUG_UNLOCK_ALL,
+  unlockAllTilesForTesting,
+  addInkForTesting,
+} from '../../src/wordbuilder/utils/storage';
+import { TierName, TIER_ORDER, TIERS } from '../../src/wordbuilder/utils/tiers';
+import { getBackgroundById } from '../../src/wordbuilder/utils/shopData';
 
-// Data (local to Word Builder)
-import { VALID_WORDS } from './data/words';
+// Data
+import { VALID_WORDS } from '../../src/wordbuilder/data/words';
 
 const { width } = Dimensions.get('window');
 
-type GameMode = 'mainMenu' | 'modeSelect' | 'stats' | 'blitz' | 'standard';
+type GameMode = 'mainMenu' | 'modeSelect' | 'stats' | 'customize' | 'blitz' | 'standard';
 
 export default function WordBuilder() {
+  // Game State
   const [gameMode, setGameMode] = useState<GameMode>('mainMenu');
   const [letterCount, setLetterCount] = useState(6);
   const [letters, setLetters] = useState<string[]>(generateLetters(6));
@@ -49,9 +68,59 @@ export default function WordBuilder() {
   const [message, setMessage] = useState('Tap letters to build words!');
   const [timeLeft, setTimeLeft] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [lastGameMode, setLastGameMode] = useState<'blitz' | 'standard'>('blitz');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Player Data State
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
+  const [playerTiles, setPlayerTiles] = useState<PlayerTiles | null>(null);
+  const [playerEconomy, setPlayerEconomy] = useState<PlayerEconomy | null>(null);
+  const [equippedTier, setEquippedTier] = useState<TierName>('default');
+  const [equippedVariant, setEquippedVariant] = useState<number>(1);
+  
+  // Ink Breakdown for post-game display
+  const [inkBreakdown, setInkBreakdown] = useState<InkBreakdown | null>(null);
+
+  // Load all player data on mount
+  useEffect(() => {
+    const loadAllPlayerData = async () => {
+      // Reset session data on app start (for streak tracking)
+      resetSessionData();
+      
+      // DEBUG: Unlock all tiles for testing
+      if (DEBUG_UNLOCK_ALL) {
+        await unlockAllTilesForTesting();
+        await addInkForTesting(5000); // Give some ink for testing
+      }
+      
+      const [stats, tiles, economy] = await Promise.all([
+        loadStats(),
+        loadTiles(),
+        loadEconomy(),
+      ]);
+      
+      setPlayerStats(stats);
+      setPlayerTiles(tiles);
+      setPlayerEconomy(economy);
+      setEquippedTier(tiles.equippedTier);
+      setEquippedVariant(tiles.equippedVariant);
+    };
+    loadAllPlayerData();
+  }, []);
+
+  // Refresh player data helper
+  const refreshPlayerData = async () => {
+    const [stats, tiles, economy] = await Promise.all([
+      loadStats(),
+      loadTiles(),
+      loadEconomy(),
+    ]);
+    setPlayerStats(stats);
+    setPlayerTiles(tiles);
+    setPlayerEconomy(economy);
+    setEquippedTier(tiles.equippedTier);
+    setEquippedVariant(tiles.equippedVariant);
+  };
 
   const getTileSize = () => {
     const baseSize = (width - 80) / 3;
@@ -59,16 +128,24 @@ export default function WordBuilder() {
     return (width - 90) / 4;
   };
 
+  // Timer effect
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft === 0 && gameMode !== 'mainMenu' && gameMode !== 'modeSelect' && gameMode !== 'stats' && !gameOver) {
+    } else if (timeLeft === 0 && (gameMode === 'blitz' || gameMode === 'standard') && !gameOver) {
+      // Game ended - save stats and get ink breakdown
       setGameOver(true);
       setMessage('Time\'s up!');
-      // Save stats when game ends
-      if (foundWords.length > 0 || score > 0) {
-        updateStatsAfterGame(score, foundWords, lastGameMode, letterCount);
-      }
+      
+      const saveGameResults = async () => {
+        if (foundWords.length > 0 || score > 0) {
+          const breakdown = await updateStatsAfterGame(score, foundWords, lastGameMode, letterCount);
+          setInkBreakdown(breakdown);
+          // Refresh all player data after game
+          await refreshPlayerData();
+        }
+      };
+      saveGameResults();
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -88,14 +165,20 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
+    setInkBreakdown(null); // Reset ink breakdown
     setTimeLeft(mode === 'blitz' ? 30 : 60);
   };
   
   // Load stats when opening stats screen
   const openStats = async () => {
-    const stats = await loadStats();
-    setPlayerStats(stats);
+    await refreshPlayerData();
     setGameMode('stats');
+  };
+
+  // Handle coming back from customize screen
+  const handleCustomizeBack = async () => {
+    await refreshPlayerData();
+    setGameMode('modeSelect');
   };
 
   const handleRefresh = useCallback(() => {
@@ -106,6 +189,7 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
+    setInkBreakdown(null);
     setTimeLeft(gameMode === 'blitz' ? 30 : 60);
   }, [letterCount, gameMode]);
 
@@ -149,6 +233,7 @@ export default function WordBuilder() {
   const backToMenu = () => {
     setGameMode('modeSelect');
     setGameOver(false);
+    setInkBreakdown(null);
     if (timerRef.current) clearTimeout(timerRef.current);
   };
 
@@ -165,6 +250,16 @@ export default function WordBuilder() {
 
   const levels = [6, 7, 8];
 
+  // Get career progress for main menu
+  const careerProgress = playerStats ? getNextCareerTierProgress(playerStats.totalScore) : null;
+
+  // Get equipped background color
+  const equippedBackgroundColor = playerEconomy 
+    ? getBackgroundById(playerEconomy.equippedBackground)?.backgroundColor || '#1a1a2e'
+    : '#1a1a2e';
+
+  // ==================== SCREENS ====================
+
   // Main Menu - Single Player / Online
   if (gameMode === 'mainMenu') {
     return (
@@ -173,8 +268,27 @@ export default function WordBuilder() {
         <AnimatedBackground />
         
         <View style={styles.mainMenuContainer}>
+          {/* Ink & Score Display */}
+          {playerEconomy && playerStats && (
+            <View style={styles.topDisplayContainer}>
+              <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
+            </View>
+          )}
+          
           <Text style={styles.menuTitle}>Word Builder</Text>
           <Text style={styles.menuSubtitle}>Select Game Type</Text>
+          
+          {/* Career Progress */}
+          {careerProgress && (
+            <View style={styles.careerProgressContainer}>
+              <CareerProgress
+                nextTier={careerProgress.nextTier}
+                currentScore={careerProgress.currentScore}
+                requiredScore={careerProgress.requiredScore}
+                progress={careerProgress.progress}
+              />
+            </View>
+          )}
           
           <LiquidGlassButton 
             onPress={() => setGameMode('modeSelect')}
@@ -218,6 +332,13 @@ export default function WordBuilder() {
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         
+        {/* Ink & Score Display */}
+        {playerEconomy && playerStats && (
+          <View style={styles.topDisplayContainerRight}>
+            <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
+          </View>
+        )}
+        
         <ScrollView contentContainerStyle={styles.menuContainer}>
           <Text style={styles.menuTitle}>Choose Your Mode</Text>
           
@@ -229,13 +350,12 @@ export default function WordBuilder() {
                 onPress={() => startGame('blitz', level)}
                 size="small"
               >
-                <Text style={styles.glassLevelNumber}>{level}</Text>
-                <Text style={styles.glassLevelLabel}>letters</Text>
+                <Text style={styles.glassButtonText}>{level} Letters</Text>
               </LiquidGlassButton>
             ))}
           </View>
-          
-          <Text style={styles.sectionTitle}>⏱️ Standard Mode (60 sec)</Text>
+
+          <Text style={styles.sectionTitle}>📝 Standard Mode (60 sec)</Text>
           <View style={styles.levelGrid}>
             {levels.map((level) => (
               <LiquidGlassButton 
@@ -243,26 +363,32 @@ export default function WordBuilder() {
                 onPress={() => startGame('standard', level)}
                 size="small"
               >
-                <Text style={styles.glassLevelNumber}>{level}</Text>
-                <Text style={styles.glassLevelLabel}>letters</Text>
+                <Text style={styles.glassButtonText}>{level} Letters</Text>
               </LiquidGlassButton>
             ))}
           </View>
           
-          {/* Stats Button */}
-          <View style={{ marginTop: 30 }}>
+          <View style={styles.bottomButtonsContainer}>
             <LiquidGlassButton 
               onPress={openStats}
-              size="large"
+              size="medium"
+              style={{ marginBottom: 15 }}
             >
-              <Text style={styles.glassButtonText}>📊 Your Stats</Text>
+              <Text style={styles.glassButtonText}>📊 Stats</Text>
+            </LiquidGlassButton>
+            
+            <LiquidGlassButton 
+              onPress={() => setGameMode('customize')}
+              size="medium"
+            >
+              <Text style={styles.glassButtonText}>🎨 Customize</Text>
             </LiquidGlassButton>
           </View>
         </ScrollView>
       </SafeAreaView>
     );
   }
-  
+
   // Stats Screen
   if (gameMode === 'stats') {
     return (
@@ -277,61 +403,51 @@ export default function WordBuilder() {
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         
-        <ScrollView contentContainerStyle={styles.menuContainer}>
+        {/* Ink & Score Display */}
+        {playerEconomy && playerStats && (
+          <View style={styles.topDisplayContainerRight}>
+            <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
+          </View>
+        )}
+        
+        <ScrollView 
+          style={{ flex: 1, width: '100%' }}
+          contentContainerStyle={styles.menuContainer}
+          showsVerticalScrollIndicator={true}
+        >
           <Text style={styles.menuTitle}>Your Stats</Text>
           
-          {playerStats && (
+          {playerStats ? (
             <View style={styles.statsGrid}>
-              <StatsCard 
-                icon="🎮" 
-                value={playerStats.gamesPlayed} 
-                label="Games Played" 
-              />
-              <StatsCard 
-                icon="⭐" 
-                value={playerStats.totalScore.toLocaleString()} 
-                label="Total Score" 
-              />
-              <StatsCard 
-                icon="🏆" 
-                value={playerStats.highScore.toLocaleString()} 
-                label="High Score" 
-              />
-              <StatsCard 
-                icon="📊" 
-                value={getAverageScore(playerStats).toLocaleString()} 
-                label="Average Score" 
-              />
-              <StatsCard 
-                icon="📝" 
-                value={playerStats.totalWordsFound} 
-                label="Total Words Found" 
-              />
-              <StatsCard 
-                icon="📈" 
-                value={getWordsPerGame(playerStats)} 
-                label="Words Per Game" 
-              />
-              <StatsCard 
-                icon="🔤" 
-                value={playerStats.longestWord ? `${playerStats.longestWord.toUpperCase()} (${playerStats.longestWord.length})` : '-'} 
-                label="Longest Word" 
-              />
-              <StatsCard 
-                icon="⚡" 
-                value={getFavoriteMode(playerStats)} 
-                label="Favorite Mode" 
-              />
-              <StatsCard 
-                icon="🔢" 
-                value={getFavoriteLetterCount(playerStats)} 
-                label="Favorite Letters" 
-              />
+              <StatsCard label="Games Played" value={playerStats.gamesPlayed.toString()} />
+              <StatsCard label="Total Score" value={playerStats.totalScore.toLocaleString()} />
+              <StatsCard label="High Score" value={playerStats.highScore.toString()} />
+              <StatsCard label="Avg Score" value={getAverageScore(playerStats).toString()} />
+              <StatsCard label="Words Found" value={playerStats.totalWordsFound.toString()} />
+              <StatsCard label="Words/Game" value={getWordsPerGame(playerStats).toString()} />
+              <StatsCard label="Longest Word" value={playerStats.longestWord.toUpperCase() || '-'} wide />
+              <StatsCard label="Favorite Mode" value={getFavoriteMode(playerStats)} />
+              <StatsCard label="Favorite Letters" value={getFavoriteLetterCount(playerStats)} />
+              
+              {/* Economy Stats */}
+              {playerEconomy && (
+                <>
+                  <StatsCard label="Total Ink Earned" value={playerEconomy.totalInkEarned.toLocaleString()} />
+                  <StatsCard label="Total Ink Spent" value={playerEconomy.totalInkSpent.toLocaleString()} />
+                </>
+              )}
             </View>
+          ) : (
+            <Text style={styles.loadingText}>Loading stats...</Text>
           )}
         </ScrollView>
       </SafeAreaView>
     );
+  }
+
+  // Customize Screen (New unified screen)
+  if (gameMode === 'customize') {
+    return <CustomizeScreen onBack={handleCustomizeBack} />;
   }
 
   // Game Over Screen
@@ -339,11 +455,18 @@ export default function WordBuilder() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
+        <AnimatedBackground />
+        
         <View style={styles.gameOverContainer}>
-          <Text style={styles.gameOverTitle}>Time&apos;s Up!</Text>
+          <Text style={styles.gameOverTitle}>Time's Up!</Text>
           <Text style={styles.finalScore}>{score}</Text>
           <Text style={styles.finalScoreLabel}>points</Text>
           <Text style={styles.wordsFound}>You found {foundWords.length} {foundWords.length === 1 ? 'word' : 'words'}</Text>
+          
+          {/* Ink Breakdown Display */}
+          {inkBreakdown && (
+            <InkBreakdownDisplay breakdown={inkBreakdown} />
+          )}
           
           <View style={styles.foundWordsContainerGameOver}>
             <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
@@ -371,7 +494,7 @@ export default function WordBuilder() {
   const tileSize = getTileSize();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: equippedBackgroundColor }]}>
       <StatusBar barStyle="light-content" />
       
       <View style={styles.header}>
@@ -382,6 +505,13 @@ export default function WordBuilder() {
         <Text style={styles.score}>{score} pts</Text>
       </View>
 
+      {/* Compact Ink Display during gameplay */}
+      {playerEconomy && (
+        <View style={styles.gameplayInkContainer}>
+          <InkDisplay ink={playerEconomy.ink} totalScore={playerStats?.totalScore || 0} compact />
+        </View>
+      )}
+
       <Text style={styles.message}>{message}</Text>
 
       <View style={styles.wordDisplay}>
@@ -390,22 +520,17 @@ export default function WordBuilder() {
 
       <View style={styles.letterGrid}>
         {letters.map((letter: string, index: number) => (
-          <TouchableOpacity
+          <GameTile
             key={index}
-            style={[
-              styles.letterTile, 
-              { width: tileSize, height: tileSize },
-              selectedIndices.includes(index) && styles.selectedTile
-            ]}
-            onPress={() => handleLetterPress(index)}
-          >
-            <Text style={[styles.letterText, selectedIndices.includes(index) && styles.selectedText]}>{letter}</Text>
-            {selectedIndices.includes(index) && (
-              <View style={styles.orderBadge}>
-                <Text style={styles.orderText}>{selectedIndices.indexOf(index) + 1}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            letter={letter}
+            index={index}
+            isSelected={selectedIndices.includes(index)}
+            selectionOrder={selectedIndices.includes(index) ? selectedIndices.indexOf(index) + 1 : null}
+            onPress={handleLetterPress}
+            tileSize={tileSize}
+            tierName={equippedTier}
+            variant={equippedVariant}
+          />
         ))}
       </View>
 

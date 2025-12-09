@@ -1,65 +1,54 @@
-import React from 'react';
-import {
-  Dimensions,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { LiquidGlassButton } from './wordbuilder/components/LiquidGlassButton';
-import { AnimatedBackground } from './wordbuilder/components/AnimatedBackground';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'react-native';
 
-const { width } = Dimensions.get('window');
-
-export default function AppMainMenu() {
+export default function Home() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <AnimatedBackground />
+      <Text style={styles.title}>Word Games</Text>
+      <Text style={styles.subtitle}>Select a game to play</Text>
       
-      <View style={styles.menuContainer}>
-        <Text style={styles.appTitle}>Word Games</Text>
-        <Text style={styles.appSubtitle}>Choose a Game</Text>
-        
-        <LiquidGlassButton 
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.gamesContainer}>
+        <TouchableOpacity 
+          style={styles.gameCard}
           onPress={() => router.push('/wordbuilder')}
-          size="large"
-          style={{ marginBottom: 20 }}
         >
-          <Text style={styles.buttonText}>Word Builder</Text>
-          <Text style={styles.buttonSubtext}>Build words from letters</Text>
-        </LiquidGlassButton>
+          <Text style={styles.gameTitle}>Word Builder</Text>
+          <Text style={styles.gameDescription}>Build words from random letters before time runs out</Text>
+        </TouchableOpacity>
         
-        <LiquidGlassButton 
-          disabled={true}
-          size="large"
-          style={{ marginBottom: 20 }}
-        >
-          <Text style={styles.buttonTextDisabled}>Word Search</Text>
-          <Text style={styles.comingSoon}>Coming Soon</Text>
-        </LiquidGlassButton>
-        
-        <LiquidGlassButton 
-          disabled={true}
-          size="large"
-          style={{ marginBottom: 20 }}
-        >
-          <Text style={styles.buttonTextDisabled}>Crossword</Text>
-          <Text style={styles.comingSoon}>Coming Soon</Text>
-        </LiquidGlassButton>
-        
-        <LiquidGlassButton 
-          disabled={true}
-          size="large"
-        >
-          <Text style={styles.buttonTextDisabled}>Anagram</Text>
-          <Text style={styles.comingSoon}>Coming Soon</Text>
-        </LiquidGlassButton>
-      </View>
+        <View style={[styles.gameCard, styles.comingSoon]}>
+          <Text style={styles.gameTitle}>Word Search</Text>
+          <Text style={styles.gameDescription}>Find hidden words in a grid of letters</Text>
+          <Text style={styles.comingSoonBadge}>Coming Soon</Text>
+        </View>
+
+        <View style={[styles.gameCard, styles.comingSoon]}>
+          <Text style={styles.gameTitle}>Anagrams</Text>
+          <Text style={styles.gameDescription}>Rearrange letters to form new words</Text>
+          <Text style={styles.comingSoonBadge}>Coming Soon</Text>
+        </View>
+
+        <View style={[styles.gameCard, styles.comingSoon]}>
+          <Text style={styles.gameTitle}>Crossword</Text>
+          <Text style={styles.gameDescription}>Solve classic crossword puzzles</Text>
+          <Text style={styles.comingSoonBadge}>Coming Soon</Text>
+        </View>
+
+        <View style={[styles.gameCard, styles.comingSoon]}>
+          <Text style={styles.gameTitle}>Word Ladder</Text>
+          <Text style={styles.gameDescription}>Transform one word into another, one letter at a time</Text>
+          <Text style={styles.comingSoonBadge}>Coming Soon</Text>
+        </View>
+
+        <View style={[styles.gameCard, styles.comingSoon]}>
+          <Text style={styles.gameTitle}>Hangman</Text>
+          <Text style={styles.gameDescription}>Guess the word before running out of attempts</Text>
+          <Text style={styles.comingSoonBadge}>Coming Soon</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -68,43 +57,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a2e',
-  },
-  menuContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 60,
     paddingHorizontal: 20,
-    zIndex: 1,
   },
-  appTitle: {
-    fontSize: 48,
+  title: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 10,
+    textAlign: 'center',
   },
-  appSubtitle: {
-    fontSize: 18,
+  subtitle: {
+    fontSize: 16,
     color: '#888',
-    marginBottom: 40,
+    marginBottom: 30,
+    textAlign: 'center',
   },
-  buttonText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+  scrollView: {
+    flex: 1,
   },
-  buttonSubtext: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 4,
+  gamesContainer: {
+    paddingBottom: 40,
   },
-  buttonTextDisabled: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#aaa',
+  gameCard: {
+    backgroundColor: '#16213e',
+    borderRadius: 15,
+    padding: 20,
+    width: '100%',
+    marginBottom: 15,
+    borderWidth: 2,
+    borderColor: '#4ecca3',
   },
   comingSoon: {
+    borderColor: '#333',
+    opacity: 0.6,
+  },
+  gameTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  gameDescription: {
+    fontSize: 14,
+    color: '#aaa',
+    lineHeight: 20,
+  },
+  comingSoonBadge: {
     fontSize: 12,
-    color: '#888',
-    marginTop: 4,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 10,
   },
 });
