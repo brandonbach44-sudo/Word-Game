@@ -54,6 +54,9 @@ import { VALID_WORDS } from '../../src/wordbuilder/data/words';
 
 const { width } = Dimensions.get('window');
 
+// Phase 1: Default cream background for gameplay
+const DEFAULT_GAMEPLAY_BACKGROUND = '#f5f0e6';
+
 type GameMode = 'mainMenu' | 'modeSelect' | 'stats' | 'customize' | 'blitz' | 'standard';
 
 export default function WordBuilder() {
@@ -253,10 +256,10 @@ export default function WordBuilder() {
   // Get career progress for main menu
   const careerProgress = playerStats ? getNextCareerTierProgress(playerStats.totalScore) : null;
 
-  // Get equipped background color
+  // Get equipped background color - Phase 1: default to cream for gameplay
   const equippedBackgroundColor = playerEconomy 
-    ? getBackgroundById(playerEconomy.equippedBackground)?.backgroundColor || '#1a1a2e'
-    : '#1a1a2e';
+    ? getBackgroundById(playerEconomy.equippedBackground)?.backgroundColor || DEFAULT_GAMEPLAY_BACKGROUND
+    : DEFAULT_GAMEPLAY_BACKGROUND;
 
   // ==================== SCREENS ====================
 
@@ -342,7 +345,7 @@ export default function WordBuilder() {
         <ScrollView contentContainerStyle={styles.menuContainer}>
           <Text style={styles.menuTitle}>Choose Your Mode</Text>
           
-          <Text style={styles.sectionTitle}>⚡ Blitz Mode (30 sec)</Text>
+          <Text style={styles.sectionTitle}>Blitz Mode (30 sec)</Text>
           <View style={styles.levelGrid}>
             {levels.map((level) => (
               <LiquidGlassButton 
@@ -355,7 +358,7 @@ export default function WordBuilder() {
             ))}
           </View>
 
-          <Text style={styles.sectionTitle}>📝 Standard Mode (60 sec)</Text>
+          <Text style={styles.sectionTitle}>Standard Mode (60 sec)</Text>
           <View style={styles.levelGrid}>
             {levels.map((level) => (
               <LiquidGlassButton 
@@ -374,14 +377,14 @@ export default function WordBuilder() {
               size="medium"
               style={{ marginBottom: 15 }}
             >
-              <Text style={styles.glassButtonText}>📊 Stats</Text>
+              <Text style={styles.glassButtonText}>Stats</Text>
             </LiquidGlassButton>
             
             <LiquidGlassButton 
               onPress={() => setGameMode('customize')}
               size="medium"
             >
-              <Text style={styles.glassButtonText}>🎨 Customize</Text>
+              <Text style={styles.glassButtonText}>Customize</Text>
             </LiquidGlassButton>
           </View>
         </ScrollView>
@@ -429,12 +432,9 @@ export default function WordBuilder() {
               <StatsCard label="Favorite Mode" value={getFavoriteMode(playerStats)} />
               <StatsCard label="Favorite Letters" value={getFavoriteLetterCount(playerStats)} />
               
-              {/* Economy Stats */}
+              {/* Economy Stats - Phase 1: Only show Ink Earned, not Spent */}
               {playerEconomy && (
-                <>
-                  <StatsCard label="Total Ink Earned" value={playerEconomy.totalInkEarned.toLocaleString()} />
-                  <StatsCard label="Total Ink Spent" value={playerEconomy.totalInkSpent.toLocaleString()} />
-                </>
+                <StatsCard label="Total Ink Earned" value={playerEconomy.totalInkEarned.toLocaleString()} />
               )}
             </View>
           ) : (
@@ -490,34 +490,34 @@ export default function WordBuilder() {
     );
   }
 
-  // Main Game Screen
+  // ==================== MAIN GAME SCREEN ====================
+  // Phase 1: Cream background, brown word text, simplified UI
   const tileSize = getTileSize();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: equippedBackgroundColor }]}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.gameplayContainer, { backgroundColor: equippedBackgroundColor }]}>
+      <StatusBar barStyle="dark-content" />
       
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={backToMenu} accessibilityRole="button" accessibilityLabel="Back to menu">
-          <Text style={styles.backButton}>← Menu</Text>
+          <Text style={styles.backButtonGameplay}>← Menu</Text>
         </TouchableOpacity>
-        <Text style={[styles.timer, timeLeft <= 10 && styles.timerWarning]}>{formatTime(timeLeft)}</Text>
-        <Text style={styles.score}>{score} pts</Text>
+        <Text style={[styles.timerGameplay, timeLeft <= 10 && styles.timerWarning]}>{formatTime(timeLeft)}</Text>
+        <Text style={styles.scoreGameplay}>{score} pts</Text>
       </View>
 
-      {/* Compact Ink Display during gameplay */}
-      {playerEconomy && (
-        <View style={styles.gameplayInkContainer}>
-          <InkDisplay ink={playerEconomy.ink} totalScore={playerStats?.totalScore || 0} compact />
-        </View>
-      )}
+      {/* Message */}
+      <Text style={styles.messageGameplay}>{message}</Text>
 
-      <Text style={styles.message}>{message}</Text>
-
-      <View style={styles.wordDisplay}>
-        <Text style={styles.currentWord}>{currentWord || '_ _ _'}</Text>
+      {/* Phase 1.2: Word Display - NO background, just text */}
+      <View style={styles.wordDisplayTransparent}>
+        <Text style={currentWord ? styles.currentWordGameplay : styles.currentWordPlaceholder}>
+          {currentWord || '_ _ _'}
+        </Text>
       </View>
 
+      {/* Letter Grid */}
       <View style={styles.letterGrid}>
         {letters.map((letter: string, index: number) => (
           <GameTile
@@ -534,6 +534,7 @@ export default function WordBuilder() {
         ))}
       </View>
 
+      {/* Action Buttons */}
       <View style={styles.buttonRow}>
         <TouchableOpacity style={styles.clearButton} onPress={handleClear} accessibilityRole="button" accessibilityLabel="Clear selection">
           <Text style={styles.buttonText}>Clear</Text>
@@ -543,20 +544,34 @@ export default function WordBuilder() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.foundWordsContainer}>
-        <Text style={styles.foundWordsTitle}>Found Words ({foundWords.length}):</Text>
-        <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
+      {/* Phase 1.3: Simplified Found Words List */}
+      <View style={styles.foundWordsContainerGameplay}>
+        <Text style={styles.foundWordsTitleGameplay}>Found: {foundWords.length}</Text>
+        <ScrollView 
+          horizontal 
+          style={styles.foundWordsScrollGameplay} 
+          contentContainerStyle={styles.foundWordsListGameplay}
+          showsHorizontalScrollIndicator={false}
+        >
           {foundWords.map((word: string, index: number) => (
-            <View key={index} style={styles.foundWordBadge}>
-              <Text style={styles.foundWordText}>{word.toUpperCase()}</Text>
+            <View key={index} style={styles.foundWordBadgeGameplay}>
+              <Text style={styles.foundWordTextGameplay}>{word.toUpperCase()}</Text>
             </View>
           ))}
         </ScrollView>
       </View>
 
-      <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh letters">
-        <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
+      {/* Refresh Button */}
+      <TouchableOpacity style={styles.refreshButtonGameplay} onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh letters">
+        <Text style={styles.refreshButtonTextGameplay}>Refresh Letters</Text>
       </TouchableOpacity>
+
+      {/* Phase 1.1: Ink Display moved to bottom left, out of way */}
+      {playerEconomy && (
+        <View style={styles.gameplayInkContainer}>
+          <InkDisplay ink={playerEconomy.ink} totalScore={playerStats?.totalScore || 0} compact />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
