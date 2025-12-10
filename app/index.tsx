@@ -11,14 +11,22 @@ export default function Home() {
       <Text style={styles.subtitle}>Select a game to play</Text>
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.gamesContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.gameCard}
           onPress={() => router.push('/wordbuilder')}
         >
           <Text style={styles.gameTitle}>Word Builder</Text>
           <Text style={styles.gameDescription}>Build words from random letters before time runs out</Text>
         </TouchableOpacity>
-        
+
+        <TouchableOpacity
+          style={styles.gameCard}
+          onPress={() => router.push('/wordle' as any)}
+        >
+          <Text style={styles.gameTitle}>Wordle</Text>
+          <Text style={styles.gameDescription}>Guess the 5-letter word in 6 tries</Text>
+        </TouchableOpacity>
+
         <View style={[styles.gameCard, styles.comingSoon]}>
           <Text style={styles.gameTitle}>Word Search</Text>
           <Text style={styles.gameDescription}>Find hidden words in a grid of letters</Text>

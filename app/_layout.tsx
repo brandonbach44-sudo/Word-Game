@@ -9,6 +9,10 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="wordbuilder" />
+        <Stack.Screen name="wordle" />
+        <Stack.Screen name="wordle/daily" />
+        <Stack.Screen name="wordle/practice" />
+        <Stack.Screen name="wordle/stats" />
       </Stack>
     </SafeAreaProvider>
   );
