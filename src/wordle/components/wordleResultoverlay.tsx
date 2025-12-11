@@ -1,5 +1,5 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 
 const CREAM = "#f9f5ec";
 const BROWN = "#8b5a2b";
@@ -20,18 +20,6 @@ export type WordleResultOverlayProps = {
   onGoHome: () => void;
   onGoPractice: () => void;
 };
-
-function formatSeconds(totalSeconds: number): string {
-  const seconds = Math.round(totalSeconds);
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-
-  if (minutes <= 0) {
-    return `${seconds}s`;
-  }
-
-  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
-}
 
 type StatPillProps = {
   label: string;
@@ -56,6 +44,15 @@ const PrimaryButton: React.FC<PrimaryButtonProps> = ({ label, onPress }) => (
   </Pressable>
 );
 
+function formatTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const mins = Math.floor(seconds / 60);
+  const rem = seconds % 60;
+  return `${mins}:${rem.toString().padStart(2, "0")}`;
+}
+
 const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
   visible,
   mode,
@@ -72,6 +69,29 @@ const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
   onGoHome,
   onGoPractice,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+
+    scaleAnim.setValue(0.9);
+    cardOpacity.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [visible, scaleAnim, cardOpacity]);
+
   if (!visible) return null;
 
   const isDaily = mode === "daily";
@@ -99,14 +119,20 @@ const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
   }
 
   const timeText =
-    timeSeconds != null ? formatSeconds(timeSeconds) : undefined;
-
+    timeSeconds != null ? formatTime(Math.max(0, Math.floor(timeSeconds))) : null;
   const avgTimeText =
-    averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
+    averageTimeSeconds != null
+      ? formatTime(Math.max(0, Math.floor(averageTimeSeconds)))
+      : null;
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.card}>
+      <Animated.View
+        style={[
+          styles.card,
+          { opacity: cardOpacity, transform: [{ scale: scaleAnim }] },
+        ]}
+      >
         {/* Title + subtitle */}
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
@@ -170,7 +196,7 @@ const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
         )}
 
         {/* Buttons */}
-        <View style={styles.buttonRow}>
+        <View style={styles.buttonsRow}>
           {isDaily ? (
             <>
               <PrimaryButton label="Main Menu" onPress={onGoHome} />
@@ -190,7 +216,7 @@ const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
         >
           <Text style={styles.secondaryButtonText}>Close</Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -199,20 +225,16 @@ export default WordleResultOverlay;
 
 const styles = StyleSheet.create({
   overlay: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
+    paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
     padding: 16,
+    borderRadius: 20,
+    backgroundColor: CREAM,
     width: "100%",
     maxWidth: 420,
     alignItems: "center",
@@ -243,81 +265,77 @@ const styles = StyleSheet.create({
   word: {
     fontSize: 28,
     fontWeight: "700",
-    letterSpacing: 3,
+    letterSpacing: 6,
     color: "#111827",
   },
   inlineStatsRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 8,
-  },
-  statPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#f3e7d7",
-    minWidth: 90,
-    alignItems: "center",
-  },
-  statPillLabel: {
-    fontSize: 11,
-    color: "#6b7280",
-  },
-  statPillValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
+    gap: 8,
+    marginTop: 10,
   },
   divider: {
     height: 1,
     backgroundColor: "#e5e7eb",
-    width: "100%",
-    marginTop: 12,
-    marginBottom: 8,
+    alignSelf: "stretch",
+    marginVertical: 12,
   },
   section: {
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 8,
+    alignSelf: "stretch",
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#6b7280",
-    marginBottom: 4,
+    color: "#111827",
+    marginBottom: 6,
   },
   statsRow: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 4,
+    gap: 8,
+    marginBottom: 6,
   },
-  buttonRow: {
+  statPill: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "#fff7ed",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+  },
+  statPillLabel: {
+    fontSize: 11,
+    color: "#9a3412",
+  },
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#7c2d12",
+  },
+  buttonsRow: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     gap: 10,
     marginTop: 12,
   },
   primaryButton: {
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: BROWN,
-    backgroundColor: CREAM,
+    backgroundColor: BROWN,
     minWidth: 120,
     alignItems: "center",
   },
   primaryButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: BROWN,
+    color: CREAM,
   },
   secondaryButton: {
-    marginTop: 8,
-    paddingHorizontal: 16,
+    marginTop: 10,
     paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#d1d5db",
