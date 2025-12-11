@@ -1,11 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TIERS, TIER_ORDER, TierName, isGreatGame } from './tiers';
+import { TIERS, TIER_ORDER, TierName } from './tiers';
 
 // Keys for storing data
 const STATS_KEY = 'wordbuilder_player_stats';
 const TILES_KEY = 'wordbuilder_player_tiles';
-const ECONOMY_KEY = 'wordbuilder_player_economy';
-const SESSION_KEY = 'wordbuilder_session'; // For streak tracking within session
 
 // ==================== STATS ====================
 
@@ -38,9 +36,8 @@ const DEFAULT_STATS: PlayerStats = {
 // ==================== TILES (Career Rewards) ====================
 
 export interface TierProgress {
-  highestVariantUnlocked: number; // 0 = locked, 1 = base, 2 = v2, 3 = v3 (or 1-6 for default styles)
-  scoreWithTier: number;
-  greatGamesWithTier: number;
+  highestVariantUnlocked: number; // 0 = locked, 1 = V1, 2 = V2 (or 1-6 for default styles)
+  scoreWithTier: number;          // Score earned while this tier is equipped
 }
 
 export interface PlayerTiles {
@@ -52,7 +49,6 @@ export interface PlayerTiles {
 const DEFAULT_TIER_PROGRESS: TierProgress = {
   highestVariantUnlocked: 0,
   scoreWithTier: 0,
-  greatGamesWithTier: 0,
 };
 
 const createDefaultTiles = (): PlayerTiles => {
@@ -71,60 +67,6 @@ const createDefaultTiles = (): PlayerTiles => {
     tierProgress,
   };
 };
-
-// ==================== ECONOMY (Ink Currency) ====================
-
-export interface PlayerEconomy {
-  ink: number;
-  lastDailyWinDate: string | null; // ISO date string (YYYY-MM-DD)
-  ownedShopTiles: string[];        // Array of shop tile IDs
-  ownedBackgrounds: string[];      // Array of background IDs
-  equippedShopTile: string | null; // Currently equipped shop tile (null = using career tile)
-  equippedBackground: string;      // Currently equipped background ID
-  totalInkEarned: number;          // Lifetime ink earned (for analytics/debugging)
-  totalInkSpent: number;           // Lifetime ink spent (for analytics/debugging)
-}
-
-const DEFAULT_ECONOMY: PlayerEconomy = {
-  ink: 0,
-  lastDailyWinDate: null,
-  ownedShopTiles: [],
-  ownedBackgrounds: ['bg_default'], // Player starts with default background
-  equippedShopTile: null,
-  equippedBackground: 'bg_default',
-  totalInkEarned: 0,
-  totalInkSpent: 0,
-};
-
-// ==================== SESSION DATA (In-Memory, Resets on App Close) ====================
-
-interface SessionData {
-  matchesPlayedThisSession: number;
-  lastStreakBonusAt: number; // Match count when last streak bonus was awarded
-}
-
-let sessionData: SessionData = {
-  matchesPlayedThisSession: 0,
-  lastStreakBonusAt: 0,
-};
-
-// Reset session data (call on app start)
-export const resetSessionData = (): void => {
-  sessionData = {
-    matchesPlayedThisSession: 0,
-    lastStreakBonusAt: 0,
-  };
-};
-
-// ==================== INK EARNING CONSTANTS ====================
-
-export const INK_REWARDS = {
-  MATCH_COMPLETION: 10,
-  PER_WORD: 1,
-  FIRST_DAILY_WIN: 25,
-  STREAK_BONUS: 10,
-  STREAK_INTERVAL: 3, // Every 3 matches
-} as const;
 
 // ==================== LOAD FUNCTIONS ====================
 
@@ -165,19 +107,6 @@ export const loadTiles = async (): Promise<PlayerTiles> => {
   }
 };
 
-export const loadEconomy = async (): Promise<PlayerEconomy> => {
-  try {
-    const data = await AsyncStorage.getItem(ECONOMY_KEY);
-    if (data) {
-      return { ...DEFAULT_ECONOMY, ...JSON.parse(data) };
-    }
-    return { ...DEFAULT_ECONOMY };
-  } catch (error) {
-    console.error('Error loading economy:', error);
-    return { ...DEFAULT_ECONOMY };
-  }
-};
-
 // ==================== SAVE FUNCTIONS ====================
 
 export const saveStats = async (stats: PlayerStats): Promise<void> => {
@@ -196,70 +125,6 @@ export const saveTiles = async (tiles: PlayerTiles): Promise<void> => {
   }
 };
 
-export const saveEconomy = async (economy: PlayerEconomy): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(ECONOMY_KEY, JSON.stringify(economy));
-  } catch (error) {
-    console.error('Error saving economy:', error);
-  }
-};
-
-// ==================== INK CALCULATION ====================
-
-export interface InkBreakdown {
-  matchCompletion: number;
-  wordsFound: number;
-  wordCount: number;
-  streakBonus: number;
-  isStreakBonus: boolean;
-  firstDailyWin: number;
-  isFirstDailyWin: boolean;
-  total: number;
-}
-
-// Get today's date as YYYY-MM-DD string
-const getTodayDateString = (): string => {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-};
-
-// Calculate ink earned for a completed match (does NOT save - just calculates)
-export const calculateInkEarnings = async (
-  wordsFoundCount: number,
-  isWin: boolean = true // For future use if we add win/loss distinction
-): Promise<InkBreakdown> => {
-  const economy = await loadEconomy();
-  const today = getTodayDateString();
-  
-  // Base rewards
-  const matchCompletion = INK_REWARDS.MATCH_COMPLETION;
-  const wordsFound = wordsFoundCount * INK_REWARDS.PER_WORD;
-  
-  // First daily win check
-  const isFirstDailyWin = economy.lastDailyWinDate !== today;
-  const firstDailyWin = isFirstDailyWin ? INK_REWARDS.FIRST_DAILY_WIN : 0;
-  
-  // Streak bonus check (in-memory session tracking)
-  const matchesAfterThis = sessionData.matchesPlayedThisSession + 1;
-  const streakBonusesEarned = Math.floor(matchesAfterThis / INK_REWARDS.STREAK_INTERVAL);
-  const previousStreakBonuses = Math.floor(sessionData.lastStreakBonusAt / INK_REWARDS.STREAK_INTERVAL);
-  const isStreakBonus = streakBonusesEarned > previousStreakBonuses;
-  const streakBonus = isStreakBonus ? INK_REWARDS.STREAK_BONUS : 0;
-  
-  const total = matchCompletion + wordsFound + firstDailyWin + streakBonus;
-  
-  return {
-    matchCompletion,
-    wordsFound,
-    wordCount: wordsFoundCount,
-    streakBonus,
-    isStreakBonus,
-    firstDailyWin,
-    isFirstDailyWin,
-    total,
-  };
-};
-
 // ==================== GAME COMPLETION ====================
 
 // Main function called after each game ends
@@ -268,232 +133,107 @@ export const updateStatsAfterGame = async (
   wordsFound: string[],
   gameMode: 'blitz' | 'standard',
   letterCount: number
-): Promise<InkBreakdown> => {
+): Promise<void> => {
   // Load all data
   const stats = await loadStats();
-  const economy = await loadEconomy();
-  const today = getTodayDateString();
+  const tiles = await loadTiles();
   
-  // Calculate ink BEFORE updating session (important for accurate streak calculation)
-  const inkBreakdown = await calculateInkEarnings(wordsFound.length);
-  
-  // ========== UPDATE STATS ==========
+  // Update stats
   stats.gamesPlayed += 1;
   stats.totalScore += gameScore;
-  stats.totalWordsFound += wordsFound.length;
-  
   if (gameScore > stats.highScore) {
     stats.highScore = gameScore;
   }
+  stats.totalWordsFound += wordsFound.length;
   
+  // Check for longest word
   const longestInGame = wordsFound.reduce((longest, word) => 
-    word.length > longest.length ? word : longest
-  , '');
+    word.length > longest.length ? word : longest, '');
   if (longestInGame.length > stats.longestWord.length) {
     stats.longestWord = longestInGame;
   }
   
+  // Update mode-specific stats
   if (gameMode === 'blitz') {
     stats.blitzGamesPlayed += 1;
   } else {
     stats.standardGamesPlayed += 1;
   }
   
+  // Update letter count stats
   if (letterCount === 6) stats.games6Letters += 1;
   else if (letterCount === 7) stats.games7Letters += 1;
   else if (letterCount === 8) stats.games8Letters += 1;
   
-  // ========== UPDATE ECONOMY ==========
-  economy.ink += inkBreakdown.total;
-  economy.totalInkEarned += inkBreakdown.total;
+  // Save stats
+  await saveStats(stats);
   
-  if (inkBreakdown.isFirstDailyWin) {
-    economy.lastDailyWinDate = today;
-  }
+  // ========== CAREER TILE PROGRESSION ==========
   
-  // ========== UPDATE SESSION ==========
-  sessionData.matchesPlayedThisSession += 1;
-  if (inkBreakdown.isStreakBonus) {
-    sessionData.lastStreakBonusAt = sessionData.matchesPlayedThisSession;
-  }
-  
-  // ========== SAVE ALL ==========
-  await Promise.all([
-    saveStats(stats),
-    saveEconomy(economy),
-    updateTileProgressAfterGame(gameScore, gameMode, stats.totalScore),
-  ]);
-  
-  return inkBreakdown;
-};
-
-// Update tile progress after a game
-export const updateTileProgressAfterGame = async (
-  gameScore: number,
-  gameMode: 'blitz' | 'standard',
-  lifetimeScore: number
-): Promise<void> => {
-  const tiles = await loadTiles();
-  const equippedTier = tiles.equippedTier;
-  const modeSeconds = gameMode === 'blitz' ? 30 : 60;
-  
-  // Update progress for equipped tier (skip default - it has no variants to unlock)
-  if (equippedTier !== 'default') {
-    tiles.tierProgress[equippedTier].scoreWithTier += gameScore;
-    
-    if (isGreatGame(modeSeconds, gameScore)) {
-      tiles.tierProgress[equippedTier].greatGamesWithTier += 1;
-    }
-  }
-  
-  // Check for new unlocks across all tiers
+  // 1. Check for new tier unlocks based on lifetime score
   for (const tierName of TIER_ORDER) {
     if (tierName === 'default') continue;
     
     const tier = TIERS[tierName];
     const progress = tiles.tierProgress[tierName];
-    let newHighest = progress.highestVariantUnlocked;
     
-    // Check base unlock
-    if (lifetimeScore >= tier.baseThreshold && newHighest < 1) {
-      newHighest = 1;
+    // Unlock V1 if threshold met
+    if (progress.highestVariantUnlocked === 0 && stats.totalScore >= tier.baseThreshold) {
+      progress.highestVariantUnlocked = 1;
     }
-    
-    // Check V2 unlock
-    if (newHighest >= 1 && progress.scoreWithTier >= tier.v2ScoreThreshold && newHighest < 2) {
-      newHighest = 2;
-    }
-    
-    // Check V3 unlock
-    if (newHighest >= 2 && progress.greatGamesWithTier >= tier.v3GreatThreshold && newHighest < 3) {
-      newHighest = 3;
-    }
-    
-    tiles.tierProgress[tierName].highestVariantUnlocked = newHighest;
   }
   
+  // 2. Update progress for currently equipped tier
+  const equippedTier = tiles.equippedTier;
+  if (equippedTier !== 'default') {
+    const tierProgress = tiles.tierProgress[equippedTier];
+    const tierConfig = TIERS[equippedTier];
+    
+    // Add score earned while equipped
+    tierProgress.scoreWithTier += gameScore;
+    
+    // Check for V2 unlock
+    if (tierProgress.highestVariantUnlocked === 1 && 
+        tierProgress.scoreWithTier >= tierConfig.v2ScoreThreshold) {
+      tierProgress.highestVariantUnlocked = 2;
+    }
+  }
+  
+  // Save tiles
   await saveTiles(tiles);
-};
-
-// ==================== SHOP PURCHASES ====================
-
-export interface PurchaseResult {
-  success: boolean;
-  error?: string;
-  newBalance?: number;
-}
-
-// Purchase a shop tile
-export const purchaseShopTile = async (tileId: string, cost: number): Promise<PurchaseResult> => {
-  const economy = await loadEconomy();
-  
-  // Check if already owned
-  if (economy.ownedShopTiles.includes(tileId)) {
-    return { success: false, error: 'Already owned' };
-  }
-  
-  // Check if enough ink
-  if (economy.ink < cost) {
-    return { success: false, error: 'Insufficient Ink' };
-  }
-  
-  // Process purchase
-  economy.ink -= cost;
-  economy.totalInkSpent += cost;
-  economy.ownedShopTiles.push(tileId);
-  
-  await saveEconomy(economy);
-  
-  return { success: true, newBalance: economy.ink };
-};
-
-// Purchase a background
-export const purchaseBackground = async (backgroundId: string, cost: number): Promise<PurchaseResult> => {
-  const economy = await loadEconomy();
-  
-  // Check if already owned
-  if (economy.ownedBackgrounds.includes(backgroundId)) {
-    return { success: false, error: 'Already owned' };
-  }
-  
-  // Check if enough ink
-  if (economy.ink < cost) {
-    return { success: false, error: 'Insufficient Ink' };
-  }
-  
-  // Process purchase
-  economy.ink -= cost;
-  economy.totalInkSpent += cost;
-  economy.ownedBackgrounds.push(backgroundId);
-  
-  await saveEconomy(economy);
-  
-  return { success: true, newBalance: economy.ink };
 };
 
 // ==================== EQUIP FUNCTIONS ====================
 
 // Equip a career tile (tier + variant)
-export const equipCareerTile = async (tier: TierName, variant: number): Promise<boolean> => {
+export const equipTile = async (tier: TierName, variant: number): Promise<boolean> => {
   const tiles = await loadTiles();
-  const economy = await loadEconomy();
   
   // For default tier, all 6 styles are available
   if (tier === 'default') {
     if (variant >= 1 && variant <= 6) {
       tiles.equippedTier = tier;
       tiles.equippedVariant = variant;
-      economy.equippedShopTile = null; // Unequip any shop tile
-      await Promise.all([saveTiles(tiles), saveEconomy(economy)]);
+      await saveTiles(tiles);
       return true;
     }
     return false;
   }
   
-  // For other tiers, check if variant is unlocked
-  if (tiles.tierProgress[tier].highestVariantUnlocked >= variant) {
+  // For other tiers, check if variant is unlocked (max is 2 now)
+  const maxVariant = Math.min(tiles.tierProgress[tier].highestVariantUnlocked, 2);
+  if (variant >= 1 && variant <= maxVariant) {
     tiles.equippedTier = tier;
     tiles.equippedVariant = variant;
-    economy.equippedShopTile = null; // Unequip any shop tile
-    await Promise.all([saveTiles(tiles), saveEconomy(economy)]);
+    await saveTiles(tiles);
     return true;
   }
   
   return false;
 };
 
-// Equip a shop tile
-export const equipShopTile = async (tileId: string): Promise<boolean> => {
-  const economy = await loadEconomy();
-  
-  // Check if owned
-  if (!economy.ownedShopTiles.includes(tileId)) {
-    return false;
-  }
-  
-  economy.equippedShopTile = tileId;
-  await saveEconomy(economy);
-  return true;
-};
-
-// Equip a background
-export const equipBackground = async (backgroundId: string): Promise<boolean> => {
-  const economy = await loadEconomy();
-  
-  // Check if owned
-  if (!economy.ownedBackgrounds.includes(backgroundId)) {
-    return false;
-  }
-  
-  economy.equippedBackground = backgroundId;
-  await saveEconomy(economy);
-  return true;
-};
-
-// Legacy function - now calls equipCareerTile
-export const equipTile = async (tier: TierName, variant: number): Promise<boolean> => {
-  return equipCareerTile(tier, variant);
-};
+// Legacy alias
+export const equipCareerTile = equipTile;
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -553,20 +293,6 @@ export const getNextCareerTierProgress = (lifetimeScore: number): {
   return null;
 };
 
-// Get current session streak info
-export const getSessionStreakInfo = (): {
-  matchesPlayed: number;
-  matchesUntilNextBonus: number;
-} => {
-  const matchesPlayed = sessionData.matchesPlayedThisSession;
-  const matchesUntilNextBonus = INK_REWARDS.STREAK_INTERVAL - (matchesPlayed % INK_REWARDS.STREAK_INTERVAL);
-  
-  return {
-    matchesPlayed,
-    matchesUntilNextBonus: matchesUntilNextBonus === INK_REWARDS.STREAK_INTERVAL ? 0 : matchesUntilNextBonus,
-  };
-};
-
 // ==================== RESET FUNCTIONS ====================
 
 export const resetStats = async (): Promise<void> => {
@@ -585,22 +311,13 @@ export const resetTiles = async (): Promise<void> => {
   }
 };
 
-export const resetEconomy = async (): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(ECONOMY_KEY, JSON.stringify(DEFAULT_ECONOMY));
-    resetSessionData();
-  } catch (error) {
-    console.error('Error resetting economy:', error);
-  }
-};
-
 export const resetAllData = async (): Promise<void> => {
-  await Promise.all([resetStats(), resetTiles(), resetEconomy()]);
+  await Promise.all([resetStats(), resetTiles()]);
 };
 
 // ==================== DEBUG FUNCTIONS ====================
 
-export const DEBUG_UNLOCK_ALL = true; // Set to true for testing
+export const DEBUG_UNLOCK_ALL = false; // Set to true for testing
 
 export const unlockAllTilesForTesting = async (): Promise<void> => {
   const tiles = await loadTiles();
@@ -609,33 +326,18 @@ export const unlockAllTilesForTesting = async (): Promise<void> => {
     if (tier === 'default') {
       tiles.tierProgress[tier].highestVariantUnlocked = 6;
     } else {
-      tiles.tierProgress[tier].highestVariantUnlocked = 3;
+      tiles.tierProgress[tier].highestVariantUnlocked = 2; // Max is now 2
     }
     tiles.tierProgress[tier].scoreWithTier = 1000000;
-    tiles.tierProgress[tier].greatGamesWithTier = 100;
   }
   
   await saveTiles(tiles);
   console.log('DEBUG: All career tiles unlocked!');
 };
 
-export const addInkForTesting = async (amount: number): Promise<void> => {
-  const economy = await loadEconomy();
-  economy.ink += amount;
-  economy.totalInkEarned += amount;
-  await saveEconomy(economy);
-  console.log(`DEBUG: Added ${amount} Ink. New balance: ${economy.ink}`);
-};
-
-export const unlockAllShopItemsForTesting = async (): Promise<void> => {
-  const economy = await loadEconomy();
-  
-  // Import shop data to get all IDs
-  const { SHOP_TILES, SHOP_BACKGROUNDS } = await import('./shopData');
-  
-  economy.ownedShopTiles = SHOP_TILES.map(t => t.id);
-  economy.ownedBackgrounds = SHOP_BACKGROUNDS.map(b => b.id);
-  
-  await saveEconomy(economy);
-  console.log('DEBUG: All shop items unlocked!');
+export const setScoreForTesting = async (score: number): Promise<void> => {
+  const stats = await loadStats();
+  stats.totalScore = score;
+  await saveStats(stats);
+  console.log(`DEBUG: Total score set to ${score}`);
 };

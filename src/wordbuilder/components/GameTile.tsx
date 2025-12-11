@@ -1,15 +1,14 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   View, 
   Text, 
   TouchableOpacity, 
   StyleSheet, 
   Animated,
-  Easing,
   ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TierName, TIERS } from '../utils/tiers';
+import { TierName } from '../utils/tiers';
 
 // ===== TIER CONFIGS (Code-generated metal tiers) =====
 const TIER_CONFIGS: Record<string, {
@@ -62,18 +61,23 @@ const GEM_IMAGES: Partial<Record<TierName, any>> = {
   emerald: require('../../../assets/tiles/emerald_v1.png'),
   diamond: require('../../../assets/tiles/diamond_v1.png'),
   legendary: require('../../../assets/tiles/legendary_v1.png'),
+  // iridescence will need its own image - for now fallback to legendary
 };
 
-// Glow colors for gem tiers (legendary uses rainbow animation)
+// Glow colors for gem tiers
 const GEM_GLOW_COLORS: Record<string, string> = {
   ruby: '#e0115f',
   emerald: '#50c878',
   diamond: '#00bfff',
-  legendary: '#ff0000', // Base color, will be overridden by rainbow animation for V2+
+  legendary: '#ff0000',
+  iridescence: '#e6e6fa',
 };
 
 // Rainbow colors for legendary glow animation
 const RAINBOW_COLORS = ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#0080ff', '#8000ff'];
+
+// Iridescent colors (pastel rainbow)
+const IRIDESCENT_COLORS = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e0b3ff'];
 
 // Default tier style colors (6 options)
 const DEFAULT_STYLES: Record<number, { background: string; border: string; text: string }> = {
@@ -85,35 +89,6 @@ const DEFAULT_STYLES: Record<number, { background: string; border: string; text:
   6: { background: '#0d4f4f', border: '#0a3939', text: '#ffffff' },  // Midnight Teal
 };
 
-// Default tier fallback colors
-const DEFAULT_COLORS = {
-  background: '#0f3460',
-  border: '#1a1a2e',
-  glow: '#4ecca3',
-};
-
-// Sparkle positions (percentage based)
-const SPARKLE_POSITIONS = [
-  { top: '10%', left: '15%', delay: 0 },
-  { top: '15%', left: '85%', delay: 500 },
-  { top: '85%', left: '20%', delay: 1000 },
-  { top: '90%', left: '80%', delay: 1500 },
-  { top: '50%', left: '8%', delay: 700 },
-  { top: '50%', left: '92%', delay: 300 },
-];
-
-// Shooting star configs
-const SHOOTING_STAR_CONFIGS = [
-  { top: '15%', left: '15%', xEnd: -50, yEnd: -50, delay: 0 },
-  { top: '15%', left: '85%', xEnd: 50, yEnd: -50, delay: 300 },
-  { top: '85%', left: '15%', xEnd: -50, yEnd: 50, delay: 600 },
-  { top: '85%', left: '85%', xEnd: 50, yEnd: 50, delay: 900 },
-  { top: '10%', left: '50%', xEnd: 0, yEnd: -60, delay: 200 },
-  { top: '90%', left: '50%', xEnd: 0, yEnd: 60, delay: 500 },
-  { top: '50%', left: '10%', xEnd: -60, yEnd: 0, delay: 800 },
-  { top: '50%', left: '90%', xEnd: 60, yEnd: 0, delay: 1100 },
-];
-
 interface GameTileProps {
   letter: string;
   index: number;
@@ -122,108 +97,8 @@ interface GameTileProps {
   onPress: (index: number) => void;
   tileSize: number;
   tierName: TierName;
-  variant: number;
+  variant: number; // 1 = static, 2 = glow (for non-default), 1-6 = styles (for default)
 }
-
-// ===== SPARKLE COMPONENT =====
-const Sparkle = ({ top, left, delay, randomOffset }: { top: string; left: string; delay: number; randomOffset: number }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.5)).current;
-  const rotation = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const totalDelay = delay + randomOffset;
-    
-    setTimeout(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1, duration: 1000, useNativeDriver: true }),
-            Animated.timing(rotation, { toValue: 1, duration: 1000, useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(opacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 0.5, duration: 1000, useNativeDriver: true }),
-            Animated.timing(rotation, { toValue: 2, duration: 1000, useNativeDriver: true }),
-          ]),
-        ])
-      ).start();
-    }, totalDelay);
-  }, []);
-
-  const rotateInterpolate = rotation.interpolate({
-    inputRange: [0, 2],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.sparkle,
-        {
-          top,
-          left,
-          opacity,
-          transform: [{ scale }, { rotate: rotateInterpolate }],
-        },
-      ]}
-    >
-      <View style={styles.sparkleHorizontal} />
-      <View style={styles.sparkleVertical} />
-    </Animated.View>
-  );
-};
-
-// ===== SHOOTING STAR COMPONENT =====
-const ShootingStar = ({ 
-  top, left, xEnd, yEnd, delay, randomOffset 
-}: { 
-  top: string; left: string; xEnd: number; yEnd: number; delay: number; randomOffset: number 
-}) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const totalDelay = delay + randomOffset;
-    
-    const animate = () => {
-      opacity.setValue(1);
-      translateX.setValue(0);
-      translateY.setValue(0);
-      scale.setValue(1);
-
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 0, duration: 1500, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: xEnd, duration: 1500, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: yEnd, duration: 1500, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 0.3, duration: 1500, useNativeDriver: true }),
-      ]).start(() => {
-        setTimeout(animate, 500);
-      });
-    };
-
-    setTimeout(animate, totalDelay);
-  }, []);
-
-  return (
-    <Animated.Text
-      style={[
-        styles.shootingStar,
-        {
-          top,
-          left,
-          opacity,
-          transform: [{ translateX }, { translateY }, { scale }],
-        },
-      ]}
-    >
-      ★
-    </Animated.Text>
-  );
-};
 
 // ===== MAIN COMPONENT =====
 export const GameTile = ({
@@ -238,106 +113,88 @@ export const GameTile = ({
 }: GameTileProps) => {
   // Check what type of tile this is
   const isMetalTier = TIER_CONFIGS[tierName] !== undefined;
-  const isGemTier = GEM_IMAGES[tierName] !== undefined;
+  const isGemTier = GEM_IMAGES[tierName] !== undefined || tierName === 'iridescence';
   const tierConfig = TIER_CONFIGS[tierName];
   const isLegendary = tierName === 'legendary';
+  const isIridescence = tierName === 'iridescence';
+  const hasGlowAnimation = variant === 2 && tierName !== 'default';
   
-  // Random offset for independent animations per tile
-  const randomOffset = useMemo(() => Math.random() * 2000, []);
+  // Rainbow/Iridescent color state
+  const [colorIndex, setColorIndex] = useState(0);
+  const rainbowColor = RAINBOW_COLORS[colorIndex];
+  const iridescentColor = IRIDESCENT_COLORS[colorIndex % IRIDESCENT_COLORS.length];
   
-  // Rainbow color state for Legendary
-  const [rainbowColorIndex, setRainbowColorIndex] = useState(0);
-  const rainbowColor = RAINBOW_COLORS[rainbowColorIndex];
-  
-  // ===== V2 ANIMATIONS =====
+  // ===== V2 GLOW ANIMATIONS =====
   const outerGlowRadius = useRef(new Animated.Value(16)).current;
   const outerGlowOpacity = useRef(new Animated.Value(0.48)).current;
   const innerGlowOpacity = useRef(new Animated.Value(0.5)).current;
   const innerGlowScale = useRef(new Animated.Value(1)).current;
   
-  // Rainbow color cycling for Legendary V2+
+  // Color cycling for Legendary and Iridescence V2
   useEffect(() => {
-    if (isLegendary && variant >= 2) {
+    if ((isLegendary || isIridescence) && variant === 2) {
       const interval = setInterval(() => {
-        setRainbowColorIndex((prev) => (prev + 1) % RAINBOW_COLORS.length);
-      }, 500); // Change color every 500ms
+        setColorIndex(prev => (prev + 1) % (isLegendary ? RAINBOW_COLORS.length : IRIDESCENT_COLORS.length));
+      }, 500);
       return () => clearInterval(interval);
     }
-  }, [isLegendary, variant]);
+  }, [isLegendary, isIridescence, variant]);
   
-  // Start V2 animations
+  // Glow animation for V2
   useEffect(() => {
-    if (variant >= 2 && (isMetalTier || isGemTier)) {
-      setTimeout(() => {
-        // Outer Glow Pulse
-        Animated.loop(
-          Animated.sequence([
-            Animated.parallel([
-              Animated.timing(outerGlowRadius, { toValue: 28, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-              Animated.timing(outerGlowOpacity, { toValue: 0.72, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-            ]),
-            Animated.parallel([
-              Animated.timing(outerGlowRadius, { toValue: 16, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-              Animated.timing(outerGlowOpacity, { toValue: 0.48, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-            ]),
-          ])
-        ).start();
-        
-        // Inner Glow Pulse
-        Animated.loop(
-          Animated.sequence([
-            Animated.parallel([
-              Animated.timing(innerGlowOpacity, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-              Animated.timing(innerGlowScale, { toValue: 1.05, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            ]),
-            Animated.parallel([
-              Animated.timing(innerGlowOpacity, { toValue: 0.5, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-              Animated.timing(innerGlowScale, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            ]),
-          ])
-        ).start();
-      }, randomOffset);
+    if (hasGlowAnimation) {
+      // Outer glow pulse
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(outerGlowRadius, { toValue: 24, duration: 1500, useNativeDriver: false }),
+            Animated.timing(outerGlowOpacity, { toValue: 0.7, duration: 1500, useNativeDriver: false }),
+          ]),
+          Animated.parallel([
+            Animated.timing(outerGlowRadius, { toValue: 16, duration: 1500, useNativeDriver: false }),
+            Animated.timing(outerGlowOpacity, { toValue: 0.48, duration: 1500, useNativeDriver: false }),
+          ]),
+        ])
+      ).start();
+      
+      // Inner glow pulse
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(innerGlowOpacity, { toValue: 0.7, duration: 1200, useNativeDriver: false }),
+            Animated.timing(innerGlowScale, { toValue: 1.05, duration: 1200, useNativeDriver: false }),
+          ]),
+          Animated.parallel([
+            Animated.timing(innerGlowOpacity, { toValue: 0.5, duration: 1200, useNativeDriver: false }),
+            Animated.timing(innerGlowScale, { toValue: 1, duration: 1200, useNativeDriver: false }),
+          ]),
+        ])
+      ).start();
     }
-  }, [variant, tierName]);
+  }, [hasGlowAnimation]);
 
-  // ===== SELECTED STATE =====
-  if (isSelected) {
-    return (
-      <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
-        <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
-          <View style={[styles.tile, styles.selectedTile, { width: tileSize, height: tileSize, backgroundColor: '#4ecca3' }]}>
-            <Text style={[styles.letterText, { color: '#1a1a2e' }]}>{letter}</Text>
-            {selectionOrder !== null && (
-              <View style={styles.orderBadge}>
-                <Text style={styles.orderText}>{selectionOrder}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  }
-
-  // ===== METAL TIER V1 (Static) =====
+  // ===== METAL TIER V1 (Static gradient) =====
   if (isMetalTier && variant === 1) {
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
           <LinearGradient
-            colors={[...tierConfig.gradient]}
+            colors={tierConfig.gradient as unknown as string[]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: tierConfig.border }]}
           >
-            <Text style={[styles.letterText, { color: tierConfig.letterColor }]}>{letter}</Text>
+            <Text style={[styles.letterText, { color: tierConfig.letterColor, textShadowColor: tierConfig.letterShadow, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }]}>
+              {letter}
+            </Text>
           </LinearGradient>
         </View>
       </TouchableOpacity>
     );
   }
 
-  // ===== METAL TIER V2/V3 (Animated - same effect, no particles for metal) =====
-  if (isMetalTier && variant >= 2) {
+  // ===== METAL TIER V2 (Animated gradient with glow) =====
+  if (isMetalTier && variant === 2) {
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <Animated.View
@@ -355,10 +212,10 @@ export const GameTile = ({
           ]}
         >
           <LinearGradient
-            colors={[...tierConfig.gradient]}
+            colors={tierConfig.gradient as unknown as string[]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: tierConfig.border }]}
+            style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: '#ffffff' }]}
           >
             <Animated.View style={[styles.innerGlow, { opacity: innerGlowOpacity, transform: [{ scale: innerGlowScale }] }]}>
               <LinearGradient
@@ -379,11 +236,13 @@ export const GameTile = ({
 
   // ===== GEM TIER V1 (Static PNG) =====
   if (isGemTier && variant === 1) {
+    const imageSource = GEM_IMAGES[tierName] || GEM_IMAGES['legendary'];
+    
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
           <ImageBackground
-            source={GEM_IMAGES[tierName]}
+            source={imageSource}
             style={[styles.tile, { width: tileSize, height: tileSize }]}
             imageStyle={styles.tileImage}
             resizeMode="cover"
@@ -395,9 +254,18 @@ export const GameTile = ({
     );
   }
 
-  // ===== GEM TIER V2 (Animated PNG - glow only) =====
+  // ===== GEM TIER V2 (Animated PNG with glow) =====
   if (isGemTier && variant === 2) {
-    const glowColor = isLegendary ? rainbowColor : (GEM_GLOW_COLORS[tierName] || '#ffffff');
+    let glowColor: string;
+    if (isLegendary) {
+      glowColor = rainbowColor;
+    } else if (isIridescence) {
+      glowColor = iridescentColor;
+    } else {
+      glowColor = GEM_GLOW_COLORS[tierName] || '#ffffff';
+    }
+    
+    const imageSource = GEM_IMAGES[tierName] || GEM_IMAGES['legendary'];
     
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
@@ -416,65 +284,21 @@ export const GameTile = ({
           ]}
         >
           <ImageBackground
-            source={GEM_IMAGES[tierName]}
+            source={imageSource}
             style={[styles.tile, { width: tileSize, height: tileSize }]}
             imageStyle={styles.tileImage}
             resizeMode="cover"
           >
-            <Animated.View style={[styles.innerGlow, { opacity: innerGlowOpacity, transform: [{ scale: innerGlowScale }], backgroundColor: `${glowColor}33` }]} />
-            <Text style={[styles.letterText, styles.gemLetter]}>{letter}</Text>
-          </ImageBackground>
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  }
-
-  // ===== GEM TIER V3 (Animated PNG + Sparkles + Shooting Stars) =====
-  if (isGemTier && variant === 3) {
-    const glowColor = isLegendary ? rainbowColor : (GEM_GLOW_COLORS[tierName] || '#ffffff');
-    
-    return (
-      <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
-        <Animated.View
-          style={[
-            styles.tileContainer,
-            styles.v3Container,
-            {
-              width: tileSize,
-              height: tileSize,
-              shadowColor: glowColor,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: outerGlowOpacity,
-              shadowRadius: outerGlowRadius,
-              elevation: 15,
-            },
-          ]}
-        >
-          {/* Sparkles */}
-          {SPARKLE_POSITIONS.map((pos, i) => (
-            <Sparkle key={`sparkle-${i}`} top={pos.top} left={pos.left} delay={pos.delay} randomOffset={randomOffset} />
-          ))}
-          
-          {/* Shooting Stars */}
-          {SHOOTING_STAR_CONFIGS.map((config, i) => (
-            <ShootingStar
-              key={`star-${i}`}
-              top={config.top}
-              left={config.left}
-              xEnd={config.xEnd}
-              yEnd={config.yEnd}
-              delay={config.delay}
-              randomOffset={randomOffset}
+            <Animated.View 
+              style={[
+                styles.innerGlow, 
+                { 
+                  opacity: innerGlowOpacity, 
+                  transform: [{ scale: innerGlowScale }], 
+                  backgroundColor: `${glowColor}33` 
+                }
+              ]} 
             />
-          ))}
-          
-          <ImageBackground
-            source={GEM_IMAGES[tierName]}
-            style={[styles.tile, { width: tileSize, height: tileSize }]}
-            imageStyle={styles.tileImage}
-            resizeMode="cover"
-          >
-            <Animated.View style={[styles.innerGlow, { opacity: innerGlowOpacity, transform: [{ scale: innerGlowScale }], backgroundColor: `${glowColor}33` }]} />
             <Text style={[styles.letterText, styles.gemLetter]}>{letter}</Text>
           </ImageBackground>
         </Animated.View>
@@ -482,8 +306,7 @@ export const GameTile = ({
     );
   }
 
-  // ===== DEFAULT TIER / FALLBACK =====
-  // Default tier uses 6 style colors
+  // ===== DEFAULT TIER (6 style colors) =====
   const defaultStyle = DEFAULT_STYLES[variant] || DEFAULT_STYLES[1];
   
   return (
@@ -512,9 +335,6 @@ const styles = StyleSheet.create({
   tileContainer: {
     // No margin - letterGrid uses gap for spacing
   },
-  v3Container: {
-    overflow: 'visible', // Allow sparkles and stars to show outside tile
-  },
   tile: {
     borderRadius: 12,
     justifyContent: 'center',
@@ -536,10 +356,6 @@ const styles = StyleSheet.create({
   defaultTile: {
     borderWidth: 3,
   },
-  selectedTile: {
-    transform: [{ scale: 0.95 }],
-    borderRadius: 12,
-  },
   letterText: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -552,69 +368,9 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
   },
-  orderBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: '#1a1a2e',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  orderText: {
-    color: '#4ecca3',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 12,
     zIndex: 1,
-  },
-  // Sparkle styles
-  sparkle: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    zIndex: 100,
-  },
-  sparkleHorizontal: {
-    position: 'absolute',
-    width: 12,
-    height: 2,
-    backgroundColor: '#fff',
-    top: 5,
-    left: 0,
-    borderRadius: 1,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-  },
-  sparkleVertical: {
-    position: 'absolute',
-    width: 2,
-    height: 12,
-    backgroundColor: '#fff',
-    top: 0,
-    left: 5,
-    borderRadius: 1,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-  },
-  // Shooting star styles
-  shootingStar: {
-    position: 'absolute',
-    fontSize: 10,
-    color: '#fff',
-    zIndex: 100,
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
   },
 });

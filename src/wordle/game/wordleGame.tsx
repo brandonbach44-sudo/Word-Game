@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React, {
   useCallback,
   useMemo,
@@ -16,8 +17,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // word list
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
-// post-game overlay
-import WordleResultOverlay from "../components/wordleResultsOverlay";
+
+// ───────────────── Types & constants ─────────────────
 
 const ROWS = 6;
 const COLS = 5;
@@ -30,6 +31,12 @@ type EvaluatedLetter = {
 };
 
 type Mode = "daily" | "practice" | "stats";
+type Status = "playing" | "won" | "lost";
+
+type Streaks = {
+  daily: number;
+  practice: number;
+};
 
 // Keyboard rows WITHOUT Enter (we'll use a custom Enter button below)
 const KEYBOARD_ROWS: string[][] = [
@@ -46,7 +53,95 @@ const KEY_GAP = 6;
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-// ---------- Word helpers (Daily / Practice / Validation) ----------
+// ───────────────── Result Overlay component (inline) ─────────────────
+
+type WordleResultOverlayProps = {
+  visible: boolean;
+  status: Status;
+  mode: Mode;
+  guessesCount: number;
+  solutionWord: string;
+  currentStreak: number;
+  onClose: () => void;
+  onPlayAgain: () => void;
+  onGoHome: () => void;
+  onGoPractice: () => void;
+};
+
+const WordleResultOverlay: React.FC<WordleResultOverlayProps> = ({
+  visible,
+  status,
+  mode,
+  guessesCount,
+  solutionWord,
+  currentStreak,
+  onClose,
+  onPlayAgain,
+  onGoHome,
+  onGoPractice,
+}) => {
+  if (!visible) return null;
+
+  const title = status === "won" ? "Nice!" : "Out of guesses";
+  const subtitle =
+    status === "won"
+      ? `You solved it in ${guessesCount} ${
+          guessesCount === 1 ? "guess" : "guesses"
+        }.`
+      : "Try again tomorrow or play Practice.";
+
+  return (
+    <View style={overlayStyles.overlay}>
+      <View style={overlayStyles.card}>
+        <Text style={overlayStyles.title}>{title}</Text>
+        <Text style={overlayStyles.subtitle}>{subtitle}</Text>
+
+        {/* Solution word */}
+        <Text style={overlayStyles.solutionLabel}>Word</Text>
+        <Text style={overlayStyles.solutionWord}>
+          {solutionWord.toUpperCase()}
+        </Text>
+
+        {/* Streak */}
+        <Text style={overlayStyles.streakText}>
+          Current streak: {currentStreak}
+        </Text>
+
+        {/* Buttons */}
+        {mode === "daily" ? (
+          <View style={overlayStyles.btnRow}>
+            <Pressable style={overlayStyles.btn} onPress={onGoHome}>
+              <Text style={overlayStyles.btnText}>Main Menu</Text>
+            </Pressable>
+            <Pressable style={overlayStyles.btn} onPress={onGoPractice}>
+              <Text style={overlayStyles.btnText}>Practice</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={overlayStyles.btnRow}>
+            <Pressable style={overlayStyles.btn} onPress={onPlayAgain}>
+              <Text style={overlayStyles.btnText}>Play Again</Text>
+            </Pressable>
+            <Pressable style={overlayStyles.btn} onPress={onGoHome}>
+              <Text style={overlayStyles.btnText}>Main Menu</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Pressable
+          style={[overlayStyles.btn, overlayStyles.closeBtn]}
+          onPress={onClose}
+        >
+          <Text style={[overlayStyles.btnText, overlayStyles.closeText]}>
+            Close
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+
+// ───────────────── Word helpers (Daily / Practice / Validation) ─────────────────
 
 function evaluateGuess(guess: string, solution: string): EvaluatedLetter[] {
   const letters = guess.toUpperCase().split("");
@@ -105,17 +200,24 @@ function isValidWord(guess: string): boolean {
   return VALID_GUESSES.includes(upper);
 }
 
-// ------------------------------------------------------------------
+// ───────────────── Main WordleGame component ─────────────────
 
 export default function WordleGame() {
+  const router = useRouter();
+
   const [mode, setMode] = useState<Mode>("daily");
   const [solution, setSolution] = useState<string>(() => getDailySolution());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<EvaluatedLetter[][]>([]);
   const [currentGuess, setCurrentGuess] = useState("");
-  const [status, setStatus] = useState<"playing" | "won" | "lost">("playing");
+  const [status, setStatus] = useState<Status>("playing");
   const [message, setMessage] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+
+  const [streaks, setStreaks] = useState<Streaks>({
+    daily: 0,
+    practice: 0,
+  });
 
   const keyboardStates = useMemo(() => {
     const stateMap = new Map<string, LetterState>();
@@ -240,6 +342,23 @@ export default function WordleGame() {
     winBounceAnim.setValue(0);
   }, [flipAnims, winBounceAnim]);
 
+  const updateStreak = useCallback(
+    (result: "won" | "lost") => {
+      if (mode === "stats") return;
+
+      setStreaks((prev) => {
+        const key = mode === "daily" ? "daily" : "practice";
+        const current = prev[key];
+        const nextValue = result === "won" ? current + 1 : 0;
+        return {
+          ...prev,
+          [key]: nextValue,
+        };
+      });
+    },
+    [mode]
+  );
+
   const handleEnter = useCallback(() => {
     if (status !== "playing") return;
     if (mode === "stats") return;
@@ -278,6 +397,8 @@ export default function WordleGame() {
         }.`
       );
 
+      updateStreak("won");
+
       // bounce the grid
       Animated.sequence([
         Animated.timing(winBounceAnim, {
@@ -295,7 +416,8 @@ export default function WordleGame() {
       openResult();
     } else if (nextGuesses.length === ROWS) {
       setStatus("lost");
-      showMessage(`The word was ${solution.toUpperCase()}`);
+      showMessage("Out of guesses");
+      updateStreak("lost");
       openResult();
     }
   }, [
@@ -310,6 +432,7 @@ export default function WordleGame() {
     revealRow,
     winBounceAnim,
     openResult,
+    updateStreak,
   ]);
 
   const handleBackspace = useCallback(() => {
@@ -401,12 +524,10 @@ export default function WordleGame() {
     closeResult();
     resetGameState();
 
-    // Daily: keep today’s daily word (but in case date rolled over, recompute)
     if (mode === "daily") {
       setSolution(getDailySolution());
     }
 
-    // Practice: new random word every time you hit Play Again
     if (mode === "practice") {
       setSolution(getRandomPracticeSolution());
     }
@@ -418,7 +539,7 @@ export default function WordleGame() {
           guesses.length === 1 ? "guess" : "guesses"
         }.`
       : status === "lost"
-      ? `Out of guesses. The word was ${solution.toUpperCase()}.`
+      ? "Out of guesses."
       : "";
 
   const handleModeChange = (nextMode: Mode) => {
@@ -434,11 +555,28 @@ export default function WordleGame() {
     resetGameState();
   };
 
+  // 🔙 Back button action (header + daily "Main Menu" button)
+  const handleGoHome = useCallback(() => {
+    closeResult();
+    router.back(); // assumes we came from main menu
+  }, [router, closeResult]);
+
+  // ▶️ From Daily overlay: jump into Practice mode
+  const handleGoPractice = useCallback(() => {
+    closeResult();
+    setMode("practice");
+    setSolution(getRandomPracticeSolution());
+    resetGameState();
+  }, [closeResult, resetGameState]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Header */}
+        {/* Header with back button */}
         <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={handleGoHome}>
+            <Text style={styles.backButtonText}>←</Text>
+          </Pressable>
           <Text style={styles.title}>Wordle</Text>
         </View>
 
@@ -482,9 +620,11 @@ export default function WordleGame() {
           <View style={styles.statsContainer}>
             <Text style={styles.statsTitle}>Stats</Text>
             <Text style={styles.statsText}>
-              Stats tracking is coming soon.{"\n"}
-              This screen will show your streaks, win rate, and guess
-              distribution for Daily and Practice modes.
+              Daily streak: {streaks.daily}
+              {"\n"}
+              Practice streak: {streaks.practice}
+              {"\n\n"}
+              More stats (win rate, distributions, etc.) coming soon.
             </Text>
           </View>
         ) : (
@@ -525,9 +665,14 @@ export default function WordleGame() {
                   {!!statusText && (
                     <Text style={styles.statusText}>{statusText}</Text>
                   )}
-                  <Pressable style={styles.resetButton} onPress={handleReset}>
-                    <Text style={styles.resetText}>Play Again</Text>
-                  </Pressable>
+
+                  {/* Only allow "Play Again" here in Practice mode.
+                     Daily mode is controlled by the overlay buttons. */}
+                  {mode === "practice" && (
+                    <Pressable style={styles.resetButton} onPress={handleReset}>
+                      <Text style={styles.resetText}>Play Again</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -615,7 +760,7 @@ export default function WordleGame() {
               })}
             </View>
 
-            {/* Custom Enter button below keyboard */}
+            {/* Custom Enter button below keyboard (LONGER) */}
             <View style={styles.enterWrapper}>
               <Pressable style={styles.enterButton} onPress={handleEnter}>
                 <Text style={styles.enterText}>Enter</Text>
@@ -630,13 +775,21 @@ export default function WordleGame() {
           status={status}
           mode={mode}
           guessesCount={guesses.length}
+          solutionWord={solution}
+          currentStreak={
+            mode === "daily" ? streaks.daily : streaks.practice
+          }
           onClose={closeResult}
           onPlayAgain={handleReset}
+          onGoHome={handleGoHome}
+          onGoPractice={handleGoPractice}
         />
       </View>
     </SafeAreaView>
   );
 }
+
+// ───────────────── Styles ─────────────────
 
 const styles = StyleSheet.create({
   safe: {
@@ -653,9 +806,20 @@ const styles = StyleSheet.create({
   header: {
     paddingVertical: 8,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  backButton: {
+    position: "absolute",
+    left: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontSize: 22,
+    color: "#111827",
   },
   title: {
-    fontSize: 32, // larger title
+    fontSize: 32,
     fontWeight: "700",
     color: "#111827",
     letterSpacing: 2,
@@ -712,7 +876,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tile: {
-    width: 62, // bigger tiles
+    width: 62,
     height: 62,
     borderRadius: 4,
     borderWidth: 2,
@@ -725,7 +889,6 @@ const styles = StyleSheet.create({
     color: "#111827",
     textTransform: "uppercase",
   },
-  // Reserved area so text never overlaps tiles
   statusArea: {
     minHeight: 60,
     alignItems: "center",
@@ -784,12 +947,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   enterButton: {
-    paddingHorizontal: 32,
+    minWidth: 220, // longer enter button
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 2,
     borderColor: BROWN,
     backgroundColor: CREAM,
+    alignItems: "center",
   },
   enterText: {
     fontSize: 16,
@@ -812,5 +976,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#4b5563",
     textAlign: "center",
+  },
+});
+
+const overlayStyles = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 16,
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 2,
+    borderColor: BROWN,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#4b5563",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  solutionLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  solutionWord: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  streakText: {
+    fontSize: 14,
+    color: "#4b5563",
+    marginBottom: 8,
+  },
+  btnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
+  },
+  btn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BROWN,
+    backgroundColor: CREAM,
+  },
+  btnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: BROWN,
+  },
+  closeBtn: {
+    marginTop: 6,
+    borderColor: "#d3d6da",
+    backgroundColor: "#ffffff",
+  },
+  closeText: {
+    color: "#111827",
   },
 });

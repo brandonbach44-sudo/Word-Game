@@ -15,9 +15,6 @@ import { AnimatedBackground } from '../../src/wordbuilder/components/AnimatedBac
 import { LiquidGlassButton } from '../../src/wordbuilder/components/LiquidGlassButton';
 import { StatsCard } from '../../src/wordbuilder/components/StatsCard';
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
-import { InkDisplay } from '../../src/wordbuilder/components/InkDisplay';
-import { InkBreakdownDisplay } from '../../src/wordbuilder/components/InkBreakdown';
-import { CareerProgress } from '../../src/wordbuilder/components/CareerProgress';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
 
 // Styles
@@ -29,32 +26,24 @@ import { calculateWordScore } from '../../src/wordbuilder/utils/scoring';
 import { 
   PlayerStats,
   PlayerTiles,
-  PlayerEconomy,
-  InkBreakdown,
   loadStats, 
   loadTiles,
-  loadEconomy,
-  equipCareerTile,
   updateStatsAfterGame,
   getAverageScore,
   getWordsPerGame,
   getFavoriteMode,
   getFavoriteLetterCount,
-  getNextCareerTierProgress,
-  resetSessionData,
   DEBUG_UNLOCK_ALL,
   unlockAllTilesForTesting,
-  addInkForTesting,
 } from '../../src/wordbuilder/utils/storage';
-import { TierName, TIER_ORDER, TIERS } from '../../src/wordbuilder/utils/tiers';
-import { getBackgroundById } from '../../src/wordbuilder/utils/shopData';
+import { TierName } from '../../src/wordbuilder/utils/tiers';
 
 // Data
 import { VALID_WORDS } from '../../src/wordbuilder/data/words';
 
 const { width } = Dimensions.get('window');
 
-// Phase 1: Default cream background for gameplay
+// Default cream background for gameplay
 const DEFAULT_GAMEPLAY_BACKGROUND = '#f5f0e6';
 
 type GameMode = 'mainMenu' | 'modeSelect' | 'stats' | 'customize' | 'blitz' | 'standard';
@@ -77,34 +66,24 @@ export default function WordBuilder() {
   // Player Data State
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [playerTiles, setPlayerTiles] = useState<PlayerTiles | null>(null);
-  const [playerEconomy, setPlayerEconomy] = useState<PlayerEconomy | null>(null);
   const [equippedTier, setEquippedTier] = useState<TierName>('default');
   const [equippedVariant, setEquippedVariant] = useState<number>(1);
-  
-  // Ink Breakdown for post-game display
-  const [inkBreakdown, setInkBreakdown] = useState<InkBreakdown | null>(null);
 
   // Load all player data on mount
   useEffect(() => {
     const loadAllPlayerData = async () => {
-      // Reset session data on app start (for streak tracking)
-      resetSessionData();
-      
       // DEBUG: Unlock all tiles for testing
       if (DEBUG_UNLOCK_ALL) {
         await unlockAllTilesForTesting();
-        await addInkForTesting(5000); // Give some ink for testing
       }
       
-      const [stats, tiles, economy] = await Promise.all([
+      const [stats, tiles] = await Promise.all([
         loadStats(),
         loadTiles(),
-        loadEconomy(),
       ]);
       
       setPlayerStats(stats);
       setPlayerTiles(tiles);
-      setPlayerEconomy(economy);
       setEquippedTier(tiles.equippedTier);
       setEquippedVariant(tiles.equippedVariant);
     };
@@ -113,14 +92,12 @@ export default function WordBuilder() {
 
   // Refresh player data helper
   const refreshPlayerData = async () => {
-    const [stats, tiles, economy] = await Promise.all([
+    const [stats, tiles] = await Promise.all([
       loadStats(),
       loadTiles(),
-      loadEconomy(),
     ]);
     setPlayerStats(stats);
     setPlayerTiles(tiles);
-    setPlayerEconomy(economy);
     setEquippedTier(tiles.equippedTier);
     setEquippedVariant(tiles.equippedVariant);
   };
@@ -136,14 +113,13 @@ export default function WordBuilder() {
     if (timeLeft > 0 && !gameOver) {
       timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     } else if (timeLeft === 0 && (gameMode === 'blitz' || gameMode === 'standard') && !gameOver) {
-      // Game ended - save stats and get ink breakdown
+      // Game ended - save stats
       setGameOver(true);
       setMessage('Time\'s up!');
       
       const saveGameResults = async () => {
         if (foundWords.length > 0 || score > 0) {
-          const breakdown = await updateStatsAfterGame(score, foundWords, lastGameMode, letterCount);
-          setInkBreakdown(breakdown);
+          await updateStatsAfterGame(score, foundWords, lastGameMode, letterCount);
           // Refresh all player data after game
           await refreshPlayerData();
         }
@@ -168,7 +144,6 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
-    setInkBreakdown(null); // Reset ink breakdown
     setTimeLeft(mode === 'blitz' ? 30 : 60);
   };
   
@@ -192,7 +167,6 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
-    setInkBreakdown(null);
     setTimeLeft(gameMode === 'blitz' ? 30 : 60);
   }, [letterCount, gameMode]);
 
@@ -236,7 +210,6 @@ export default function WordBuilder() {
   const backToMenu = () => {
     setGameMode('modeSelect');
     setGameOver(false);
-    setInkBreakdown(null);
     if (timerRef.current) clearTimeout(timerRef.current);
   };
 
@@ -253,14 +226,6 @@ export default function WordBuilder() {
 
   const levels = [6, 7, 8];
 
-  // Get career progress for main menu
-  const careerProgress = playerStats ? getNextCareerTierProgress(playerStats.totalScore) : null;
-
-  // Get equipped background color - Phase 1: default to cream for gameplay
-  const equippedBackgroundColor = playerEconomy 
-    ? getBackgroundById(playerEconomy.equippedBackground)?.backgroundColor || DEFAULT_GAMEPLAY_BACKGROUND
-    : DEFAULT_GAMEPLAY_BACKGROUND;
-
   // ==================== SCREENS ====================
 
   // Main Menu - Single Player / Online
@@ -271,27 +236,8 @@ export default function WordBuilder() {
         <AnimatedBackground />
         
         <View style={styles.mainMenuContainer}>
-          {/* Ink & Score Display */}
-          {playerEconomy && playerStats && (
-            <View style={styles.topDisplayContainer}>
-              <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
-            </View>
-          )}
-          
           <Text style={styles.menuTitle}>Word Builder</Text>
           <Text style={styles.menuSubtitle}>Select Game Type</Text>
-          
-          {/* Career Progress */}
-          {careerProgress && (
-            <View style={styles.careerProgressContainer}>
-              <CareerProgress
-                nextTier={careerProgress.nextTier}
-                currentScore={careerProgress.currentScore}
-                requiredScore={careerProgress.requiredScore}
-                progress={careerProgress.progress}
-              />
-            </View>
-          )}
           
           <LiquidGlassButton 
             onPress={() => setGameMode('modeSelect')}
@@ -334,13 +280,6 @@ export default function WordBuilder() {
         >
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
-        
-        {/* Ink & Score Display */}
-        {playerEconomy && playerStats && (
-          <View style={styles.topDisplayContainerRight}>
-            <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
-          </View>
-        )}
         
         <ScrollView contentContainerStyle={styles.menuContainer}>
           <Text style={styles.menuTitle}>Choose Your Mode</Text>
@@ -406,13 +345,6 @@ export default function WordBuilder() {
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         
-        {/* Ink & Score Display */}
-        {playerEconomy && playerStats && (
-          <View style={styles.topDisplayContainerRight}>
-            <InkDisplay ink={playerEconomy.ink} totalScore={playerStats.totalScore} />
-          </View>
-        )}
-        
         <ScrollView 
           style={{ flex: 1, width: '100%' }}
           contentContainerStyle={styles.menuContainer}
@@ -431,11 +363,6 @@ export default function WordBuilder() {
               <StatsCard label="Longest Word" value={playerStats.longestWord.toUpperCase() || '-'} wide />
               <StatsCard label="Favorite Mode" value={getFavoriteMode(playerStats)} />
               <StatsCard label="Favorite Letters" value={getFavoriteLetterCount(playerStats)} />
-              
-              {/* Economy Stats - Phase 1: Only show Ink Earned, not Spent */}
-              {playerEconomy && (
-                <StatsCard label="Total Ink Earned" value={playerEconomy.totalInkEarned.toLocaleString()} />
-              )}
             </View>
           ) : (
             <Text style={styles.loadingText}>Loading stats...</Text>
@@ -445,7 +372,7 @@ export default function WordBuilder() {
     );
   }
 
-  // Customize Screen (New unified screen)
+  // Customize Screen
   if (gameMode === 'customize') {
     return <CustomizeScreen onBack={handleCustomizeBack} />;
   }
@@ -462,11 +389,6 @@ export default function WordBuilder() {
           <Text style={styles.finalScore}>{score}</Text>
           <Text style={styles.finalScoreLabel}>points</Text>
           <Text style={styles.wordsFound}>You found {foundWords.length} {foundWords.length === 1 ? 'word' : 'words'}</Text>
-          
-          {/* Ink Breakdown Display */}
-          {inkBreakdown && (
-            <InkBreakdownDisplay breakdown={inkBreakdown} />
-          )}
           
           <View style={styles.foundWordsContainerGameOver}>
             <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
@@ -491,11 +413,10 @@ export default function WordBuilder() {
   }
 
   // ==================== MAIN GAME SCREEN ====================
-  // Phase 1: Cream background, brown word text, simplified UI
   const tileSize = getTileSize();
 
   return (
-    <SafeAreaView style={[styles.gameplayContainer, { backgroundColor: equippedBackgroundColor }]}>
+    <SafeAreaView style={[styles.gameplayContainer, { backgroundColor: DEFAULT_GAMEPLAY_BACKGROUND }]}>
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
@@ -510,7 +431,7 @@ export default function WordBuilder() {
       {/* Message */}
       <Text style={styles.messageGameplay}>{message}</Text>
 
-      {/* Phase 1.2: Word Display - NO background, just text */}
+      {/* Word Display - NO background, just text */}
       <View style={styles.wordDisplayTransparent}>
         <Text style={currentWord ? styles.currentWordGameplay : styles.currentWordPlaceholder}>
           {currentWord || '_ _ _'}
@@ -544,7 +465,7 @@ export default function WordBuilder() {
         </TouchableOpacity>
       </View>
 
-      {/* Phase 1.3: Simplified Found Words List */}
+      {/* Simplified Found Words List */}
       <View style={styles.foundWordsContainerGameplay}>
         <Text style={styles.foundWordsTitleGameplay}>Found: {foundWords.length}</Text>
         <ScrollView 
@@ -565,13 +486,6 @@ export default function WordBuilder() {
       <TouchableOpacity style={styles.refreshButtonGameplay} onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh letters">
         <Text style={styles.refreshButtonTextGameplay}>Refresh Letters</Text>
       </TouchableOpacity>
-
-      {/* Phase 1.1: Ink Display moved to bottom left, out of way */}
-      {playerEconomy && (
-        <View style={styles.gameplayInkContainer}>
-          <InkDisplay ink={playerEconomy.ink} totalScore={playerStats?.totalScore || 0} compact />
-        </View>
-      )}
     </SafeAreaView>
   );
 }
