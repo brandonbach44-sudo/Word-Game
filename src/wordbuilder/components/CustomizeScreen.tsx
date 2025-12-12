@@ -9,7 +9,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AnimatedBackground } from './AnimatedBackground';
 import { GameTile } from './GameTile';
 import { TierName, TIERS, TIER_ORDER } from '../utils/tiers';
 import {
@@ -22,15 +21,15 @@ import {
 
 interface CustomizeScreenProps {
   onBack: () => void;
+  embedded?: boolean;
 }
 
-export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
+export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false }) => {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [tiles, setTiles] = useState<PlayerTiles | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTier, setSelectedTier] = useState<TierName | null>(null);
 
-  // Load data
   const loadData = async () => {
     const [loadedStats, loadedTiles] = await Promise.all([
       loadStats(),
@@ -50,7 +49,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     setRefreshing(false);
   }, []);
 
-  // Handle equipping a tile
   const handleEquip = async (tier: TierName, variant: number) => {
     const success = await equipTile(tier, variant);
     if (success) {
@@ -58,7 +56,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     }
   };
 
-  // Get tier status
   const getTierStatus = (tierName: TierName) => {
     if (!tiles || !stats) return { unlocked: false, highestVariant: 0 };
     
@@ -71,11 +68,10 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     
     return {
       unlocked: stats.totalScore >= tier.baseThreshold,
-      highestVariant: Math.min(progress.highestVariantUnlocked, 2), // Max is 2
+      highestVariant: Math.min(progress.highestVariantUnlocked, 2),
     };
   };
 
-  // Check if a tier is equipped
   const isEquipped = (tierName: TierName, variant?: number) => {
     if (!tiles) return false;
     if (variant !== undefined) {
@@ -84,7 +80,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     return tiles.equippedTier === tierName;
   };
 
-  // Format large numbers
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
@@ -95,7 +90,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     return num.toString();
   };
 
-  // Render tier card
   const renderTierCard = (tierName: TierName) => {
     const tier = TIERS[tierName];
     const status = getTierStatus(tierName);
@@ -118,7 +112,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
         disabled={!status.unlocked}
         activeOpacity={0.7}
       >
-        {/* Tier Preview */}
         <View style={styles.tierPreview}>
           <GameTile
             letter="A"
@@ -132,7 +125,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
           />
         </View>
 
-        {/* Tier Info */}
         <View style={styles.tierInfo}>
           <Text style={[styles.tierName, !status.unlocked && styles.tierNameLocked]}>
             {tier.displayName}
@@ -157,7 +149,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
           )}
         </View>
 
-        {/* Progress for locked tiers */}
         {!status.unlocked && stats && (
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
@@ -177,14 +168,13 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     );
   };
 
-  // Render variant selector for selected tier
   const renderVariantSelector = () => {
     if (!selectedTier || !tiles) return null;
     
     const tier = TIERS[selectedTier];
     const status = getTierStatus(selectedTier);
     const isDefault = selectedTier === 'default';
-    const maxVariant = isDefault ? 6 : 2; // Default has 6 styles, others have V1 and V2
+    const maxVariant = isDefault ? 6 : 2;
     
     return (
       <View style={styles.variantSelector}>
@@ -244,7 +234,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
           })}
         </ScrollView>
         
-        {/* Unlock requirements for non-default tiers */}
         {!isDefault && status.highestVariant < 2 && tiles && (
           <View style={styles.unlockInfo}>
             <Text style={styles.unlockText}>
@@ -259,21 +248,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <AnimatedBackground />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Career Tiles</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      {/* Current Score */}
+  const content = (
+    <>
       {stats && (
         <View style={styles.scoreContainer}>
           <Text style={styles.scoreLabel}>Lifetime Score</Text>
@@ -281,10 +257,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
         </View>
       )}
 
-      {/* Variant Selector (if tier selected) */}
       {renderVariantSelector()}
 
-      {/* Tier List */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -300,6 +274,26 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
         
         <View style={styles.bottomPadding} />
       </ScrollView>
+    </>
+  );
+
+  if (embedded) {
+    return <View style={styles.embeddedContainer}>{content}</View>;
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Career Tiles</Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      {content}
     </SafeAreaView>
   );
 };
@@ -307,7 +301,11 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f0e6',
+  },
+  embeddedContainer: {
+    flex: 1,
+    backgroundColor: '#f5f0e6',
   },
   header: {
     flexDirection: 'row',
@@ -321,11 +319,11 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   backButtonText: {
-    color: '#4ecca3',
+    color: '#6b5c4a',
     fontSize: 16,
   },
   title: {
-    color: '#fff',
+    color: '#2c2416',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -336,12 +334,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
     marginHorizontal: 20,
     marginBottom: 10,
   },
   scoreLabel: {
-    color: '#888',
+    color: '#6b5c4a',
     fontSize: 14,
   },
   scoreValue: {
@@ -357,20 +355,20 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   sectionTitle: {
-    color: '#888',
+    color: '#6b5c4a',
     fontSize: 14,
     marginBottom: 15,
     textAlign: 'center',
   },
   tierCard: {
     flexDirection: 'row',
-    backgroundColor: '#16213e',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 15,
     marginBottom: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#e8e0d0',
   },
   tierCardLocked: {
     opacity: 0.6,
@@ -385,15 +383,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tierName: {
-    color: '#fff',
+    color: '#2c2416',
     fontSize: 18,
     fontWeight: 'bold',
   },
   tierNameLocked: {
-    color: '#888',
+    color: '#999',
   },
   tierRequirement: {
-    color: '#888',
+    color: '#999',
     fontSize: 13,
     marginTop: 4,
   },
@@ -411,7 +409,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   equippedText: {
-    color: '#1a1a2e',
+    color: '#fff',
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -423,7 +421,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -433,19 +431,21 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   progressText: {
-    color: '#666',
+    color: '#999',
     fontSize: 10,
     marginTop: 4,
   },
   variantSelector: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     marginHorizontal: 20,
     marginBottom: 15,
     borderRadius: 12,
     padding: 15,
+    borderWidth: 1,
+    borderColor: '#e8e0d0',
   },
   variantTitle: {
-    color: '#fff',
+    color: '#2c2416',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 12,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#f5f0e6',
     position: 'relative',
   },
   variantCardLocked: {
@@ -472,22 +472,22 @@ const styles = StyleSheet.create({
     borderColor: '#4ecca3',
   },
   variantLabel: {
-    color: '#fff',
+    color: '#2c2416',
     fontSize: 12,
     marginTop: 6,
   },
   variantLabelLocked: {
-    color: '#666',
+    color: '#999',
   },
   lockOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   lockIcon: {
-    color: '#888',
+    color: '#fff',
     fontSize: 10,
   },
   equippedCheckmark: {
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkmark: {
-    color: '#1a1a2e',
+    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -510,11 +510,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(0,0,0,0.1)',
     alignItems: 'center',
   },
   unlockText: {
-    color: '#888',
+    color: '#6b5c4a',
     fontSize: 12,
   },
   unlockProgress: {

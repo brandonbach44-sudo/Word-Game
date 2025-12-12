@@ -1,58 +1,112 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
+  Pressable,
   ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
+  StyleSheet,
+  FlatList,
+  Animated,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Components
-import { AnimatedBackground } from '../../src/wordbuilder/components/AnimatedBackground';
-import { LiquidGlassButton } from '../../src/wordbuilder/components/LiquidGlassButton';
-import { StatsCard } from '../../src/wordbuilder/components/StatsCard';
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
+import { AchievementPopup } from '../../src/wordbuilder/components/AchievementPopup';
 
-// Styles
-import { styles } from '../../src/wordbuilder/styles/gameStyles';
+// Theme
+import { useTheme } from '../../src/shared/ThemeContext';
+import { COLORS } from '../../src/shared/theme';
 
 // Utils
 import { generateLetters } from '../../src/wordbuilder/utils/letterGenerator';
-import { calculateWordScore } from '../../src/wordbuilder/utils/scoring';
+import { generateDailyLetters } from '../../src/wordbuilder/utils/dailyLetters';
+import { calculateWordScoreWithBonus } from '../../src/wordbuilder/utils/scoring';
+import { findAllPossibleWords, getPossibleWordsStats, PossibleWord } from '../../src/wordbuilder/utils/wordFinder';
 import { 
   PlayerStats,
   PlayerTiles,
+  DailyChallenge,
   loadStats, 
   loadTiles,
+  loadDailyChallenge,
   updateStatsAfterGame,
+  saveDailyResult,
   getAverageScore,
   getWordsPerGame,
   getFavoriteMode,
   getFavoriteLetterCount,
+  getDailyAverageScore,
+  getDailyAverageWords,
+  hasPlayedTodayDaily,
+  getTodayDailyResult,
   DEBUG_UNLOCK_ALL,
   unlockAllTilesForTesting,
 } from '../../src/wordbuilder/utils/storage';
 import { TierName } from '../../src/wordbuilder/utils/tiers';
+import {
+  Achievement,
+  checkAchievements,
+  getUnlockedAchievements,
+  GameResult,
+  PlayerProgress,
+} from '../../src/wordbuilder/utils/achievements';
 
 // Data
 import { VALID_WORDS } from '../../src/wordbuilder/data/words';
 
 const { width } = Dimensions.get('window');
 
-// Default cream background for gameplay
-const DEFAULT_GAMEPLAY_BACKGROUND = '#f5f0e6';
+type SegmentKey = 'play' | 'customize' | 'stats';
+type GameMode = 'menu' | 'daily' | 'blitz' | 'standard';
+type GameOverPage = 'results' | 'words';
 
-type GameMode = 'mainMenu' | 'modeSelect' | 'stats' | 'customize' | 'blitz' | 'standard';
+// Simple stats card component
+const StatsCard = ({ 
+  label, 
+  value, 
+  wide = false,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+}: { 
+  label: string; 
+  value: string; 
+  wide?: boolean;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+}) => (
+  <View style={[
+    styles.statsCard, 
+    wide && styles.statsCardWide,
+    { backgroundColor: cardColor, borderColor }
+  ]}>
+    <Text style={[styles.statsValue, { color: textColor }]}>{value}</Text>
+    <Text style={[styles.statsLabel, { color: secondaryText }]}>{label}</Text>
+  </View>
+);
 
 export default function WordBuilder() {
+  // Theme
+  const { background } = useTheme();
+  
+  // Segment State
+  const [segment, setSegment] = useState<SegmentKey>('play');
+  
   // Game State
-  const [gameMode, setGameMode] = useState<GameMode>('mainMenu');
+  const [gameMode, setGameMode] = useState<GameMode>('menu');
   const [letterCount, setLetterCount] = useState(6);
-  const [letters, setLetters] = useState<string[]>(generateLetters(6));
+  const [letters, setLetters] = useState<string[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [currentWord, setCurrentWord] = useState('');
   const [score, setScore] = useState(0);
@@ -60,46 +114,107 @@ export default function WordBuilder() {
   const [message, setMessage] = useState('Tap letters to build words!');
   const [timeLeft, setTimeLeft] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [lastGameMode, setLastGameMode] = useState<'blitz' | 'standard'>('blitz');
+  const [gameOverPage, setGameOverPage] = useState<GameOverPage>('results');
+  const [possibleWords, setPossibleWords] = useState<PossibleWord[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Player Data State
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [playerTiles, setPlayerTiles] = useState<PlayerTiles | null>(null);
+  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
+  const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [dailyResult, setDailyResult] = useState<{ score: number; words: string[] } | null>(null);
   const [equippedTier, setEquippedTier] = useState<TierName>('default');
   const [equippedVariant, setEquippedVariant] = useState<number>(1);
+
+  // Achievement State
+  const [unlockedAchievements, setUnlockedAchievements] = useState<(Achievement & { unlockedAt: string })[]>([]);
+  const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
+  const [currentPopupAchievement, setCurrentPopupAchievement] = useState<Achievement | null>(null);
+
+  // Swipe Tooltip State
+  const [showSwipeTooltip, setShowSwipeTooltip] = useState(false);
+  const SWIPE_TOOLTIP_KEY = 'wordbuilder_swipe_tooltip_shown';
 
   // Load all player data on mount
   useEffect(() => {
     const loadAllPlayerData = async () => {
-      // DEBUG: Unlock all tiles for testing
       if (DEBUG_UNLOCK_ALL) {
         await unlockAllTilesForTesting();
       }
       
-      const [stats, tiles] = await Promise.all([
+      const [stats, tiles, daily, achievements] = await Promise.all([
         loadStats(),
         loadTiles(),
+        loadDailyChallenge(),
+        getUnlockedAchievements(),
       ]);
       
       setPlayerStats(stats);
       setPlayerTiles(tiles);
+      setDailyChallenge(daily);
       setEquippedTier(tiles.equippedTier);
       setEquippedVariant(tiles.equippedVariant);
+      setUnlockedAchievements(achievements);
+      
+      const todayResult = await getTodayDailyResult();
+      setDailyPlayed(todayResult.played);
+      if (todayResult.played) {
+        setDailyResult({ score: todayResult.score, words: todayResult.words });
+      }
     };
     loadAllPlayerData();
   }, []);
 
-  // Refresh player data helper
+  // Check if we should show swipe tooltip when game ends
+  useEffect(() => {
+    const checkSwipeTooltip = async () => {
+      if (gameOver) {
+        const hasSeenTooltip = await AsyncStorage.getItem(SWIPE_TOOLTIP_KEY);
+        if (!hasSeenTooltip) {
+          setShowSwipeTooltip(true);
+        }
+      }
+    };
+    checkSwipeTooltip();
+  }, [gameOver]);
+
+  const dismissSwipeTooltip = async () => {
+    setShowSwipeTooltip(false);
+    await AsyncStorage.setItem(SWIPE_TOOLTIP_KEY, 'true');
+  };
+
+  // Show achievement popups one at a time
+  useEffect(() => {
+    if (pendingAchievements.length > 0 && !currentPopupAchievement) {
+      setCurrentPopupAchievement(pendingAchievements[0]);
+      setPendingAchievements(prev => prev.slice(1));
+    }
+  }, [pendingAchievements, currentPopupAchievement]);
+
+  const handleAchievementDismiss = () => {
+    setCurrentPopupAchievement(null);
+  };
+
   const refreshPlayerData = async () => {
-    const [stats, tiles] = await Promise.all([
+    const [stats, tiles, daily, achievements] = await Promise.all([
       loadStats(),
       loadTiles(),
+      loadDailyChallenge(),
+      getUnlockedAchievements(),
     ]);
     setPlayerStats(stats);
     setPlayerTiles(tiles);
+    setDailyChallenge(daily);
     setEquippedTier(tiles.equippedTier);
     setEquippedVariant(tiles.equippedVariant);
+    setUnlockedAchievements(achievements);
+    
+    const todayResult = await getTodayDailyResult();
+    setDailyPlayed(todayResult.played);
+    if (todayResult.played) {
+      setDailyResult({ score: todayResult.score, words: todayResult.words });
+    }
   };
 
   const getTileSize = () => {
@@ -112,29 +227,83 @@ export default function WordBuilder() {
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft === 0 && (gameMode === 'blitz' || gameMode === 'standard') && !gameOver) {
-      // Game ended - save stats
+    } else if (timeLeft === 0 && gameMode !== 'menu' && !gameOver) {
       setGameOver(true);
+      setGameOverPage('results');
       setMessage('Time\'s up!');
       
+      // Calculate all possible words
+      const allPossible = findAllPossibleWords(letters, foundWords);
+      setPossibleWords(allPossible);
+      
       const saveGameResults = async () => {
-        if (foundWords.length > 0 || score > 0) {
-          await updateStatsAfterGame(score, foundWords, lastGameMode, letterCount);
-          // Refresh all player data after game
-          await refreshPlayerData();
+        let updatedStats = playerStats;
+        let updatedDaily = dailyChallenge;
+        
+        if (gameMode === 'daily') {
+          // Save daily challenge result
+          updatedDaily = await saveDailyResult(score, foundWords);
+          setDailyChallenge(updatedDaily);
+          setDailyPlayed(true);
+          setDailyResult({ score, words: foundWords });
+        } else if (foundWords.length > 0 || score > 0) {
+          // Save practice game result
+          updatedStats = await updateStatsAfterGame(score, foundWords, gameMode, letterCount);
+          setPlayerStats(updatedStats);
         }
+        
+        // Check achievements
+        const gameResult: GameResult = {
+          score,
+          words: foundWords,
+          mode: gameMode as 'blitz' | 'standard' | 'daily',
+          letterCount,
+        };
+        
+        const progress: PlayerProgress = {
+          totalGamesPlayed: (updatedStats?.gamesPlayed || playerStats?.gamesPlayed || 0),
+          totalScore: (updatedStats?.totalScore || playerStats?.totalScore || 0),
+          totalWordsFound: (updatedStats?.totalWordsFound || playerStats?.totalWordsFound || 0) + (gameMode === 'daily' ? foundWords.length : 0),
+          standardGamesPlayed: updatedStats?.standardGamesPlayed || playerStats?.standardGamesPlayed || 0,
+          dailyGamesPlayed: updatedDaily?.dailyGamesPlayed || dailyChallenge?.dailyGamesPlayed || 0,
+          dailyStreak: updatedDaily?.dailyStreak || dailyChallenge?.dailyStreak || 0,
+          bestDailyStreak: updatedDaily?.bestDailyStreak || dailyChallenge?.bestDailyStreak || 0,
+          dailyTotalScore: updatedDaily?.dailyTotalScore || dailyChallenge?.dailyTotalScore || 0,
+        };
+        
+        const newAchievements = await checkAchievements(gameResult, progress);
+        if (newAchievements.length > 0) {
+          setPendingAchievements(prev => [...prev, ...newAchievements]);
+        }
+        
+        await refreshPlayerData();
       };
       saveGameResults();
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [timeLeft, gameMode, gameOver, score, foundWords, lastGameMode, letterCount]);
+  }, [timeLeft, gameMode, gameOver, score, foundWords, letterCount, letters]);
 
-  const startGame = (mode: GameMode, numLetters: number) => {
-    if (mode === 'blitz' || mode === 'standard') {
-      setLastGameMode(mode);
-    }
+  const startDailyChallenge = async () => {
+    const alreadyPlayed = await hasPlayedTodayDaily();
+    if (alreadyPlayed) return;
+    
+    setGameMode('daily');
+    setLetterCount(6);
+    setLetters(generateDailyLetters());
+    setSelectedIndices([]);
+    setCurrentWord('');
+    setScore(0);
+    setFoundWords([]);
+    setMessage('Tap letters to build words!');
+    setGameOver(false);
+    setGameOverPage('results');
+    setPossibleWords([]);
+    setTimeLeft(60);
+  };
+
+  const startPracticeGame = (mode: 'blitz' | 'standard', numLetters: number) => {
     setGameMode(mode);
     setLetterCount(numLetters);
     setLetters(generateLetters(numLetters));
@@ -144,22 +313,13 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
+    setGameOverPage('results');
+    setPossibleWords([]);
     setTimeLeft(mode === 'blitz' ? 30 : 60);
-  };
-  
-  // Load stats when opening stats screen
-  const openStats = async () => {
-    await refreshPlayerData();
-    setGameMode('stats');
-  };
-
-  // Handle coming back from customize screen
-  const handleCustomizeBack = async () => {
-    await refreshPlayerData();
-    setGameMode('modeSelect');
   };
 
   const handleRefresh = useCallback(() => {
+    if (gameMode === 'daily') return;
     setLetters(generateLetters(letterCount));
     setSelectedIndices([]);
     setCurrentWord('');
@@ -167,6 +327,8 @@ export default function WordBuilder() {
     setFoundWords([]);
     setMessage('Tap letters to build words!');
     setGameOver(false);
+    setGameOverPage('results');
+    setPossibleWords([]);
     setTimeLeft(gameMode === 'blitz' ? 30 : 60);
   }, [letterCount, gameMode]);
 
@@ -189,16 +351,20 @@ export default function WordBuilder() {
     if (word.length < 2) { setMessage('Words must be at least 2 letters!'); return; }
     if (foundWords.includes(word)) { setMessage('Already found that word!'); return; }
     if (VALID_WORDS.has(word)) {
-      const points = calculateWordScore(word);
+      const { score: points, bonusApplied } = calculateWordScoreWithBonus(word, letterCount);
       setScore(score + points);
       setFoundWords([...foundWords, word]);
-      setMessage(`+${points} points!`);
+      if (bonusApplied) {
+        setMessage(`+${points} points! 🎉 2x ALL LETTERS BONUS!`);
+      } else {
+        setMessage(`+${points} points!`);
+      }
       setSelectedIndices([]);
       setCurrentWord('');
     } else {
       setMessage('Not a valid word!');
     }
-  }, [gameOver, currentWord, foundWords, score]);
+  }, [gameOver, currentWord, foundWords, score, letterCount]);
 
   const handleClear = useCallback(() => {
     if (gameOver) return;
@@ -208,8 +374,10 @@ export default function WordBuilder() {
   }, [gameOver]);
 
   const backToMenu = () => {
-    setGameMode('modeSelect');
+    setGameMode('menu');
     setGameOver(false);
+    setGameOverPage('results');
+    setPossibleWords([]);
     if (timerRef.current) clearTimeout(timerRef.current);
   };
 
@@ -224,268 +392,1114 @@ export default function WordBuilder() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const levels = [6, 7, 8];
+  const formatDate = () => {
+    const today = new Date();
+    return today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
 
-  // ==================== SCREENS ====================
+  const shareDaily = async (totalFound: number, totalPossible: number, percentFound: number) => {
+    const streakText = dailyChallenge && dailyChallenge.dailyStreak > 1 
+      ? `Streak: ${dailyChallenge.dailyStreak} days\n` 
+      : '';
+    
+    const message = `Word Builder Daily\n${formatDate()}\n\nScore: ${score}\nWords: ${totalFound}/${totalPossible} (${percentFound}%)\n${streakText}\nCan you beat my score?`;
+    
+    try {
+      await Share.share({
+        message,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
 
-  // Main Menu - Single Player / Online
-  if (gameMode === 'mainMenu') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <AnimatedBackground />
-        
-        <View style={styles.mainMenuContainer}>
-          <Text style={styles.menuTitle}>Word Builder</Text>
-          <Text style={styles.menuSubtitle}>Select Game Type</Text>
-          
-          <LiquidGlassButton 
-            onPress={() => setGameMode('modeSelect')}
-            size="large"
-            style={{ marginBottom: 20 }}
-          >
-            <Text style={styles.glassButtonText}>Single Player</Text>
-          </LiquidGlassButton>
-          
-          <LiquidGlassButton 
-            disabled={true}
-            size="large"
-            style={{ marginBottom: 20 }}
-          >
-            <Text style={styles.glassButtonTextDisabled}>Online</Text>
-            <Text style={styles.comingSoonText}>Coming Soon</Text>
-          </LiquidGlassButton>
-          
-          <LiquidGlassButton 
-            onPress={backToAppMenu}
-            size="large"
-          >
-            <Text style={styles.glassButtonText}>← Back to Games</Text>
-          </LiquidGlassButton>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Dynamic styles based on theme
+  const dynamicStyles = {
+    container: { backgroundColor: background.backgroundColor },
+    text: { color: background.textColor },
+    textSecondary: { color: background.secondaryText },
+    card: { backgroundColor: background.cardColor, borderColor: background.borderColor },
+    button: { backgroundColor: background.backgroundColor, borderColor: background.borderColor },
+  };
 
-  // Mode Select - Blitz / Standard
-  if (gameMode === 'modeSelect') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <AnimatedBackground />
-        
-        <TouchableOpacity 
-          style={styles.backButtonContainer} 
-          onPress={() => setGameMode('mainMenu')}
-        >
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        
-        <ScrollView contentContainerStyle={styles.menuContainer}>
-          <Text style={styles.menuTitle}>Choose Your Mode</Text>
-          
-          <Text style={styles.sectionTitle}>Blitz Mode (30 sec)</Text>
-          <View style={styles.levelGrid}>
-            {levels.map((level) => (
-              <LiquidGlassButton 
-                key={`blitz-${level}`} 
-                onPress={() => startGame('blitz', level)}
-                size="small"
-              >
-                <Text style={styles.glassButtonText}>{level} Letters</Text>
-              </LiquidGlassButton>
-            ))}
-          </View>
-
-          <Text style={styles.sectionTitle}>Standard Mode (60 sec)</Text>
-          <View style={styles.levelGrid}>
-            {levels.map((level) => (
-              <LiquidGlassButton 
-                key={`standard-${level}`} 
-                onPress={() => startGame('standard', level)}
-                size="small"
-              >
-                <Text style={styles.glassButtonText}>{level} Letters</Text>
-              </LiquidGlassButton>
-            ))}
-          </View>
-          
-          <View style={styles.bottomButtonsContainer}>
-            <LiquidGlassButton 
-              onPress={openStats}
-              size="medium"
-              style={{ marginBottom: 15 }}
-            >
-              <Text style={styles.glassButtonText}>Stats</Text>
-            </LiquidGlassButton>
-            
-            <LiquidGlassButton 
-              onPress={() => setGameMode('customize')}
-              size="medium"
-            >
-              <Text style={styles.glassButtonText}>Customize</Text>
-            </LiquidGlassButton>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  // Stats Screen
-  if (gameMode === 'stats') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <AnimatedBackground />
-        
-        <TouchableOpacity 
-          style={styles.backButtonContainer} 
-          onPress={() => setGameMode('modeSelect')}
-        >
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        
-        <ScrollView 
-          style={{ flex: 1, width: '100%' }}
-          contentContainerStyle={styles.menuContainer}
-          showsVerticalScrollIndicator={true}
-        >
-          <Text style={styles.menuTitle}>Your Stats</Text>
-          
-          {playerStats ? (
-            <View style={styles.statsGrid}>
-              <StatsCard label="Games Played" value={playerStats.gamesPlayed.toString()} />
-              <StatsCard label="Total Score" value={playerStats.totalScore.toLocaleString()} />
-              <StatsCard label="High Score" value={playerStats.highScore.toString()} />
-              <StatsCard label="Avg Score" value={getAverageScore(playerStats).toString()} />
-              <StatsCard label="Words Found" value={playerStats.totalWordsFound.toString()} />
-              <StatsCard label="Words/Game" value={getWordsPerGame(playerStats).toString()} />
-              <StatsCard label="Longest Word" value={playerStats.longestWord.toUpperCase() || '-'} wide />
-              <StatsCard label="Favorite Mode" value={getFavoriteMode(playerStats)} />
-              <StatsCard label="Favorite Letters" value={getFavoriteLetterCount(playerStats)} />
-            </View>
-          ) : (
-            <Text style={styles.loadingText}>Loading stats...</Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  // Customize Screen
-  if (gameMode === 'customize') {
-    return <CustomizeScreen onBack={handleCustomizeBack} />;
-  }
-
-  // Game Over Screen
+  // ==================== GAME OVER SCREEN ====================
   if (gameOver) {
+    const isDaily = gameMode === 'daily';
+    const stats = getPossibleWordsStats(possibleWords);
+    const scrollViewRef = useRef<ScrollView>(null);
+    
+    const handleScroll = (event: any) => {
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const page = Math.round(offsetX / width);
+      setGameOverPage(page === 0 ? 'results' : 'words');
+    };
+    
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        <AnimatedBackground />
+      <SafeAreaView style={[styles.gameOverContainer, dynamicStyles.container]}>
+        <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
         
-        <View style={styles.gameOverContainer}>
-          <Text style={styles.gameOverTitle}>Time's Up!</Text>
-          <Text style={styles.finalScore}>{score}</Text>
-          <Text style={styles.finalScoreLabel}>points</Text>
-          <Text style={styles.wordsFound}>You found {foundWords.length} {foundWords.length === 1 ? 'word' : 'words'}</Text>
-          
-          <View style={styles.foundWordsContainerGameOver}>
-            <ScrollView style={styles.foundWordsScroll} contentContainerStyle={styles.foundWordsList}>
-              {foundWords.map((word: string, index: number) => (
-                <View key={index} style={styles.foundWordBadge}>
-                  <Text style={styles.foundWordText}>{word.toUpperCase()}</Text>
+        {/* Achievement Popup */}
+        <AchievementPopup
+          achievement={currentPopupAchievement}
+          onDismiss={handleAchievementDismiss}
+          backgroundColor={background.cardColor}
+          textColor={background.textColor}
+        />
+        
+        {/* Horizontal Swipe Carousel */}
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleScroll}
+          style={styles.carousel}
+        >
+          {/* ===== PAGE 1: RESULTS ===== */}
+          <View style={[styles.carouselPage, { width }]}>
+            <ScrollView 
+              contentContainerStyle={styles.resultsPageContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {isDaily ? (
+                <>
+                  <Text style={[styles.gameOverTitle, dynamicStyles.text]}>Daily Complete!</Text>
+                  <Text style={[styles.dateText, dynamicStyles.textSecondary]}>{formatDate()}</Text>
+                  {dailyChallenge && dailyChallenge.dailyStreak > 1 && (
+                    <View style={styles.streakBadge}>
+                      <Text style={styles.streakText}>{dailyChallenge.dailyStreak} Day Streak!</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text style={[styles.gameOverTitle, dynamicStyles.text]}>Time's Up!</Text>
+              )}
+              
+              <Text style={styles.finalScore}>{score}</Text>
+              <Text style={[styles.finalScoreLabel, dynamicStyles.textSecondary]}>points</Text>
+              
+              {/* Share Button - Daily Only */}
+              {isDaily && (
+                <TouchableOpacity 
+                  style={styles.shareButton} 
+                  onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
+                >
+                  <Text style={styles.shareButtonText}>Share Result</Text>
+                </TouchableOpacity>
+              )}
+              
+              {/* Stats Summary */}
+              <View style={[styles.statsSummary, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.totalFound}</Text>
+                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Found</Text>
                 </View>
-              ))}
+                <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.totalPossible}</Text>
+                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Possible</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.percentFound}%</Text>
+                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Completion</Text>
+                </View>
+              </View>
+              
+              <View style={styles.buttonContainer}>
+                {!isDaily && (
+                  <TouchableOpacity 
+                    style={styles.playAgainButton} 
+                    onPress={() => startPracticeGame(gameMode as 'blitz' | 'standard', letterCount)}
+                  >
+                    <Text style={styles.playAgainText}>Play Again</Text>
+                  </TouchableOpacity>
+                )}
+                
+                <TouchableOpacity 
+                  style={[styles.menuButton, dynamicStyles.button]} 
+                  onPress={backToMenu}
+                >
+                  <Text style={[styles.menuButtonText, dynamicStyles.text]}>Back to Menu</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
           
-          <TouchableOpacity style={styles.playAgainButton} onPress={() => startGame(gameMode, letterCount)}>
-            <Text style={styles.playAgainText}>Play Again</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.menuButton} onPress={backToMenu}>
-            <Text style={styles.menuButtonText}>Back to Menu</Text>
-          </TouchableOpacity>
+          {/* ===== PAGE 2: ALL WORDS ===== */}
+          <View style={[styles.carouselPage, { width }]}>
+            <Text style={[styles.wordsPageTitle, dynamicStyles.text]}>
+              All Possible Words
+            </Text>
+            <Text style={[styles.wordsPageSubtitle, dynamicStyles.textSecondary]}>
+              You found {stats.totalFound} of {stats.totalPossible} words
+            </Text>
+            
+            <FlatList
+              data={possibleWords}
+              keyExtractor={(item) => item.word}
+              style={styles.wordsList}
+              contentContainerStyle={styles.wordsListContent}
+              numColumns={2}
+              renderItem={({ item }) => (
+                <View style={[
+                  styles.wordItem, 
+                  { backgroundColor: background.cardColor, borderColor: background.borderColor }
+                ]}>
+                  <Text style={[
+                    styles.wordText,
+                    { color: background.textColor },
+                    item.found && styles.wordTextFound
+                  ]}>
+                    {item.word}
+                  </Text>
+                  <Text style={[styles.wordScore, { color: background.secondaryText }]}>
+                    {item.score} pts
+                  </Text>
+                </View>
+              )}
+            />
+            
+            <TouchableOpacity 
+              style={[styles.menuButton, dynamicStyles.button, styles.wordsPageButton]} 
+              onPress={backToMenu}
+            >
+              <Text style={[styles.menuButtonText, dynamicStyles.text]}>Back to Menu</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+        
+        {/* Page Indicator Dots */}
+        <View style={styles.pageIndicator}>
+          <View style={[styles.pageDot, gameOverPage === 'results' && styles.pageDotActive]} />
+          <View style={[styles.pageDot, gameOverPage === 'words' && styles.pageDotActive]} />
         </View>
+        
+        {/* First-Time Swipe Tooltip */}
+        {showSwipeTooltip && (
+          <TouchableOpacity 
+            style={styles.tooltipOverlay} 
+            activeOpacity={1} 
+            onPress={dismissSwipeTooltip}
+          >
+            <View style={[styles.tooltip, { backgroundColor: background.cardColor }]}>
+              <Text style={[styles.tooltipText, { color: background.textColor }]}>
+                Swipe left to see all possible words!
+              </Text>
+              <Text style={[styles.tooltipDismiss, { color: background.secondaryText }]}>
+                Tap anywhere to dismiss
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     );
   }
 
-  // ==================== MAIN GAME SCREEN ====================
-  const tileSize = getTileSize();
+  // ==================== GAMEPLAY SCREEN ====================
+  if (gameMode !== 'menu') {
+    const tileSize = getTileSize();
+    const isDaily = gameMode === 'daily';
 
+    return (
+      <SafeAreaView style={[styles.gameplayContainer, dynamicStyles.container]}>
+        <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
+        
+        <View style={styles.header}>
+          <TouchableOpacity onPress={backToMenu}>
+            <Text style={[styles.backButton, dynamicStyles.textSecondary]}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.timer, dynamicStyles.text, timeLeft <= 10 && styles.timerWarning]}>
+            {formatTime(timeLeft)}
+          </Text>
+          <Text style={styles.scoreText}>{score} pts</Text>
+        </View>
+
+        <Text style={[styles.message, dynamicStyles.textSecondary]}>{message}</Text>
+
+        <View style={styles.wordDisplay}>
+          <Text style={currentWord ? [styles.currentWord, dynamicStyles.text] : [styles.currentWordPlaceholder, dynamicStyles.textSecondary]}>
+            {currentWord || '_ _ _'}
+          </Text>
+        </View>
+
+        <View style={styles.letterGrid}>
+          {letters.map((letter: string, index: number) => (
+            <GameTile
+              key={index}
+              letter={letter}
+              index={index}
+              isSelected={selectedIndices.includes(index)}
+              selectionOrder={selectedIndices.includes(index) ? selectedIndices.indexOf(index) + 1 : null}
+              onPress={handleLetterPress}
+              tileSize={tileSize}
+              tierName={equippedTier}
+              variant={equippedVariant}
+            />
+          ))}
+        </View>
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
+            <Text style={styles.buttonText}>Clear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.buttonText}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.foundWordsSection}>
+          <Text style={[styles.foundWordsTitle, dynamicStyles.textSecondary]}>Found: {foundWords.length}</Text>
+          <ScrollView 
+            horizontal 
+            style={styles.foundWordsScrollHorizontal}
+            showsHorizontalScrollIndicator={false}
+          >
+            {foundWords.map((word: string, index: number) => (
+              <View key={index} style={styles.foundWordBadgeSmall}>
+                <Text style={styles.foundWordTextSmall}>{word.toUpperCase()}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {!isDaily && (
+          <TouchableOpacity 
+            style={[styles.refreshButton, dynamicStyles.button]} 
+            onPress={handleRefresh}
+          >
+            <Text style={[styles.refreshButtonText, dynamicStyles.textSecondary]}>Refresh Letters</Text>
+          </TouchableOpacity>
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  // ==================== MAIN MENU WITH SEGMENTS ====================
   return (
-    <SafeAreaView style={[styles.gameplayContainer, { backgroundColor: DEFAULT_GAMEPLAY_BACKGROUND }]}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.container, dynamicStyles.container]}>
+      <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
+      
+      {/* Achievement Popup */}
+      <AchievementPopup
+        achievement={currentPopupAchievement}
+        onDismiss={handleAchievementDismiss}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+      />
       
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={backToMenu} accessibilityRole="button" accessibilityLabel="Back to menu">
-          <Text style={styles.backButtonGameplay}>← Menu</Text>
+      <View style={styles.appHeader}>
+        <TouchableOpacity style={styles.backToGamesButton} onPress={backToAppMenu}>
+          <Text style={[styles.backToGamesText, dynamicStyles.textSecondary]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.timerGameplay, timeLeft <= 10 && styles.timerWarning]}>{formatTime(timeLeft)}</Text>
-        <Text style={styles.scoreGameplay}>{score} pts</Text>
+        <Text style={[styles.appTitle, dynamicStyles.text]}>Word Builder</Text>
+        <View style={{ width: 60 }} />
+      </View>
+      
+      {/* Segment Switcher */}
+      <View style={[styles.segmentSwitcher, { backgroundColor: background.cardColor }]}>
+        {(['play', 'customize', 'stats'] as SegmentKey[]).map((key) => {
+          const isActive = key === segment;
+          const label = key === 'play' ? 'Play' : key === 'customize' ? 'Customize' : 'Stats';
+
+          return (
+            <Pressable
+              key={key}
+              style={[
+                styles.segmentButton,
+                isActive && { backgroundColor: background.backgroundColor },
+              ]}
+              onPress={() => setSegment(key)}
+            >
+              <Text
+                style={[
+                  styles.segmentButtonText,
+                  { color: background.secondaryText },
+                  isActive && { color: background.textColor, fontWeight: '600' },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* Message */}
-      <Text style={styles.messageGameplay}>{message}</Text>
+      {/* ===== PLAY SEGMENT ===== */}
+      {segment === 'play' && (
+        <ScrollView style={styles.playContainer} showsVerticalScrollIndicator={false}>
+          {/* Daily Challenge Card */}
+          <View style={[
+            styles.dailyCard,
+            dynamicStyles.card,
+            { borderWidth: 2 },
+            dailyPlayed && { borderColor: COLORS.accent }
+          ]}>
+            <Text style={[styles.dailyTitle, dynamicStyles.text]}>Daily Challenge</Text>
+            <Text style={[styles.dailySubtitle, dynamicStyles.textSecondary]}>
+              {formatDate()} • 6 Letters • 60 Seconds
+            </Text>
+            
+            {dailyPlayed && dailyResult ? (
+              <View style={styles.dailyCompletedInfo}>
+                <Text style={styles.dailyCompletedScore}>{dailyResult.score}</Text>
+                <Text style={[styles.dailyCompletedLabel, dynamicStyles.textSecondary]}>
+                  Today's Score • {dailyResult.words.length} words
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.dailyButton, dynamicStyles.button, { borderWidth: 2 }]}
+                onPress={startDailyChallenge}
+              >
+                <Text style={[styles.dailyButtonText, dynamicStyles.text]}>Play Today's Challenge</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-      {/* Word Display - NO background, just text */}
-      <View style={styles.wordDisplayTransparent}>
-        <Text style={currentWord ? styles.currentWordGameplay : styles.currentWordPlaceholder}>
-          {currentWord || '_ _ _'}
-        </Text>
-      </View>
-
-      {/* Letter Grid */}
-      <View style={styles.letterGrid}>
-        {letters.map((letter: string, index: number) => (
-          <GameTile
-            key={index}
-            letter={letter}
-            index={index}
-            isSelected={selectedIndices.includes(index)}
-            selectionOrder={selectedIndices.includes(index) ? selectedIndices.indexOf(index) + 1 : null}
-            onPress={handleLetterPress}
-            tileSize={tileSize}
-            tierName={equippedTier}
-            variant={equippedVariant}
-          />
-        ))}
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.clearButton} onPress={handleClear} accessibilityRole="button" accessibilityLabel="Clear selection">
-          <Text style={styles.buttonText}>Clear</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} accessibilityRole="button" accessibilityLabel="Submit word">
-          <Text style={styles.buttonText}>Submit</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Simplified Found Words List */}
-      <View style={styles.foundWordsContainerGameplay}>
-        <Text style={styles.foundWordsTitleGameplay}>Found: {foundWords.length}</Text>
-        <ScrollView 
-          horizontal 
-          style={styles.foundWordsScrollGameplay} 
-          contentContainerStyle={styles.foundWordsListGameplay}
-          showsHorizontalScrollIndicator={false}
-        >
-          {foundWords.map((word: string, index: number) => (
-            <View key={index} style={styles.foundWordBadgeGameplay}>
-              <Text style={styles.foundWordTextGameplay}>{word.toUpperCase()}</Text>
+          {/* Blitz Mode */}
+          <View style={styles.modeSection}>
+            <Text style={[styles.modeSectionTitle, dynamicStyles.text]}>Blitz Mode (30 sec)</Text>
+            <View style={styles.letterCountRow}>
+              {[6, 7, 8].map((count) => (
+                <TouchableOpacity
+                  key={count}
+                  style={[styles.letterCountButton, dynamicStyles.button, { borderWidth: 2 }]}
+                  onPress={() => startPracticeGame('blitz', count)}
+                >
+                  <Text style={[styles.letterCountText, dynamicStyles.text]}>{count}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          ))}
-        </ScrollView>
-      </View>
+          </View>
 
-      {/* Refresh Button */}
-      <TouchableOpacity style={styles.refreshButtonGameplay} onPress={handleRefresh} accessibilityRole="button" accessibilityLabel="Refresh letters">
-        <Text style={styles.refreshButtonTextGameplay}>Refresh Letters</Text>
-      </TouchableOpacity>
+          {/* Standard Mode */}
+          <View style={styles.modeSection}>
+            <Text style={[styles.modeSectionTitle, dynamicStyles.text]}>Standard Mode (60 sec)</Text>
+            <View style={styles.letterCountRow}>
+              {[6, 7, 8].map((count) => (
+                <TouchableOpacity
+                  key={count}
+                  style={[styles.letterCountButton, dynamicStyles.button, { borderWidth: 2 }]}
+                  onPress={() => startPracticeGame('standard', count)}
+                >
+                  <Text style={[styles.letterCountText, dynamicStyles.text]}>{count}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* ===== CUSTOMIZE SEGMENT ===== */}
+      {segment === 'customize' && (
+        <View style={styles.customizeContainer}>
+          <CustomizeScreen onBack={() => setSegment('play')} embedded />
+        </View>
+      )}
+
+      {/* ===== STATS SEGMENT ===== */}
+      {segment === 'stats' && (
+        <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
+          
+          {/* Daily Challenge Stats Section */}
+          {dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && (
+            <>
+              <Text style={[styles.statsTitle, dynamicStyles.text]}>Daily Challenge Stats</Text>
+              <View style={styles.statsGrid}>
+                <StatsCard 
+                  label="Dailies Played" 
+                  value={dailyChallenge.dailyGamesPlayed.toString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Current Streak" 
+                  value={`${dailyChallenge.dailyStreak} ${dailyChallenge.dailyStreak === 1 ? 'day' : 'days'}`}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Best Streak" 
+                  value={`${dailyChallenge.bestDailyStreak} ${dailyChallenge.bestDailyStreak === 1 ? 'day' : 'days'}`}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Best Score" 
+                  value={dailyChallenge.bestDailyScore.toString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Avg Score" 
+                  value={getDailyAverageScore(dailyChallenge).toString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Best Words" 
+                  value={dailyChallenge.bestDailyWords.toString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Avg Words" 
+                  value={getDailyAverageWords(dailyChallenge).toString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard 
+                  label="Total Score" 
+                  value={dailyChallenge.dailyTotalScore.toLocaleString()} 
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+              </View>
+            </>
+          )}
+          
+          {/* Practice Stats Section */}
+          <Text style={[styles.statsTitle, dynamicStyles.text, dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && { marginTop: 25 }]}>
+            Practice Stats
+          </Text>
+          
+          {playerStats ? (
+            <View style={styles.statsGrid}>
+              <StatsCard 
+                label="Games Played" 
+                value={playerStats.gamesPlayed.toString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Total Score" 
+                value={playerStats.totalScore.toLocaleString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="High Score" 
+                value={playerStats.highScore.toString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Avg Score" 
+                value={getAverageScore(playerStats).toString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Words Found" 
+                value={playerStats.totalWordsFound.toString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Words/Game" 
+                value={getWordsPerGame(playerStats).toString()} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Longest Word" 
+                value={playerStats.longestWord.toUpperCase() || '-'} 
+                wide
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Favorite Mode" 
+                value={getFavoriteMode(playerStats)} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+              <StatsCard 
+                label="Favorite Letters" 
+                value={getFavoriteLetterCount(playerStats)} 
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+            </View>
+          ) : (
+            <Text style={[styles.loadingText, dynamicStyles.textSecondary]}>Loading stats...</Text>
+          )}
+          
+          {/* Achievements Section */}
+          {unlockedAchievements.length > 0 && (
+            <>
+              <Text style={[styles.statsTitle, dynamicStyles.text, { marginTop: 25 }]}>
+                Achievements ({unlockedAchievements.length})
+              </Text>
+              <View style={styles.achievementsGrid}>
+                {unlockedAchievements.map((achievement) => (
+                  <View 
+                    key={achievement.id} 
+                    style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+                  >
+                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, { color: background.textColor }]}>
+                      {achievement.name}
+                    </Text>
+                    <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>
+                      {achievement.description}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+          
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  appHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 5,
+  },
+  backToGamesButton: {
+    padding: 8,
+  },
+  backToGamesText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  appTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  
+  // Segment Switcher
+  segmentSwitcher: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 999,
+    padding: 4,
+  },
+  segmentButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  segmentButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Play Segment
+  playContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 15,
+  },
+  dailyCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  dailyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  dailySubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  dailyButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  dailyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dailyCompletedInfo: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dailyCompletedScore: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: COLORS.accent,
+  },
+  dailyCompletedLabel: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  modeSection: {
+    marginBottom: 24,
+  },
+  modeSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  letterCountRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  letterCountButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  letterCountText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  
+  // Customize Segment
+  customizeContainer: {
+    flex: 1,
+  },
+  
+  // Stats Segment
+  statsContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 15,
+  },
+  statsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  statsCard: {
+    width: '48%',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  statsCardWide: {
+    width: '100%',
+  },
+  statsValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  statsLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  
+  // Achievements
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  achievementCard: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  achievementEmoji: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  achievementName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  achievementDesc: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  
+  // Gameplay
+  gameplayContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 10,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  backButton: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  timer: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  timerWarning: {
+    color: COLORS.danger,
+  },
+  scoreText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  message: {
+    fontSize: 16,
+    marginBottom: 15,
+    height: 20,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  wordDisplay: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginBottom: 20,
+    minWidth: 240,
+    alignItems: 'center',
+  },
+  currentWord: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    letterSpacing: 6,
+  },
+  currentWordPlaceholder: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    letterSpacing: 6,
+    opacity: 0.3,
+  },
+  letterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    width: width - 40,
+    gap: 10,
+    marginBottom: 25,
+    marginTop: 15,
+    minHeight: 200,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 25,
+  },
+  clearButton: {
+    backgroundColor: COLORS.danger,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  submitButton: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  foundWordsSection: {
+    width: '100%',
+    paddingHorizontal: 25,
+    paddingTop: 8,
+  },
+  foundWordsTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  foundWordsScrollHorizontal: {
+    maxHeight: 40,
+  },
+  foundWordBadgeSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 8,
+  },
+  foundWordTextSmall: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  refreshButton: {
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginTop: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+  },
+  refreshButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // Game Over
+  gameOverContainer: {
+    flex: 1,
+  },
+  carousel: {
+    flex: 1,
+  },
+  carouselPage: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  resultsPageContent: {
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingBottom: 30,
+  },
+  pageIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+  },
+  pageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  pageDotActive: {
+    backgroundColor: COLORS.accent,
+  },
+  gameOverTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  streakBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  finalScore: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: COLORS.accent,
+  },
+  finalScoreLabel: {
+    fontSize: 24,
+    marginBottom: 15,
+  },
+  shareButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 20,
+  },
+  shareButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  statsSummary: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 25,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    marginHorizontal: 15,
+  },
+  buttonContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  playAgainButton: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    marginBottom: 15,
+  },
+  playAgainText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  menuButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    borderWidth: 2,
+  },
+  menuButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // All Words Page
+  wordsPageTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  wordsPageSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  wordsList: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  wordsListContent: {
+    paddingBottom: 20,
+  },
+  wordItem: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    margin: 4,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  wordText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  wordTextFound: {
+    textDecorationLine: 'line-through',
+    opacity: 0.5,
+  },
+  wordScore: {
+    fontSize: 12,
+  },
+  wordsPageButton: {
+    alignSelf: 'center',
+    marginVertical: 15,
+  },
+  
+  // Swipe Tooltip
+  tooltipOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tooltip: {
+    marginHorizontal: 40,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tooltipText: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  tooltipDismiss: {
+    fontSize: 14,
+  },
+});

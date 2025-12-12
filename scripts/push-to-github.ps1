@@ -1,6 +1,11 @@
 # Push-to-GitHub helper for Windows PowerShell
-# Usage: Open PowerShell in your WordGame folder and run:
-#   .\push-to-github.ps1
+# Usage: 
+#   npm run push
+#   Or directly: .\scripts\push-to-github.ps1 -Message "Your commit message"
+
+param(
+    [string]$Message = ""
+)
 
 # Your GitHub repo URL
 $remoteUrl = "https://github.com/brandonbach44-sudo/Word-Game.git"
@@ -28,8 +33,7 @@ if (-not (Test-Path ".git")) {
 # Set up remote
 $existingRemote = git remote get-url origin 2>$null
 if ($existingRemote) {
-    Write-Host "Updating remote to: $remoteUrl" -ForegroundColor Yellow
-    git remote set-url origin $remoteUrl
+    Write-Host "Remote configured: $existingRemote" -ForegroundColor Green
 } else {
     Write-Host "Adding remote: $remoteUrl" -ForegroundColor Yellow
     git remote add origin $remoteUrl
@@ -42,14 +46,21 @@ git add -A
 # Check if there are changes to commit
 $status = git status --porcelain
 if ($status) {
-    # Ask for commit message
-    $commitMsg = Read-Host "Enter commit message (or press Enter for 'Update code')"
-    if ([string]::IsNullOrWhiteSpace($commitMsg)) {
-        $commitMsg = "Update code"
+    # Get commit message
+    if ([string]::IsNullOrWhiteSpace($Message)) {
+        $Message = Read-Host "Enter commit message (or press Enter for 'Update code')"
+        if ([string]::IsNullOrWhiteSpace($Message)) {
+            $Message = "Update code"
+        }
     }
     
-    Write-Host "Committing changes..." -ForegroundColor Yellow
-    git commit -m $commitMsg
+    Write-Host "Committing changes: $Message" -ForegroundColor Yellow
+    git commit -m $Message
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Commit failed!" -ForegroundColor Red
+        exit 1
+    }
 } else {
     Write-Host "No changes to commit" -ForegroundColor Yellow
 }
@@ -64,8 +75,10 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host $remoteUrl -ForegroundColor Cyan
 } else {
     Write-Host ""
-    Write-Host "Push failed. Try these fixes:" -ForegroundColor Red
-    Write-Host "1. If this is your first push, make sure the GitHub repo exists"
-    Write-Host "2. If remote has changes, run: git pull origin main --rebase"
-    Write-Host "3. Then try: git push -u origin main"
+    Write-Host "Push failed. Common fixes:" -ForegroundColor Red
+    Write-Host "1. If remote has changes, pull first: git pull origin main --rebase" -ForegroundColor Yellow
+    Write-Host "2. Then push again: git push -u origin main" -ForegroundColor Yellow
+    Write-Host "3. If conflicts occur during rebase, resolve them and run: git rebase --continue" -ForegroundColor Yellow
+    Write-Host "4. Or abort the rebase: git rebase --abort" -ForegroundColor Yellow
+    exit 1
 }

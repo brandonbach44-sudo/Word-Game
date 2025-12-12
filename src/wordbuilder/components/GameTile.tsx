@@ -61,7 +61,7 @@ const GEM_IMAGES: Partial<Record<TierName, any>> = {
   emerald: require('../../../assets/tiles/emerald_v1.png'),
   diamond: require('../../../assets/tiles/diamond_v1.png'),
   legendary: require('../../../assets/tiles/legendary_v1.png'),
-  // iridescence will need its own image - for now fallback to legendary
+  iridescence: require('../../../assets/tiles/iridescence_v1.png'),
 };
 
 // Glow colors for gem tiers

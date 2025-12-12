@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TIERS, TIER_ORDER, TierName } from './tiers';
+import { TierName, TIERS, TIER_ORDER } from './tiers';
 
-// Keys for storing data
-const STATS_KEY = 'wordbuilder_player_stats';
-const TILES_KEY = 'wordbuilder_player_tiles';
+const STATS_KEY = 'wordbuilder_stats';
+const TILES_KEY = 'wordbuilder_tiles';
+const DAILY_KEY = 'wordbuilder_daily';
 
-// ==================== STATS ====================
+// Debug flag - set to true to unlock all tiles for testing
+export const DEBUG_UNLOCK_ALL = false;
+
+// ==================== INTERFACES ====================
 
 export interface PlayerStats {
   gamesPlayed: number;
@@ -13,31 +16,18 @@ export interface PlayerStats {
   highScore: number;
   totalWordsFound: number;
   longestWord: string;
+  // Mode-specific stats
   blitzGamesPlayed: number;
   standardGamesPlayed: number;
-  games6Letters: number;
-  games7Letters: number;
-  games8Letters: number;
+  // Letter count preferences
+  gamesWithSixLetters: number;
+  gamesWithSevenLetters: number;
+  gamesWithEightLetters: number;
 }
 
-const DEFAULT_STATS: PlayerStats = {
-  gamesPlayed: 0,
-  totalScore: 0,
-  highScore: 0,
-  totalWordsFound: 0,
-  longestWord: '',
-  blitzGamesPlayed: 0,
-  standardGamesPlayed: 0,
-  games6Letters: 0,
-  games7Letters: 0,
-  games8Letters: 0,
-};
-
-// ==================== TILES (Career Rewards) ====================
-
 export interface TierProgress {
-  highestVariantUnlocked: number; // 0 = locked, 1 = V1, 2 = V2 (or 1-6 for default styles)
-  scoreWithTier: number;          // Score earned while this tier is equipped
+  scoreWithTier: number;
+  highestVariantUnlocked: number;
 }
 
 export interface PlayerTiles {
@@ -46,68 +36,81 @@ export interface PlayerTiles {
   tierProgress: Record<TierName, TierProgress>;
 }
 
-const DEFAULT_TIER_PROGRESS: TierProgress = {
-  highestVariantUnlocked: 0,
-  scoreWithTier: 0,
+export interface DailyChallenge {
+  // Today's challenge
+  lastPlayedDate: string; // "YYYY-MM-DD"
+  lastDailyScore: number;
+  lastDailyWords: string[];
+  // Streak tracking
+  dailyStreak: number;
+  bestDailyStreak: number; // Longest streak ever
+  // Cumulative stats
+  dailyGamesPlayed: number; // Total daily challenges completed
+  dailyTotalScore: number; // Sum of all daily scores
+  dailyTotalWords: number; // Sum of all words found in dailies
+  bestDailyScore: number; // Highest daily score ever
+  bestDailyWords: number; // Most words found in a single daily
+}
+
+// ==================== DEFAULT VALUES ====================
+
+const defaultStats: PlayerStats = {
+  gamesPlayed: 0,
+  totalScore: 0,
+  highScore: 0,
+  totalWordsFound: 0,
+  longestWord: '',
+  blitzGamesPlayed: 0,
+  standardGamesPlayed: 0,
+  gamesWithSixLetters: 0,
+  gamesWithSevenLetters: 0,
+  gamesWithEightLetters: 0,
 };
 
-const createDefaultTiles = (): PlayerTiles => {
-  const tierProgress: Record<TierName, TierProgress> = {} as Record<TierName, TierProgress>;
-  
-  for (const tier of TIER_ORDER) {
-    tierProgress[tier] = { ...DEFAULT_TIER_PROGRESS };
+const createDefaultTierProgress = (): Record<TierName, TierProgress> => {
+  const progress: Record<TierName, TierProgress> = {} as Record<TierName, TierProgress>;
+  for (const tierName of TIER_ORDER) {
+    progress[tierName] = {
+      scoreWithTier: 0,
+      highestVariantUnlocked: tierName === 'default' ? 6 : 1,
+    };
   }
-  
-  // Default tier styles are always unlocked (all 6)
-  tierProgress.default.highestVariantUnlocked = 6;
-  
-  return {
-    equippedTier: 'default',
-    equippedVariant: 1,
-    tierProgress,
-  };
+  return progress;
 };
 
-// ==================== LOAD FUNCTIONS ====================
+const defaultTiles: PlayerTiles = {
+  equippedTier: 'default',
+  equippedVariant: 1,
+  tierProgress: createDefaultTierProgress(),
+};
+
+const defaultDailyChallenge: DailyChallenge = {
+  lastPlayedDate: '',
+  lastDailyScore: 0,
+  lastDailyWords: [],
+  dailyStreak: 0,
+  bestDailyStreak: 0,
+  dailyGamesPlayed: 0,
+  dailyTotalScore: 0,
+  dailyTotalWords: 0,
+  bestDailyScore: 0,
+  bestDailyWords: 0,
+};
+
+// ==================== STATS FUNCTIONS ====================
 
 export const loadStats = async (): Promise<PlayerStats> => {
   try {
     const data = await AsyncStorage.getItem(STATS_KEY);
     if (data) {
-      return { ...DEFAULT_STATS, ...JSON.parse(data) };
+      return { ...defaultStats, ...JSON.parse(data) };
     }
-    return { ...DEFAULT_STATS };
+    return defaultStats;
   } catch (error) {
     console.error('Error loading stats:', error);
-    return { ...DEFAULT_STATS };
+    return defaultStats;
   }
 };
-
-export const loadTiles = async (): Promise<PlayerTiles> => {
-  try {
-    const data = await AsyncStorage.getItem(TILES_KEY);
-    if (data) {
-      const tiles = JSON.parse(data);
-      // Ensure all tiers exist (backwards compatibility)
-      for (const tier of TIER_ORDER) {
-        if (!tiles.tierProgress[tier]) {
-          tiles.tierProgress[tier] = { ...DEFAULT_TIER_PROGRESS };
-        }
-      }
-      // Ensure default has all 6 styles unlocked
-      if (tiles.tierProgress.default.highestVariantUnlocked < 6) {
-        tiles.tierProgress.default.highestVariantUnlocked = 6;
-      }
-      return tiles;
-    }
-    return createDefaultTiles();
-  } catch (error) {
-    console.error('Error loading tiles:', error);
-    return createDefaultTiles();
-  }
-};
-
-// ==================== SAVE FUNCTIONS ====================
 
 export const saveStats = async (stats: PlayerStats): Promise<void> => {
   try {
@@ -117,125 +120,40 @@ export const saveStats = async (stats: PlayerStats): Promise<void> => {
   }
 };
 
-export const saveTiles = async (tiles: PlayerTiles): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(TILES_KEY, JSON.stringify(tiles));
-  } catch (error) {
-    console.error('Error saving tiles:', error);
-  }
-};
-
-// ==================== GAME COMPLETION ====================
-
-// Main function called after each game ends
 export const updateStatsAfterGame = async (
-  gameScore: number,
-  wordsFound: string[],
-  gameMode: 'blitz' | 'standard',
+  score: number,
+  words: string[],
+  mode: 'blitz' | 'standard' | 'daily',
   letterCount: number
-): Promise<void> => {
-  // Load all data
+): Promise<PlayerStats> => {
   const stats = await loadStats();
-  const tiles = await loadTiles();
   
-  // Update stats
-  stats.gamesPlayed += 1;
-  stats.totalScore += gameScore;
-  if (gameScore > stats.highScore) {
-    stats.highScore = gameScore;
+  // Don't update regular stats for daily mode (handled separately)
+  if (mode === 'daily') {
+    return stats;
   }
-  stats.totalWordsFound += wordsFound.length;
   
-  // Check for longest word
-  const longestInGame = wordsFound.reduce((longest, word) => 
+  stats.gamesPlayed += 1;
+  stats.totalScore += score;
+  stats.highScore = Math.max(stats.highScore, score);
+  stats.totalWordsFound += words.length;
+  
+  const longestInGame = words.reduce((longest, word) => 
     word.length > longest.length ? word : longest, '');
   if (longestInGame.length > stats.longestWord.length) {
     stats.longestWord = longestInGame;
   }
   
-  // Update mode-specific stats
-  if (gameMode === 'blitz') {
-    stats.blitzGamesPlayed += 1;
-  } else {
-    stats.standardGamesPlayed += 1;
-  }
+  if (mode === 'blitz') stats.blitzGamesPlayed += 1;
+  if (mode === 'standard') stats.standardGamesPlayed += 1;
   
-  // Update letter count stats
-  if (letterCount === 6) stats.games6Letters += 1;
-  else if (letterCount === 7) stats.games7Letters += 1;
-  else if (letterCount === 8) stats.games8Letters += 1;
+  if (letterCount === 6) stats.gamesWithSixLetters += 1;
+  if (letterCount === 7) stats.gamesWithSevenLetters += 1;
+  if (letterCount === 8) stats.gamesWithEightLetters += 1;
   
-  // Save stats
   await saveStats(stats);
-  
-  // ========== CAREER TILE PROGRESSION ==========
-  
-  // 1. Check for new tier unlocks based on lifetime score
-  for (const tierName of TIER_ORDER) {
-    if (tierName === 'default') continue;
-    
-    const tier = TIERS[tierName];
-    const progress = tiles.tierProgress[tierName];
-    
-    // Unlock V1 if threshold met
-    if (progress.highestVariantUnlocked === 0 && stats.totalScore >= tier.baseThreshold) {
-      progress.highestVariantUnlocked = 1;
-    }
-  }
-  
-  // 2. Update progress for currently equipped tier
-  const equippedTier = tiles.equippedTier;
-  if (equippedTier !== 'default') {
-    const tierProgress = tiles.tierProgress[equippedTier];
-    const tierConfig = TIERS[equippedTier];
-    
-    // Add score earned while equipped
-    tierProgress.scoreWithTier += gameScore;
-    
-    // Check for V2 unlock
-    if (tierProgress.highestVariantUnlocked === 1 && 
-        tierProgress.scoreWithTier >= tierConfig.v2ScoreThreshold) {
-      tierProgress.highestVariantUnlocked = 2;
-    }
-  }
-  
-  // Save tiles
-  await saveTiles(tiles);
+  return stats;
 };
-
-// ==================== EQUIP FUNCTIONS ====================
-
-// Equip a career tile (tier + variant)
-export const equipTile = async (tier: TierName, variant: number): Promise<boolean> => {
-  const tiles = await loadTiles();
-  
-  // For default tier, all 6 styles are available
-  if (tier === 'default') {
-    if (variant >= 1 && variant <= 6) {
-      tiles.equippedTier = tier;
-      tiles.equippedVariant = variant;
-      await saveTiles(tiles);
-      return true;
-    }
-    return false;
-  }
-  
-  // For other tiers, check if variant is unlocked (max is 2 now)
-  const maxVariant = Math.min(tiles.tierProgress[tier].highestVariantUnlocked, 2);
-  if (variant >= 1 && variant <= maxVariant) {
-    tiles.equippedTier = tier;
-    tiles.equippedVariant = variant;
-    await saveTiles(tiles);
-    return true;
-  }
-  
-  return false;
-};
-
-// Legacy alias
-export const equipCareerTile = equipTile;
-
-// ==================== HELPER FUNCTIONS ====================
 
 export const getAverageScore = (stats: PlayerStats): number => {
   if (stats.gamesPlayed === 0) return 0;
@@ -248,96 +166,243 @@ export const getWordsPerGame = (stats: PlayerStats): number => {
 };
 
 export const getFavoriteMode = (stats: PlayerStats): string => {
-  if (stats.gamesPlayed === 0) return '-';
-  if (stats.blitzGamesPlayed > stats.standardGamesPlayed) return 'Blitz';
-  if (stats.standardGamesPlayed > stats.blitzGamesPlayed) return 'Standard';
-  return 'Tied';
+  if (stats.blitzGamesPlayed === 0 && stats.standardGamesPlayed === 0) return '-';
+  return stats.blitzGamesPlayed >= stats.standardGamesPlayed ? 'Blitz' : 'Standard';
 };
 
 export const getFavoriteLetterCount = (stats: PlayerStats): string => {
-  if (stats.gamesPlayed === 0) return '-';
   const counts = [
-    { count: 6, games: stats.games6Letters },
-    { count: 7, games: stats.games7Letters },
-    { count: 8, games: stats.games8Letters },
+    { count: 6, games: stats.gamesWithSixLetters },
+    { count: 7, games: stats.gamesWithSevenLetters },
+    { count: 8, games: stats.gamesWithEightLetters },
   ];
-  const favorite = counts.reduce((max, curr) => 
-    curr.games > max.games ? curr : max
-  );
+  const favorite = counts.reduce((max, curr) => curr.games > max.games ? curr : max);
   if (favorite.games === 0) return '-';
-  return favorite.count.toString();
+  return `${favorite.count} letters`;
 };
 
-// Get next career tier to unlock
-export const getNextCareerTierProgress = (lifetimeScore: number): {
-  nextTier: TierName | null;
-  currentScore: number;
-  requiredScore: number;
-  progress: number;
-} | null => {
-  for (const tierName of TIER_ORDER) {
-    if (tierName === 'default') continue;
-    
-    const tier = TIERS[tierName];
-    if (lifetimeScore < tier.baseThreshold) {
-      return {
-        nextTier: tierName,
-        currentScore: lifetimeScore,
-        requiredScore: tier.baseThreshold,
-        progress: lifetimeScore / tier.baseThreshold,
+// ==================== TILES FUNCTIONS ====================
+
+export const loadTiles = async (): Promise<PlayerTiles> => {
+  try {
+    const data = await AsyncStorage.getItem(TILES_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      const merged = {
+        ...defaultTiles,
+        ...parsed,
+        tierProgress: {
+          ...createDefaultTierProgress(),
+          ...parsed.tierProgress,
+        },
       };
+      return merged;
     }
+    return defaultTiles;
+  } catch (error) {
+    console.error('Error loading tiles:', error);
+    return defaultTiles;
+  }
+};
+
+export const saveTiles = async (tiles: PlayerTiles): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(TILES_KEY, JSON.stringify(tiles));
+  } catch (error) {
+    console.error('Error saving tiles:', error);
+  }
+};
+
+export const equipTile = async (tier: TierName, variant: number): Promise<boolean> => {
+  try {
+    const tiles = await loadTiles();
+    const stats = await loadStats();
+    const tierConfig = TIERS[tier];
+    
+    if (tier !== 'default' && stats.totalScore < tierConfig.baseThreshold) {
+      return false;
+    }
+    
+    const progress = tiles.tierProgress[tier];
+    if (variant > progress.highestVariantUnlocked) {
+      return false;
+    }
+    
+    tiles.equippedTier = tier;
+    tiles.equippedVariant = variant;
+    await saveTiles(tiles);
+    return true;
+  } catch (error) {
+    console.error('Error equipping tile:', error);
+    return false;
+  }
+};
+
+export const addScoreToEquippedTier = async (score: number): Promise<void> => {
+  const tiles = await loadTiles();
+  const tier = tiles.equippedTier;
+  
+  if (tier === 'default') return;
+  
+  const progress = tiles.tierProgress[tier];
+  progress.scoreWithTier += score;
+  
+  const tierConfig = TIERS[tier];
+  
+  if (progress.highestVariantUnlocked < 2 && progress.scoreWithTier >= tierConfig.v2ScoreThreshold) {
+    progress.highestVariantUnlocked = 2;
   }
   
-  // All tiers unlocked
-  return null;
+  await saveTiles(tiles);
 };
 
-// ==================== RESET FUNCTIONS ====================
+// ==================== DAILY CHALLENGE FUNCTIONS ====================
 
-export const resetStats = async (): Promise<void> => {
+export const loadDailyChallenge = async (): Promise<DailyChallenge> => {
   try {
-    await AsyncStorage.setItem(STATS_KEY, JSON.stringify(DEFAULT_STATS));
+    const data = await AsyncStorage.getItem(DAILY_KEY);
+    if (data) {
+      return { ...defaultDailyChallenge, ...JSON.parse(data) };
+    }
+    return defaultDailyChallenge;
   } catch (error) {
-    console.error('Error resetting stats:', error);
+    console.error('Error loading daily challenge:', error);
+    return defaultDailyChallenge;
   }
 };
 
-export const resetTiles = async (): Promise<void> => {
+export const saveDailyChallenge = async (daily: DailyChallenge): Promise<void> => {
   try {
-    await AsyncStorage.setItem(TILES_KEY, JSON.stringify(createDefaultTiles()));
+    await AsyncStorage.setItem(DAILY_KEY, JSON.stringify(daily));
   } catch (error) {
-    console.error('Error resetting tiles:', error);
+    console.error('Error saving daily challenge:', error);
   }
 };
 
-export const resetAllData = async (): Promise<void> => {
-  await Promise.all([resetStats(), resetTiles()]);
+const getTodayDateString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getYesterdayDateString = (): string => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const hasPlayedTodayDaily = async (): Promise<boolean> => {
+  const daily = await loadDailyChallenge();
+  return daily.lastPlayedDate === getTodayDateString();
+};
+
+export const getTodayDailyResult = async (): Promise<{
+  played: boolean;
+  score: number;
+  words: string[];
+}> => {
+  const daily = await loadDailyChallenge();
+  const today = getTodayDateString();
+  
+  if (daily.lastPlayedDate === today) {
+    return {
+      played: true,
+      score: daily.lastDailyScore,
+      words: daily.lastDailyWords,
+    };
+  }
+  
+  return { played: false, score: 0, words: [] };
+};
+
+export const saveDailyResult = async (score: number, words: string[]): Promise<DailyChallenge> => {
+  const daily = await loadDailyChallenge();
+  const today = getTodayDateString();
+  const yesterday = getYesterdayDateString();
+  
+  // Don't save if already played today
+  if (daily.lastPlayedDate === today) {
+    return daily;
+  }
+  
+  // Update streak
+  if (daily.lastPlayedDate === yesterday) {
+    // Played yesterday, continue streak
+    daily.dailyStreak += 1;
+  } else {
+    // Didn't play yesterday (or first time), start/reset streak
+    daily.dailyStreak = 1;
+  }
+  
+  // Update best streak
+  daily.bestDailyStreak = Math.max(daily.bestDailyStreak, daily.dailyStreak);
+  
+  // Update cumulative stats
+  daily.dailyGamesPlayed += 1;
+  daily.dailyTotalScore += score;
+  daily.dailyTotalWords += words.length;
+  daily.bestDailyScore = Math.max(daily.bestDailyScore, score);
+  daily.bestDailyWords = Math.max(daily.bestDailyWords, words.length);
+  
+  // Update today's result
+  daily.lastPlayedDate = today;
+  daily.lastDailyScore = score;
+  daily.lastDailyWords = words;
+  
+  await saveDailyChallenge(daily);
+  return daily;
+};
+
+// ==================== DAILY STATS HELPERS ====================
+
+export const getDailyAverageScore = (daily: DailyChallenge): number => {
+  if (daily.dailyGamesPlayed === 0) return 0;
+  return Math.round(daily.dailyTotalScore / daily.dailyGamesPlayed);
+};
+
+export const getDailyAverageWords = (daily: DailyChallenge): number => {
+  if (daily.dailyGamesPlayed === 0) return 0;
+  return Math.round((daily.dailyTotalWords / daily.dailyGamesPlayed) * 10) / 10;
 };
 
 // ==================== DEBUG FUNCTIONS ====================
 
-export const DEBUG_UNLOCK_ALL = false; // Set to true for testing
-
 export const unlockAllTilesForTesting = async (): Promise<void> => {
   const tiles = await loadTiles();
   
-  for (const tier of TIER_ORDER) {
-    if (tier === 'default') {
-      tiles.tierProgress[tier].highestVariantUnlocked = 6;
-    } else {
-      tiles.tierProgress[tier].highestVariantUnlocked = 2; // Max is now 2
-    }
-    tiles.tierProgress[tier].scoreWithTier = 1000000;
+  for (const tierName of TIER_ORDER) {
+    tiles.tierProgress[tierName] = {
+      scoreWithTier: 999999,
+      highestVariantUnlocked: tierName === 'default' ? 6 : 2,
+    };
   }
   
   await saveTiles(tiles);
-  console.log('DEBUG: All career tiles unlocked!');
+  
+  const stats = await loadStats();
+  stats.totalScore = 999999999;
+  await saveStats(stats);
 };
 
 export const setScoreForTesting = async (score: number): Promise<void> => {
   const stats = await loadStats();
   stats.totalScore = score;
   await saveStats(stats);
-  console.log(`DEBUG: Total score set to ${score}`);
+};
+
+export const resetDailyForTesting = async (): Promise<void> => {
+  const daily = await loadDailyChallenge();
+  daily.lastPlayedDate = '';
+  daily.lastDailyScore = 0;
+  daily.lastDailyWords = [];
+  await saveDailyChallenge(daily);
+};
+
+export const resetAllDailyStatsForTesting = async (): Promise<void> => {
+  await saveDailyChallenge(defaultDailyChallenge);
 };
