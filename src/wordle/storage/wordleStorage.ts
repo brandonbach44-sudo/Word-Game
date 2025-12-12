@@ -3,8 +3,28 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STATS_KEY = "wordle_stats_v1";
 const DAILY_LOCK_KEY = "wordle_daily_lock_v1";
 
-// We keep these functions intentionally loose-typed (any) so they play nicely
+// We keep stats functions intentionally loose-typed (any) so they play nicely
 // with the ModeStats type defined in wordleGame.tsx without circular imports.
+
+export type DailyLockState = {
+  dateISO: string; // YYYY-MM-DD
+  result: "won" | "lost";
+  // Persisted so Daily Share still works if the user reopens the app the same day.
+  shareText?: string;
+};
+
+function isDailyLockState(value: any): value is DailyLockState {
+  if (!value || typeof value !== "object") return false;
+  if (typeof value.dateISO !== "string") return false;
+  if (value.result !== "won" && value.result !== "lost") return false;
+  if (
+    typeof value.shareText !== "undefined" &&
+    typeof value.shareText !== "string"
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export async function loadWordleStats(): Promise<any | null> {
   try {
@@ -27,12 +47,12 @@ export async function saveWordleStats(stats: any): Promise<void> {
   }
 }
 
-export async function loadDailyLock(): Promise<any | null> {
+export async function loadDailyLock(): Promise<DailyLockState | null> {
   try {
     const raw = await AsyncStorage.getItem(DAILY_LOCK_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
+    if (!isDailyLockState(parsed)) return null;
     return parsed;
   } catch (e) {
     console.warn("loadDailyLock error", e);
@@ -40,7 +60,7 @@ export async function loadDailyLock(): Promise<any | null> {
   }
 }
 
-export async function saveDailyLock(lock: any): Promise<void> {
+export async function saveDailyLock(lock: DailyLockState): Promise<void> {
   try {
     await AsyncStorage.setItem(DAILY_LOCK_KEY, JSON.stringify(lock));
   } catch (e) {

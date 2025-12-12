@@ -1,117 +1,241 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
-type GameState = 'playing' | 'won' | 'lost';
+// Game state types
+type GameStatus = 'idle' | 'playing' | 'won' | 'lost';
 
-type GuessState = {
-  correctGuesses: string[];
+type GameState = {
+  word:  string;
+  guessedLetters: string[];
   incorrectGuesses: string[];
+  correctGuesses: string[];
+  remainingAttempts: number;
+  status: GameStatus;
+  category: string;
 };
 
-const DEFAULT_ATTEMPTS = 6; // Default number of attempts before the game is lost
-const PHRASES = [
-  'hello world',
-  'javascript',
-  'react native',
-  'hangman game',
-  'expo framework',
-  'open source',
-  'mobile development',
-]; // Example phrases for the game
+// Word categories with words
+const WORD_CATEGORIES:  { [key: string]: string[] } = {
+  'Animals':  [
+    'elephant', 'giraffe', 'penguin', 'dolphin', 'kangaroo',
+    'butterfly', 'alligator', 'hedgehog', 'flamingo', 'octopus',
+    'cheetah', 'gorilla', 'raccoon', 'squirrel', 'armadillo',
+    'zebra', 'leopard', 'pelican', 'hamster', 'parrot',
+  ],
+  'Countries': [
+    'australia', 'brazil', 'canada', 'denmark', 'ethiopia',
+    'france', 'germany', 'hungary', 'indonesia', 'jamaica',
+    'kenya', 'luxembourg', 'mexico', 'netherlands', 'portugal',
+    'spain', 'sweden', 'thailand', 'vietnam', 'argentina',
+  ],
+  'Foods':  [
+    'hamburger', 'spaghetti', 'chocolate', 'pineapple', 'strawberry',
+    'avocado', 'broccoli', 'mushroom', 'sandwich', 'pancakes',
+    'croissant', 'burrito', 'lasagna', 'cheesecake', 'cucumber',
+    'blueberry', 'watermelon', 'asparagus', 'cinnamon', 'macaroni',
+  ],
+  'Sports': [
+    'basketball', 'football', 'swimming', 'volleyball', 'badminton',
+    'gymnastics', 'wrestling', 'snowboard', 'surfing', 'baseball',
+    'cricket', 'hockey', 'tennis', 'archery', 'cycling',
+    'marathon', 'bowling', 'boxing', 'sailing', 'skiing',
+  ],
+  'Technology': [
+    'computer', 'keyboard', 'smartphone', 'bluetooth', 'software',
+    'internet', 'algorithm', 'database', 'hardware', 'encryption',
+    'download', 'streaming', 'wireless', 'processor', 'interface',
+    'monitor', 'browser', 'network', 'robotics', 'programming',
+  ],
+  'Movies': [
+    'adventure', 'animation', 'thriller', 'documentary', 'fantasy',
+    'romance', 'superhero', 'mystery', 'western', 'musical',
+    'horror', 'science', 'action', 'drama', 'comedy',
+    'biography', 'historical', 'detective', 'suspense', 'sequel',
+  ],
+  'Nature': [
+    'mountain', 'waterfall', 'rainbow', 'volcano', 'hurricane',
+    'lightning', 'earthquake', 'sunshine', 'blizzard', 'glacier',
+    'desert', 'forest', 'island', 'canyon', 'meadow',
+    'ocean', 'river', 'valley', 'jungle', 'prairie',
+  ],
+  'Professions': [
+    'architect', 'scientist', 'engineer', 'musician', 'physician',
+    'carpenter', 'detective', 'librarian', 'journalist', 'pharmacist',
+    'accountant', 'electrician', 'professor', 'veterinarian', 'programmer',
+    'firefighter', 'astronaut', 'chef', 'lawyer', 'dentist',
+  ],
+};
+
+const MAX_ATTEMPTS = 6; // Head, body, left arm, right arm, left leg, right leg
+
+const getRandomWord = (): { word: string; category:  string } => {
+  const categories = Object.keys(WORD_CATEGORIES);
+  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+  const words = WORD_CATEGORIES[randomCategory];
+  const randomWord = words[Math.floor(Math.random() * words.length)];
+  return { word: randomWord.toUpperCase(), category: randomCategory };
+};
+
+const initialState: GameState = {
+  word: '',
+  guessedLetters: [],
+  incorrectGuesses: [],
+  correctGuesses: [],
+  remainingAttempts: MAX_ATTEMPTS,
+  status:  'idle',
+  category:  '',
+};
 
 export const useHangman = () => {
-  const [phrase, setPhrase] = useState(''); // The word/phrase to guess
-  const [guesses, setGuesses] = useState<GuessState>({
-    correctGuesses: [],
-    incorrectGuesses: [],
-  }); // Tracks correct and incorrect guesses
-  const [remainingAttempts, setRemainingAttempts] = useState(DEFAULT_ATTEMPTS); // How many attempts are left
-  const [gameState, setGameState] = useState<GameState>('playing'); // Current game state
+  const [gameState, setGameState] = useState<GameState>(initialState);
 
-  // Function to start a new game
-  const startNewGame = () => {
-    const randomPhrase =
-      PHRASES[Math.floor(Math.random() * PHRASES.length)]; // Pick a phrase randomly
-    setPhrase(randomPhrase);
-    setGuesses({ correctGuesses: [], incorrectGuesses: [] });
-    setRemainingAttempts(DEFAULT_ATTEMPTS);
-    setGameState('playing');
-  };
+  // Start a new game
+  const startGame = useCallback(() => {
+    const { word, category } = getRandomWord();
+    setGameState({
+      word,
+      guessedLetters: [],
+      incorrectGuesses: [],
+      correctGuesses: [],
+      remainingAttempts: MAX_ATTEMPTS,
+      status: 'playing',
+      category,
+    });
+  }, []);
 
-  // Function to guess a letter
-  const guessLetter = (letter: string) => {
-    if (gameState !== 'playing') return; // Ignore guesses if the game is over
+  // Reset game to idle state
+  const resetGame = useCallback(() => {
+    setGameState(initialState);
+  }, []);
 
-    // Normalize letter to lowercase
-    letter = letter.toLowerCase();
+  // Guess a letter
+  const guessLetter = useCallback((letter: string) => {
+    const normalizedLetter = letter.toUpperCase();
 
-    // Prevent repeated guesses
-    if (
-      guesses.correctGuesses.includes(letter) ||
-      guesses.incorrectGuesses.includes(letter)
-    ) {
-      return;
-    }
-
-    if (phrase.includes(letter)) {
-      // Correct guess
-      setGuesses((prevGuesses) => ({
-        ...prevGuesses,
-        correctGuesses: [...prevGuesses.correctGuesses, letter], // Add the correct letter
-      }));
-
-      // Check if the player has guessed all the letters
-      const allLettersGuessed = phrase
-        .split('')
-        .every(
-          (char) =>
-            char === ' ' || // Ignore spaces
-            [...guesses.correctGuesses, letter].includes(char) // Check guessed letters
-        );
-
-      if (allLettersGuessed) {
-        setGameState('won'); // Player wins
+    setGameState((prevState) => {
+      // Don't allow guesses if game is not playing
+      if (prevState.status !== 'playing') {
+        return prevState;
       }
-    } else {
-      // Incorrect guess
-      setGuesses((prevGuesses) => ({
-        ...prevGuesses,
-        incorrectGuesses: [...prevGuesses.incorrectGuesses, letter], // Add incorrect letter
-      }));
 
-      setRemainingAttempts((prevAttempts) => prevAttempts - 1); // Reduce remaining attempts
+      // Don't allow duplicate guesses
+      if (prevState.guessedLetters. includes(normalizedLetter)) {
+        return prevState;
+      }
 
-      // Check if the player has run out of attempts
-      setRemainingAttempts((prevAttempts) => {
-        const newAttempts = prevAttempts - 1;
-        if (newAttempts === 0) {
-          setGameState('lost'); // Player loses
-        }
-        return newAttempts;
-      });
-    }
-  };
+      const newGuessedLetters = [... prevState.guessedLetters, normalizedLetter];
+      const isCorrect = prevState. word.includes(normalizedLetter);
 
-  // Function to display the partially guessed phrase
-  const getRevealedPhrase = () => {
-    return phrase
-      .split('')
-      .map((char) =>
-        char === ' ' // Spaces are revealed immediately
-          ? ' '
-          : guesses.correctGuesses.includes(char) // Show guessed letters
-          ? char
-          : '_' // For unguessed letters, show an underscore
-      )
-      .join(' ');
-  };
+      let newCorrectGuesses = [...prevState.correctGuesses];
+      let newIncorrectGuesses = [... prevState.incorrectGuesses];
+      let newRemainingAttempts = prevState.remainingAttempts;
+
+      if (isCorrect) {
+        newCorrectGuesses = [...newCorrectGuesses, normalizedLetter];
+      } else {
+        newIncorrectGuesses = [... newIncorrectGuesses, normalizedLetter];
+        newRemainingAttempts -= 1;
+      }
+
+      // Check win condition - all letters in word have been guessed
+      const wordLetters = [... new Set(prevState.word. split(''))];
+      const allLettersGuessed = wordLetters.every((char) =>
+        newCorrectGuesses.includes(char)
+      );
+
+      // Check lose condition
+      const hasLost = newRemainingAttempts === 0;
+
+      let newStatus: GameStatus = 'playing';
+      if (allLettersGuessed) {
+        newStatus = 'won';
+      } else if (hasLost) {
+        newStatus = 'lost';
+      }
+
+      return {
+        ...prevState,
+        guessedLetters: newGuessedLetters,
+        correctGuesses: newCorrectGuesses,
+        incorrectGuesses: newIncorrectGuesses,
+        remainingAttempts:  newRemainingAttempts,
+        status: newStatus,
+      };
+    });
+  }, []);
+
+  // Get the word display with blanks for unguessed letters
+  const getDisplayWord = useCallback((): string[] => {
+    return gameState.word. split('').map((letter) =>
+      gameState.correctGuesses.includes(letter) ? letter : '_'
+    );
+  }, [gameState.word, gameState.correctGuesses]);
+
+  // Check if a letter has been guessed
+  const isLetterGuessed = useCallback(
+    (letter:  string): boolean => {
+      return gameState.guessedLetters.includes(letter.toUpperCase());
+    },
+    [gameState.guessedLetters]
+  );
+
+  // Check if a guessed letter was correct
+  const isLetterCorrect = useCallback(
+    (letter: string): boolean => {
+      return gameState.correctGuesses.includes(letter.toUpperCase());
+    },
+    [gameState.correctGuesses]
+  );
+
+  // Check if a guessed letter was incorrect
+  const isLetterIncorrect = useCallback(
+    (letter: string): boolean => {
+      return gameState.incorrectGuesses.includes(letter.toUpperCase());
+    },
+    [gameState.incorrectGuesses]
+  );
+
+  // Get game statistics for display
+  const getGameStats = useCallback(() => {
+    const totalLetters = [... new Set(gameState.word. split(''))].length;
+    const guessedCorrect = gameState.correctGuesses.length;
+    const progress = totalLetters > 0 ? Math.round((guessedCorrect / totalLetters) * 100) : 0;
+
+    return {
+      totalLetters,
+      guessedCorrect,
+      guessedIncorrect: gameState.incorrectGuesses.length,
+      totalGuesses: gameState.guessedLetters.length,
+      progress,
+    };
+  }, [gameState]);
 
   return {
-    phrase, // The current phrase/word
-    guesses, // Object with the current correct and incorrect guesses
-    remainingAttempts, // Number of attempts remaining
-    gameState, // The current state of the game ('playing', 'won', 'lost')
-    guessLetter, // Function to guess a letter
-    getRevealedPhrase, // Function to get the revealed word/phrase
-    startNewGame, // Function to reset and start a new game
+    // State
+    word: gameState.word,
+    category: gameState.category,
+    guessedLetters: gameState.guessedLetters,
+    correctGuesses: gameState. correctGuesses,
+    incorrectGuesses: gameState.incorrectGuesses,
+    remainingAttempts: gameState.remainingAttempts,
+    maxAttempts: MAX_ATTEMPTS,
+    status: gameState.status,
+    isPlaying: gameState.status === 'playing',
+    isWon: gameState.status === 'won',
+    isLost: gameState. status === 'lost',
+    isIdle: gameState.status === 'idle',
+
+    // Actions
+    startGame,
+    resetGame,
+    guessLetter,
+
+    // Helpers
+    getDisplayWord,
+    isLetterGuessed,
+    isLetterCorrect,
+    isLetterIncorrect,
+    getGameStats,
   };
 };
+
+export default useHangman;

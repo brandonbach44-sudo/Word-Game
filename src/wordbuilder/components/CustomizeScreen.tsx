@@ -7,6 +7,7 @@ import {
   ScrollView,
   StatusBar,
   RefreshControl,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameTile } from './GameTile';
@@ -22,13 +23,15 @@ import {
 interface CustomizeScreenProps {
   onBack: () => void;
   embedded?: boolean;
+  onTileChange?: () => void;
 }
 
-export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false }) => {
+export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false, onTileChange }) => {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [tiles, setTiles] = useState<PlayerTiles | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTier, setSelectedTier] = useState<TierName | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<number>(1);
 
   const loadData = async () => {
     const [loadedStats, loadedTiles] = await Promise.all([
@@ -53,6 +56,10 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     const success = await equipTile(tier, variant);
     if (success) {
       await loadData();
+      // Notify parent component that tiles changed
+      if (onTileChange) {
+        onTileChange();
+      }
     }
   };
 
@@ -90,57 +97,74 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     return num.toString();
   };
 
+  const openTierPreview = (tierName: TierName) => {
+    const status = getTierStatus(tierName);
+    if (status.unlocked) {
+      setSelectedTier(tierName);
+      // Set initial variant to currently equipped if this tier is equipped, else 1
+      if (tiles && tiles.equippedTier === tierName) {
+        setSelectedVariant(tiles.equippedVariant);
+      } else {
+        setSelectedVariant(1);
+      }
+    }
+  };
+
+  const closeTierPreview = () => {
+    setSelectedTier(null);
+  };
+
   const renderTierCard = (tierName: TierName) => {
     const tier = TIERS[tierName];
     const status = getTierStatus(tierName);
     const equipped = isEquipped(tierName);
     const isDefault = tierName === 'default';
     
+    const progressPercent = stats ? Math.min((stats.totalScore / tier.baseThreshold) * 100, 100) : 0;
+    
     return (
       <TouchableOpacity
         key={tierName}
         style={[
           styles.tierCard,
-          !status.unlocked && styles.tierCardLocked,
           equipped && styles.tierCardEquipped,
         ]}
-        onPress={() => {
-          if (status.unlocked) {
-            setSelectedTier(selectedTier === tierName ? null : tierName);
-          }
-        }}
+        onPress={() => openTierPreview(tierName)}
         disabled={!status.unlocked}
         activeOpacity={0.7}
       >
-        <View style={styles.tierPreview}>
-          <GameTile
-            letter="A"
-            index={0}
-            isSelected={false}
-            selectionOrder={null}
-            onPress={() => {}}
-            tileSize={60}
-            tierName={tierName}
-            variant={status.highestVariant || 1}
-          />
-        </View>
+        {/* Left side - Tile Preview */}
+        <Pressable 
+          style={styles.tierPreview}
+          onPress={() => openTierPreview(tierName)}
+          disabled={!status.unlocked}
+        >
+          <View style={!status.unlocked ? styles.tileLockedOverlay : undefined}>
+            <GameTile
+              letter="A"
+              index={0}
+              isSelected={false}
+              selectionOrder={null}
+              onPress={() => openTierPreview(tierName)}
+              tileSize={60}
+              tierName={tierName}
+              variant={status.highestVariant || 1}
+            />
+          </View>
+        </Pressable>
 
+        {/* Middle - Tier Name and Status */}
         <View style={styles.tierInfo}>
           <Text style={[styles.tierName, !status.unlocked && styles.tierNameLocked]}>
             {tier.displayName}
           </Text>
           
-          {!status.unlocked ? (
-            <Text style={styles.tierRequirement}>
-              {formatNumber(tier.baseThreshold)} score to unlock
-            </Text>
-          ) : isDefault ? (
-            <Text style={styles.tierStatus}>6 styles available</Text>
-          ) : (
-            <Text style={styles.tierStatus}>
-              {status.highestVariant === 2 ? 'V2 unlocked' : 'V1 unlocked'}
-            </Text>
-          )}
+          <Text style={[
+            styles.tierStatus, 
+            status.unlocked ? styles.tierStatusUnlocked : styles.tierStatusLocked
+          ]}>
+            {status.unlocked ? 'Unlocked' : 'Locked'}
+          </Text>
           
           {equipped && (
             <View style={styles.equippedBadge}>
@@ -149,13 +173,14 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
           )}
         </View>
 
-        {!status.unlocked && stats && (
+        {/* Right side - Progress bar (only for locked tiers) */}
+        {!status.unlocked && stats && !isDefault && (
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View 
                 style={[
                   styles.progressFill, 
-                  { width: `${Math.min((stats.totalScore / tier.baseThreshold) * 100, 100)}%` }
+                  { width: `${progressPercent}%` }
                 ]} 
               />
             </View>
@@ -176,74 +201,150 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     const isDefault = selectedTier === 'default';
     const maxVariant = isDefault ? 6 : 2;
     
+    // V2 progress data
+    const v2Progress = tiles.tierProgress[selectedTier]?.scoreWithTier || 0;
+    const v2Required = tier.v2ScoreThreshold;
+    const v2ProgressPercent = Math.min((v2Progress / v2Required) * 100, 100);
+    const v2Unlocked = status.highestVariant >= 2;
+    
     return (
-      <View style={styles.variantSelector}>
-        <Text style={styles.variantTitle}>
-          {tier.displayName} - Select {isDefault ? 'Style' : 'Variant'}
-        </Text>
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.variantList}
-        >
-          {Array.from({ length: maxVariant }, (_, i) => i + 1).map((variant) => {
-            const isUnlocked = variant <= status.highestVariant;
-            const isCurrentlyEquipped = isEquipped(selectedTier, variant);
-            
-            return (
-              <TouchableOpacity
-                key={variant}
-                style={[
-                  styles.variantCard,
-                  !isUnlocked && styles.variantCardLocked,
-                  isCurrentlyEquipped && styles.variantCardEquipped,
-                ]}
-                onPress={() => {
-                  if (isUnlocked) {
-                    handleEquip(selectedTier, variant);
-                  }
-                }}
-                disabled={!isUnlocked}
-              >
-                <GameTile
-                  letter="A"
-                  index={0}
-                  isSelected={false}
-                  selectionOrder={null}
-                  onPress={() => {}}
-                  tileSize={55}
-                  tierName={selectedTier}
-                  variant={variant}
-                />
-                <Text style={[styles.variantLabel, !isUnlocked && styles.variantLabelLocked]}>
-                  {isDefault ? `Style ${variant}` : `V${variant}`}
-                </Text>
-                {!isUnlocked && (
-                  <View style={styles.lockOverlay}>
-                    <Text style={styles.lockIcon}>Locked</Text>
-                  </View>
-                )}
-                {isCurrentlyEquipped && (
-                  <View style={styles.equippedCheckmark}>
-                    <Text style={styles.checkmark}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-        
-        {!isDefault && status.highestVariant < 2 && tiles && (
-          <View style={styles.unlockInfo}>
-            <Text style={styles.unlockText}>
-              V2: Earn {formatNumber(tier.v2ScoreThreshold)} score while equipped
+      <View style={styles.overlayContainer}>
+        <Pressable style={styles.overlayBackdrop} onPress={closeTierPreview} />
+        <View style={styles.variantSelector}>
+          {/* Header with close button */}
+          <View style={styles.variantHeader}>
+            <Text style={styles.variantTitle}>
+              {tier.displayName}
             </Text>
-            <Text style={styles.unlockProgress}>
-              {formatNumber(tiles.tierProgress[selectedTier].scoreWithTier)} / {formatNumber(tier.v2ScoreThreshold)}
-            </Text>
+            <TouchableOpacity onPress={closeTierPreview} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        )}
+          
+          {/* Main content area */}
+          <View style={styles.variantContent}>
+            {/* Left side - Large preview */}
+            <View style={styles.previewSection}>
+              <GameTile
+                letter="A"
+                index={0}
+                isSelected={false}
+                selectionOrder={null}
+                onPress={() => {}}
+                tileSize={80}
+                tierName={selectedTier}
+                variant={selectedVariant}
+              />
+            </View>
+            
+            {/* Right side - V2 Progress (non-default tiers only) */}
+            {!isDefault && (
+              <View style={styles.v2ProgressSection}>
+                {v2Unlocked ? (
+                  <Text style={styles.v2UnlockedText}>V2 Unlocked!</Text>
+                ) : (
+                  <>
+                    <Text style={styles.v2ProgressLabel}>V2 Progress</Text>
+                    <Text style={styles.v2ProgressSubtext}>
+                      Score while equipped
+                    </Text>
+                    <View style={styles.v2ProgressBar}>
+                      <View 
+                        style={[
+                          styles.v2ProgressFill, 
+                          { width: `${v2ProgressPercent}%` }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.v2ProgressText}>
+                      {formatNumber(v2Progress)} / {formatNumber(v2Required)}
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+          
+          {/* Variant selection */}
+          <Text style={styles.selectLabel}>
+            Select {isDefault ? 'Style' : 'Variant'}
+          </Text>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.variantList}
+          >
+            {Array.from({ length: maxVariant }, (_, i) => i + 1).map((variant) => {
+              const isUnlocked = variant <= status.highestVariant;
+              const isSelected = selectedVariant === variant;
+              const isCurrentlyEquipped = isEquipped(selectedTier, variant);
+              
+              return (
+                <TouchableOpacity
+                  key={variant}
+                  style={[
+                    styles.variantCard,
+                    isSelected && styles.variantCardSelected,
+                    !isUnlocked && styles.variantCardLocked,
+                    isCurrentlyEquipped && styles.variantCardEquipped,
+                  ]}
+                  onPress={() => {
+                    if (isUnlocked) {
+                      setSelectedVariant(variant);
+                    }
+                  }}
+                  disabled={!isUnlocked}
+                >
+                  <GameTile
+                    letter="A"
+                    index={0}
+                    isSelected={false}
+                    selectionOrder={null}
+                    onPress={() => {
+                      if (isUnlocked) {
+                        setSelectedVariant(variant);
+                      }
+                    }}
+                    tileSize={50}
+                    tierName={selectedTier}
+                    variant={variant}
+                  />
+                  <Text style={[styles.variantLabel, !isUnlocked && styles.variantLabelLocked]}>
+                    {isDefault ? `Style ${variant}` : `V${variant}`}
+                  </Text>
+                  {!isUnlocked && (
+                    <View style={styles.lockOverlay}>
+                      <Text style={styles.lockIcon}>🔒</Text>
+                    </View>
+                  )}
+                  {isCurrentlyEquipped && (
+                    <View style={styles.equippedCheckmark}>
+                      <Text style={styles.checkmark}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          
+          {/* Equip button */}
+          <TouchableOpacity
+            style={[
+              styles.equipButton,
+              isEquipped(selectedTier, selectedVariant) && styles.equipButtonDisabled,
+            ]}
+            onPress={async () => {
+              await handleEquip(selectedTier, selectedVariant);
+              closeTierPreview();
+            }}
+            disabled={isEquipped(selectedTier, selectedVariant)}
+          >
+            <Text style={styles.equipButtonText}>
+              {isEquipped(selectedTier, selectedVariant) ? 'Currently Equipped' : 'Equip'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -256,8 +357,6 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
           <Text style={styles.scoreValue}>{stats.totalScore.toLocaleString()}</Text>
         </View>
       )}
-
-      {renderVariantSelector()}
 
       <ScrollView
         style={styles.scrollView}
@@ -274,6 +373,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
         
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {renderVariantSelector()}
     </>
   );
 
@@ -360,6 +461,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
+  
+  // Tier Card (main list)
   tierCard: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
@@ -370,14 +473,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e8e0d0',
   },
-  tierCardLocked: {
-    opacity: 0.6,
-  },
   tierCardEquipped: {
     borderColor: '#4ecca3',
   },
   tierPreview: {
     marginRight: 15,
+  },
+  tileLockedOverlay: {
+    opacity: 0.5,
   },
   tierInfo: {
     flex: 1,
@@ -390,15 +493,15 @@ const styles = StyleSheet.create({
   tierNameLocked: {
     color: '#999',
   },
-  tierRequirement: {
-    color: '#999',
+  tierStatus: {
     fontSize: 13,
     marginTop: 4,
   },
-  tierStatus: {
+  tierStatusUnlocked: {
     color: '#4ecca3',
-    fontSize: 13,
-    marginTop: 4,
+  },
+  tierStatusLocked: {
+    color: '#999',
   },
   equippedBadge: {
     backgroundColor: '#4ecca3',
@@ -413,91 +516,187 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  
+  // Progress bar (right side of locked tiers)
   progressContainer: {
-    position: 'absolute',
-    bottom: 10,
-    left: 90,
-    right: 15,
+    width: 100,
+    alignItems: 'flex-end',
   },
   progressBar: {
-    height: 4,
+    width: '100%',
+    height: 6,
     backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4ecca3',
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressText: {
     color: '#999',
     fontSize: 10,
     marginTop: 4,
   },
+  
+  // Overlay
+  overlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    justifyContent: 'flex-start',
+    paddingTop: 100,
+  },
+  overlayBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  
+  // Variant Selector (preview overlay)
   variantSelector: {
     backgroundColor: '#ffffff',
     marginHorizontal: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  variantHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#e8e0d0',
   },
   variantTitle: {
     color: '#2c2416',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f5f0e6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#6b5c4a',
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
   },
+  
+  // Main content (preview + V2 progress)
+  variantContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  previewSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 20,
+  },
+  v2ProgressSection: {
+    flex: 1,
+  },
+  v2ProgressLabel: {
+    color: '#2c2416',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  v2ProgressSubtext: {
+    color: '#6b5c4a',
+    fontSize: 11,
+    marginBottom: 8,
+  },
+  v2ProgressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  v2ProgressFill: {
+    height: '100%',
+    backgroundColor: '#4ecca3',
+    borderRadius: 4,
+  },
+  v2ProgressText: {
+    color: '#6b5c4a',
+    fontSize: 12,
+    marginTop: 6,
+  },
+  v2UnlockedText: {
+    color: '#4ecca3',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
+  // Select label
+  selectLabel: {
+    color: '#6b5c4a',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  
+  // Variant cards
   variantList: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 12,
+    paddingBottom: 5,
   },
   variantCard: {
     alignItems: 'center',
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: '#f5f0e6',
     position: 'relative',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  variantCardSelected: {
+    borderColor: '#2c2416',
   },
   variantCardLocked: {
     opacity: 0.5,
   },
   variantCardEquipped: {
     backgroundColor: 'rgba(78, 204, 163, 0.2)',
-    borderWidth: 2,
-    borderColor: '#4ecca3',
   },
   variantLabel: {
     color: '#2c2416',
     fontSize: 12,
     marginTop: 6,
+    fontWeight: '500',
   },
   variantLabelLocked: {
     color: '#999',
   },
   lockOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   lockIcon: {
-    color: '#fff',
-    fontSize: 10,
+    fontSize: 20,
   },
   equippedCheckmark: {
     position: 'absolute',
     top: 5,
     right: 5,
     backgroundColor: '#4ecca3',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -506,22 +705,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  unlockInfo: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+  
+  // Equip button
+  equipButton: {
+    backgroundColor: '#4ecca3',
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    marginTop: 15,
   },
-  unlockText: {
-    color: '#6b5c4a',
-    fontSize: 12,
+  equipButtonDisabled: {
+    backgroundColor: '#ccc',
   },
-  unlockProgress: {
-    color: '#4ecca3',
-    fontSize: 12,
-    marginTop: 4,
+  equipButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
+  
   bottomPadding: {
     height: 50,
   },

@@ -117,6 +117,7 @@ export default function WordBuilder() {
   const [gameOverPage, setGameOverPage] = useState<GameOverPage>('results');
   const [possibleWords, setPossibleWords] = useState<PossibleWord[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gameOverScrollRef = useRef<ScrollView>(null);
 
   // Player Data State
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
@@ -426,7 +427,6 @@ export default function WordBuilder() {
   if (gameOver) {
     const isDaily = gameMode === 'daily';
     const stats = getPossibleWordsStats(possibleWords);
-    const scrollViewRef = useRef<ScrollView>(null);
     
     const handleScroll = (event: any) => {
       const offsetX = event.nativeEvent.contentOffset.x;
@@ -448,7 +448,7 @@ export default function WordBuilder() {
         
         {/* Horizontal Swipe Carousel */}
         <ScrollView
-          ref={scrollViewRef}
+          ref={gameOverScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -797,7 +797,11 @@ export default function WordBuilder() {
       {/* ===== CUSTOMIZE SEGMENT ===== */}
       {segment === 'customize' && (
         <View style={styles.customizeContainer}>
-          <CustomizeScreen onBack={() => setSegment('play')} embedded />
+          <CustomizeScreen 
+            onBack={() => setSegment('play')} 
+            embedded 
+            onTileChange={refreshPlayerData}
+          />
         </View>
       )}
 
@@ -1222,7 +1226,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 20,
     minWidth: 240,
+    height: 70,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   currentWord: {
     fontSize: 36,
@@ -1230,7 +1236,7 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
   },
   currentWordPlaceholder: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     letterSpacing: 6,
     opacity: 0.3,
