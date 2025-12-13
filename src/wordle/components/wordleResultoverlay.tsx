@@ -1,8 +1,9 @@
 import React from "react";
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
 import { useTheme } from "../../shared/ThemeContext";
 
-export type WordleResultOverlayProps = {
+type Props = {
   visible: boolean;
   mode: "daily" | "practice";
   status: "won" | "lost";
@@ -17,284 +18,266 @@ export type WordleResultOverlayProps = {
   onPlayAgain: () => void;
   onGoHome: () => void;
   onGoPractice: () => void;
-  shareText?: string | null;
-  nextDailySecondsRemaining?: number | null;
+  nextDailySecondsRemaining?: number | null; // countdown for next Daily
 };
 
 function formatSeconds(totalSeconds: number): string {
   const seconds = Math.round(totalSeconds);
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
-
   if (minutes <= 0) return `${seconds}s`;
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
 }
 
 function formatCountdown(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.floor(totalSeconds));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
-
-  const parts: string[] = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  parts.push(`${minutes}m`);
-  parts.push(`${remainingSeconds}s`);
-  return parts.join(" ");
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h.toString().padStart(2, "0")}h ${m
+    .toString()
+    .padStart(2, "0")}m ${sec.toString().padStart(2, "0")}s`;
 }
 
-type StatPillProps = {
-  label: string;
-  value: string;
-  textColor: string;
-  secondaryText: string;
-  pillBg: string;
-  pillBorder: string;
-};
-
-const StatPill: React.FC<StatPillProps> = ({
+const StatPill = ({
   label,
   value,
   textColor,
-  secondaryText,
-  pillBg,
-  pillBorder,
-}) => (
-  <View style={[styles.statPill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
-    <Text style={[styles.statPillLabel, { color: secondaryText }]}>{label}</Text>
-    <Text style={[styles.statPillValue, { color: textColor }]}>{value}</Text>
-  </View>
-);
-
-type PrimaryButtonProps = {
+  borderColor,
+  backgroundColor,
+}: {
   label: string;
-  onPress: () => void;
-  borderColor: string;
+  value: string;
   textColor: string;
-  bgColor: string;
+  borderColor: string;
+  backgroundColor: string;
+}) => {
+  return (
+    <View style={[styles.statPill, { borderColor, backgroundColor }]}>
+      <Text style={[styles.statPillLabel, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.statPillValue, { color: textColor }]}>{value}</Text>
+    </View>
+  );
 };
 
-const PrimaryButton: React.FC<PrimaryButtonProps> = ({
+const PrimaryButton = ({
   label,
   onPress,
   borderColor,
   textColor,
-  bgColor,
-}) => (
-  <Pressable
-    style={({ pressed }) => [
-      styles.primaryButton,
-      {
-        borderColor,
-        backgroundColor: bgColor,
-        opacity: pressed ? 0.75 : 1,
-      },
-    ]}
-    onPress={onPress}
-  >
-    <Text style={[styles.primaryButtonText, { color: textColor }]}>{label}</Text>
-  </Pressable>
-);
+  backgroundColor,
+}: {
+  label: string;
+  onPress: () => void;
+  borderColor: string;
+  textColor: string;
+  backgroundColor: string;
+}) => {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.primaryButton,
+        { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.primaryButtonText, { color: textColor }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
 
-export default function WordleResultOverlay(props: WordleResultOverlayProps) {
-  const {
-    visible,
-    mode,
-    status,
-    solutionWord,
-    guessesCount,
-    timeSeconds,
-    currentStreak,
-    bestStreak,
-    averageTimeSeconds,
-    averageGuesses,
-    onClose,
-    onPlayAgain,
-    onGoHome,
-    onGoPractice,
-    shareText,
-    nextDailySecondsRemaining,
-  } = props;
-
+const WordleResultOverlay = ({
+  visible,
+  mode,
+  status,
+  solutionWord,
+  guessesCount,
+  timeSeconds,
+  currentStreak,
+  bestStreak,
+  averageTimeSeconds,
+  averageGuesses,
+  onClose,
+  onPlayAgain,
+  onGoHome,
+  onGoPractice,
+  nextDailySecondsRemaining,
+}: Props) => {
   const { background } = useTheme();
 
-  const themeBg = background.backgroundColor ?? "#000000";
-  const themeText = background.textColor;
-  const themeSecondary = background.secondaryText;
-  const themeCard = background.cardColor;
-  const themeBorder = background.borderColor;
-  const isDark = background.isDark;
+  const BG = background.backgroundColor ?? "#f9f5ec";
+  const TEXT = background.textColor ?? "#111827";
+  const SUBTEXT = background.secondaryText ?? "#6b7280";
+  const CARD = background.cardColor ?? "#ffffff";
+  const BORDER = background.borderColor ?? "#e5e7eb";
 
   if (!visible) return null;
 
   const isDaily = mode === "daily";
   const isWin = status === "won";
+  const hasThisGameData = guessesCount > 0 || timeSeconds != null;
 
   let title = isWin ? "Nice!" : "Out of guesses";
   let subtitle: string;
 
   if (isDaily) {
-    subtitle = isWin ? "Come back tomorrow for a new Daily." : "Try again tomorrow.";
+    if (isWin) {
+      subtitle = hasThisGameData
+        ? `You solved today's word in ${guessesCount} ${
+            guessesCount === 1 ? "guess" : "guesses"
+          }.`
+        : "You already completed today's Daily.";
+    } else {
+      subtitle = hasThisGameData
+        ? "Better luck tomorrow."
+        : "You've already played today's Daily.";
+    }
   } else {
-    subtitle = isWin ? "Want another round?" : "Try again with a new word.";
-  }
-
-  const hasGameData = guessesCount > 0 || timeSeconds != null;
-
-  const timeText = timeSeconds != null ? formatSeconds(timeSeconds) : undefined;
-
-  const avgTimeText =
-    averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : "--";
-
-  const avgGuessesText =
-    averageGuesses != null ? averageGuesses.toFixed(2) : "--";
-
-  const showShare = isDaily && !!shareText;
-
-  const pillBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
-  const pillBorder = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
-
-  async function handleShare() {
-    if (!shareText) return;
-    try {
-      await Share.share({ message: shareText });
-    } catch {
-      // user can cancel share — ignore
+    if (isWin) {
+      subtitle = hasThisGameData
+        ? `You solved it in ${guessesCount} ${
+            guessesCount === 1 ? "guess" : "guesses"
+          }.`
+        : "You solved it.";
+    } else {
+      subtitle = "Try again!";
     }
   }
 
+  const timeText =
+    timeSeconds != null ? formatSeconds(timeSeconds) : undefined;
+
+  const avgTimeText =
+    averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
+
   return (
-    <View
-      style={[
-        styles.overlay,
-        { backgroundColor: isDark ? "rgba(0,0,0,0.60)" : "rgba(0,0,0,0.35)" },
-      ]}
-    >
-      <View style={[styles.card, { backgroundColor: themeCard, borderColor: themeBorder }]}>
-        <Text style={[styles.brandLabel, { color: themeBorder }]}>WORDEARL</Text>
+    <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.55)" }]}>
+      <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+        {/* Brand */}
+        <Text style={[styles.brand, { color: SUBTEXT }]}>WORDEARL</Text>
 
-        <Text style={[styles.title, { color: themeText }]}>{title}</Text>
-        <Text style={[styles.subtitle, { color: themeSecondary }]}>{subtitle}</Text>
+        {/* Title + subtitle */}
+        <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
+        <Text style={[styles.subtitle, { color: SUBTEXT }]}>{subtitle}</Text>
 
-        <View style={styles.solutionWrap}>
-          <Text style={[styles.solutionLabel, { color: themeSecondary }]}>
-            Solution
-          </Text>
-          <Text style={[styles.solutionWord, { color: themeText }]}>
+        {/* Solution */}
+        <View style={[styles.solutionBox, { borderColor: BORDER }]}>
+          <Text style={[styles.solutionLabel, { color: SUBTEXT }]}>Solution</Text>
+          <Text style={[styles.solutionWord, { color: TEXT }]}>
             {solutionWord.toUpperCase()}
           </Text>
         </View>
 
-        {hasGameData && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: themeText }]}>This game</Text>
-            <View style={styles.pillRow}>
+        {/* This game (only if we have real data) */}
+        {hasThisGameData && (
+          <>
+            <View
+              style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]}
+            />
+            <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
+            <View style={styles.statsRow}>
               <StatPill
                 label="Guesses"
                 value={`${guessesCount}`}
-                textColor={themeText}
-                secondaryText={themeSecondary}
-                pillBg={pillBg}
-                pillBorder={pillBorder}
+                textColor={TEXT}
+                borderColor={BORDER}
+                backgroundColor={BG}
               />
-              {timeText && (
+              {timeText ? (
                 <StatPill
                   label="Time"
                   value={timeText}
-                  textColor={themeText}
-                  secondaryText={themeSecondary}
-                  pillBg={pillBg}
-                  pillBorder={pillBorder}
+                  textColor={TEXT}
+                  borderColor={BORDER}
+                  backgroundColor={BG}
                 />
-              )}
+              ) : null}
             </View>
-          </View>
+          </>
         )}
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: themeText }]}>
-            {isDaily ? "Daily stats" : "Practice stats"}
-          </Text>
+        {/* Mode stats */}
+        <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
+        <Text style={[styles.sectionTitle, { color: TEXT }]}>Stats</Text>
 
-          <View style={styles.pillRow}>
-            {isDaily && (
-              <>
-                <StatPill
-                  label="Streak"
-                  value={`${currentStreak ?? 0}`}
-                  textColor={themeText}
-                  secondaryText={themeSecondary}
-                  pillBg={pillBg}
-                  pillBorder={pillBorder}
-                />
-                <StatPill
-                  label="Best"
-                  value={`${bestStreak ?? 0}`}
-                  textColor={themeText}
-                  secondaryText={themeSecondary}
-                  pillBg={pillBg}
-                  pillBorder={pillBorder}
-                />
-              </>
+        {isDaily ? (
+          <View style={styles.statsRow}>
+            {currentStreak != null && (
+              <StatPill
+                label="Streak"
+                value={`${currentStreak}`}
+                textColor={TEXT}
+                borderColor={BORDER}
+                backgroundColor={BG}
+              />
             )}
+            {bestStreak != null && (
+              <StatPill
+                label="Best"
+                value={`${bestStreak}`}
+                textColor={TEXT}
+                borderColor={BORDER}
+                backgroundColor={BG}
+              />
+            )}
+          </View>
+        ) : null}
 
+        <View style={styles.statsRow}>
+          {avgTimeText ? (
             <StatPill
               label="Avg time"
               value={avgTimeText}
-              textColor={themeText}
-              secondaryText={themeSecondary}
-              pillBg={pillBg}
-              pillBorder={pillBorder}
+              textColor={TEXT}
+              borderColor={BORDER}
+              backgroundColor={BG}
             />
+          ) : null}
+          {averageGuesses != null ? (
             <StatPill
               label="Avg guesses"
-              value={avgGuessesText}
-              textColor={themeText}
-              secondaryText={themeSecondary}
-              pillBg={pillBg}
-              pillBorder={pillBorder}
+              value={averageGuesses.toFixed(1)}
+              textColor={TEXT}
+              borderColor={BORDER}
+              backgroundColor={BG}
             />
-          </View>
-
-          {isDaily && nextDailySecondsRemaining != null && (
-            <Text style={[styles.countdown, { color: themeSecondary }]}>
-              Next Daily in {formatCountdown(nextDailySecondsRemaining)}
-            </Text>
-          )}
+          ) : null}
         </View>
 
+        {/* Countdown */}
+        {isDaily && nextDailySecondsRemaining != null ? (
+          <>
+            <View
+              style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]}
+            />
+            <Text style={[styles.countdownLabel, { color: SUBTEXT }]}>
+              Next Daily in
+            </Text>
+            <Text style={[styles.countdownValue, { color: TEXT }]}>
+              {formatCountdown(nextDailySecondsRemaining)}
+            </Text>
+          </>
+        ) : null}
+
+        {/* Buttons */}
         <View style={styles.buttonRow}>
           {isDaily ? (
             <>
-              {showShare && (
-                <PrimaryButton
-                  label="Share"
-                  onPress={handleShare}
-                  borderColor={themeBorder}
-                  textColor={themeBorder}
-                  bgColor={themeBg}
-                />
-              )}
               <PrimaryButton
                 label="Main Menu"
                 onPress={onGoHome}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
+                borderColor={BORDER}
+                textColor={TEXT}
+                backgroundColor={BG}
               />
               <PrimaryButton
                 label="Practice"
                 onPress={onGoPractice}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
-              />
-              <PrimaryButton
-                label="Close"
-                onPress={onClose}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
+                borderColor={BORDER}
+                textColor={TEXT}
+                backgroundColor={BG}
               />
             </>
           ) : (
@@ -302,31 +285,40 @@ export default function WordleResultOverlay(props: WordleResultOverlayProps) {
               <PrimaryButton
                 label="Play Again"
                 onPress={onPlayAgain}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
+                borderColor={BORDER}
+                textColor={TEXT}
+                backgroundColor={BG}
               />
               <PrimaryButton
                 label="Main Menu"
                 onPress={onGoHome}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
-              />
-              <PrimaryButton
-                label="Close"
-                onPress={onClose}
-                borderColor={themeBorder}
-                textColor={themeBorder}
-                bgColor={themeBg}
+                borderColor={BORDER}
+                textColor={TEXT}
+                backgroundColor={BG}
               />
             </>
           )}
         </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            {
+              borderColor: BORDER,
+              backgroundColor: BG,
+              opacity: pressed ? 0.75 : 1,
+            },
+          ]}
+          onPress={onClose}
+        >
+          <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
+        </Pressable>
       </View>
     </View>
   );
-}
+};
+
+export default WordleResultOverlay;
 
 const styles = StyleSheet.create({
   overlay: {
@@ -335,104 +327,132 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 16,
-    zIndex: 999,
+    justifyContent: "center",
+    padding: 18,
   },
   card: {
-    width: "92%",
+    width: "100%",
+    maxWidth: 420,
     borderRadius: 18,
-    padding: 16,
     borderWidth: 2,
+    padding: 16,
   },
-  brandLabel: {
+  brand: {
     textAlign: "center",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "900",
     letterSpacing: 2,
     marginBottom: 6,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "800",
     textAlign: "center",
+    fontSize: 22,
+    fontWeight: "900",
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
     textAlign: "center",
-    marginBottom: 14,
-  },
-  solutionWrap: {
-    alignItems: "center",
+    fontSize: 14,
+    fontWeight: "600",
     marginBottom: 12,
+  },
+  solutionBox: {
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
   },
   solutionLabel: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
     letterSpacing: 1,
-    textTransform: "uppercase",
     marginBottom: 4,
   },
   solutionWord: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "900",
-    letterSpacing: 3,
+    letterSpacing: 2,
   },
-  section: {
-    marginTop: 10,
+  divider: {
+    height: 1,
+    marginVertical: 12,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "900",
     marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: 1,
   },
-  pillRow: {
+  statsRow: {
     flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
     flexWrap: "wrap",
-    gap: 8,
+    marginBottom: 6,
   },
   statPill: {
-    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderRadius: 999,
     paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    minWidth: 110,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    alignItems: "center",
   },
   statPillLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
+    opacity: 0.8,
     marginBottom: 2,
   },
   statPillValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "900",
   },
-  countdown: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: "700",
+  countdownLabel: {
     textAlign: "center",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  countdownValue: {
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
   buttonRow: {
-    marginTop: 14,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
     justifyContent: "center",
+    gap: 10,
+    marginTop: 12,
   },
   primaryButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
     borderWidth: 2,
-    minWidth: 110,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 120,
     alignItems: "center",
   },
   primaryButtonText: {
     fontSize: 13,
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 1,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 1,
   },
 });

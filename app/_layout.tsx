@@ -12,8 +12,8 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="wordbuilder" />
-          <Stack.Screen name="wordle" />
-          <Stack.Screen name="hangman" />
+          <Stack.Screen name="wordle/index" />
+          <Stack.Screen name="hangman/index" />
         </Stack>
       </ThemeProvider>
     </SafeAreaProvider>
