@@ -1,27 +1,35 @@
 import React from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
-import { COLORS } from '../../shared/theme';
 
-const { width } = Dimensions. get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Keyboard layout
-const KEYBOARD_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+const HORIZONTAL_PADDING = 16;
+const KEY_GAP = 4;
+
+// Keyboard layout matching Wordle (with BACK key)
+const KEYBOARD_ROWS: string[][] = [
+  'QWERTYUIOP'. split(''),
+  'ASDFGHJKL'.split(''),
+  [...'ZXCVBNM'.split(''), 'BACK'],
 ];
 
 type KeyboardProps = {
+  selectedLetter:  string | null;
   onKeyPress: (letter: string) => void;
+  onEnter: () => void;
+  onBack: () => void;
   isLetterGuessed: (letter: string) => boolean;
   isLetterCorrect: (letter: string) => boolean;
-  isLetterIncorrect: (letter:  string) => boolean;
+  isLetterIncorrect: (letter: string) => boolean;
   disabled?: boolean;
 };
 
 export const Keyboard: React.FC<KeyboardProps> = ({
+  selectedLetter,
   onKeyPress,
+  onEnter,
+  onBack,
   isLetterGuessed,
   isLetterCorrect,
   isLetterIncorrect,
@@ -29,91 +37,180 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 }) => {
   const { background } = useTheme();
 
+  const themeBg = background. backgroundColor ??  '#f5f0e6';
+  const themeText = background.textColor;
+  const themeBorder = background.borderColor;
+  const isDark = background.isDark;
+
+  // Matching Wordle's subtle colors
+  const subtleBorder = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.14)';
+  const softKeyBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
   const getKeyStyle = (letter: string) => {
+    // Selected letter highlight
+    if (selectedLetter === letter) {
+      return {
+        backgroundColor: themeBorder,
+        borderColor: themeBorder,
+      };
+    }
+    // Correct guess (green)
     if (isLetterCorrect(letter)) {
       return {
-        backgroundColor: COLORS.accent,
-        borderColor: COLORS.accent,
+        backgroundColor: '#22c55e',
+        borderColor: '#16a34a',
       };
     }
+    // Incorrect guess (gray)
     if (isLetterIncorrect(letter)) {
-      // Light grey for incorrect guesses (matches Wordle)
       return {
-        backgroundColor: '#787c7e',
-        borderColor:  '#787c7e',
+        backgroundColor: '#9ca3af',
+        borderColor: '#6b7280',
       };
     }
+    // Default unused key
     return {
-      backgroundColor: background. cardColor,
-      borderColor:  background.borderColor,
+      backgroundColor: softKeyBg,
+      borderColor: subtleBorder,
     };
   };
 
-  const getKeyTextStyle = (letter: string) => {
-    if (isLetterGuessed(letter)) {
-      return { color: '#fff' };
+  const getKeyTextColor = (letter: string) => {
+    if (selectedLetter === letter) {
+      return themeBg;
     }
-    return { color: background.textColor };
+    if (isLetterGuessed(letter)) {
+      return '#f9fafb';
+    }
+    return themeText;
   };
 
   return (
     <View style={styles.container}>
-      {KEYBOARD_ROWS.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row. map((letter) => {
-            const isGuessed = isLetterGuessed(letter);
-            return (
-              <TouchableOpacity
-                key={letter}
-                style={[
-                  styles. key,
-                  getKeyStyle(letter),
-                  isGuessed && styles.keyGuessed,
-                ]}
-                onPress={() => onKeyPress(letter)}
-                disabled={disabled || isGuessed}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles. keyText, getKeyTextStyle(letter)]}>
-                  {letter}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ))}
+      {/* Keyboard Rows */}
+      <View style={styles.keyboardContainer}>
+        {KEYBOARD_ROWS.map((row, rowIndex) => {
+          const rowLength = row.length;
+          const totalGaps = KEY_GAP * (rowLength - 1);
+          const availableWidth = SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - totalGaps;
+          const keyWidth = availableWidth / rowLength;
+
+          return (
+            <View key={rowIndex} style={styles. keyRow}>
+              {row. map((key) => {
+                if (key === 'BACK') {
+                  return (
+                    <Pressable
+                      key={`back-${rowIndex}`}
+                      onPress={onBack}
+                      disabled={disabled || ! selectedLetter}
+                      style={({ pressed }) => [
+                        styles.key,
+                        styles.backKey,
+                        {
+                          width: keyWidth * 1.6,
+                          opacity: pressed ? 0.72 : disabled || !selectedLetter ? 0.5 : 1,
+                          backgroundColor: softKeyBg,
+                          borderColor: subtleBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.keyLabel, { color: themeText }]}>⌫</Text>
+                    </Pressable>
+                  );
+                }
+
+                const isGuessed = isLetterGuessed(key);
+                const keyStyle = getKeyStyle(key);
+                const keyTextColor = getKeyTextColor(key);
+
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => onKeyPress(key)}
+                    disabled={disabled || isGuessed}
+                    style={({ pressed }) => [
+                      styles.key,
+                      {
+                        width: keyWidth,
+                        backgroundColor: keyStyle.backgroundColor,
+                        borderColor: keyStyle.borderColor,
+                        transform: [{ scale: pressed ? 0.94 : 1 }],
+                        opacity: isGuessed && selectedLetter !== key ? 0.9 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.keyLabel, { color: keyTextColor }]}>{key}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Enter Button */}
+      <View style={styles.enterContainer}>
+        <Pressable
+          onPress={onEnter}
+          disabled={disabled || !selectedLetter}
+          style={({ pressed }) => [
+            styles.enterButton,
+            {
+              borderColor: themeBorder,
+              backgroundColor: themeBg,
+              opacity: pressed ? 0.75 : disabled || !selectedLetter ? 0.5 : 1,
+            },
+          ]}
+        >
+          <Text style={[styles.enterLabel, { color: themeBorder }]}>ENTER</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
 
-const KEY_MARGIN = 4;
-const KEY_WIDTH = (width - 20 - KEY_MARGIN * 20) / 10; // 10 keys in first row
-
-const styles = StyleSheet. create({
+const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: HORIZONTAL_PADDING,
   },
-  row: {
+  keyboardContainer: {
+    marginTop: 4,
+  },
+  keyRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginVertical: 2,
   },
-  key:  {
-    width: KEY_WIDTH,
-    height: KEY_WIDTH * 1.3,
+  key: {
+    minHeight: 44,
     borderRadius: 8,
-    borderWidth: 2,
-    justifyContent: 'center',
+    justifyContent:  'center',
     alignItems: 'center',
-    marginHorizontal:  KEY_MARGIN / 2,
+    marginHorizontal: KEY_GAP / 2,
+    paddingHorizontal: 4,
+    borderWidth: 1,
   },
-  keyGuessed: {
-    opacity: 0.9,
+  backKey: {
+    minWidth: 60,
   },
-  keyText: {
-    fontSize:  16,
-    fontWeight:  'bold',
+  keyLabel:  {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  enterContainer:  {
+    marginTop: 6,
+    alignItems: 'center',
+  },
+  enterButton: {
+    borderRadius:  999,
+    paddingHorizontal: 40,
+    paddingVertical: 10,
+    borderWidth: 2,
+  },
+  enterLabel:  {
+    fontSize: 16,
+    fontWeight: '900',
   },
 });
 

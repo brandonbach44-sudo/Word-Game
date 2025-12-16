@@ -1,6 +1,9 @@
 // Word scoring system for Word Builder
 
-// Base points per letter
+// Base multiplier for all scores
+const BASE_MULTIPLIER = 50;
+
+// Base points per letter (Scrabble-style)
 const LETTER_VALUES: Record<string, number> = {
   A: 1, E: 1, I: 1, O: 1, U: 1, L: 1, N: 1, S: 1, T: 1, R: 1,
   D: 2, G: 2,
@@ -11,7 +14,7 @@ const LETTER_VALUES: Record<string, number> = {
   Q: 10, Z: 10,
 };
 
-// Length bonus multipliers
+// Length bonus multipliers (applied on top of base)
 const LENGTH_MULTIPLIERS: Record<number, number> = {
   2: 1,
   3: 1,
@@ -24,20 +27,30 @@ const LENGTH_MULTIPLIERS: Record<number, number> = {
 
 /**
  * Calculate the score for a word (without all-letters bonus)
+ * 
+ * Formula: (sum of letter values) × BASE_MULTIPLIER × length_multiplier
+ * 
+ * Examples:
+ * - "CAT" = (3+1+1) × 50 × 1 = 250 pts
+ * - "QUIZ" = (10+1+1+10) × 50 × 1.5 = 1,650 pts
+ * - "FREEZE" = (4+1+1+1+10+1) × 50 × 3 = 2,700 pts
  */
 export const calculateWordScore = (word: string): number => {
   const upperWord = word.toUpperCase();
   
   // Sum up letter values
-  let baseScore = 0;
+  let letterSum = 0;
   for (const letter of upperWord) {
-    baseScore += LETTER_VALUES[letter] || 0;
+    letterSum += LETTER_VALUES[letter] || 0;
   }
   
-  // Apply length multiplier
-  const multiplier = LENGTH_MULTIPLIERS[word.length] || (word.length > 8 ? 6 : 1);
+  // Apply base multiplier
+  const baseScore = letterSum * BASE_MULTIPLIER;
   
-  return Math.round(baseScore * multiplier);
+  // Apply length multiplier
+  const lengthMultiplier = LENGTH_MULTIPLIERS[word.length] || (word.length > 8 ? 6 : 1);
+  
+  return Math.round(baseScore * lengthMultiplier);
 };
 
 /**

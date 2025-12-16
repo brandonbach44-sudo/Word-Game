@@ -37,20 +37,34 @@ export interface AchievementsData {
 
 export const ACHIEVEMENTS: Achievement[] = [
   // Score Milestones (Single Game)
-  { id: 'score_500', emoji: '💯', name: 'Century Club', description: 'Score 500+ in one game', requirement: 500, category: 'score_milestone' },
-  { id: 'score_1000', emoji: '🌟', name: 'Rising Star', description: 'Score 1,000+ in one game', requirement: 1000, category: 'score_milestone' },
-  { id: 'score_2000', emoji: '👑', name: 'Word King', description: 'Score 2,000+ in one game', requirement: 2000, category: 'score_milestone' },
-  { id: 'score_4000', emoji: '💎', name: 'Diamond Mind', description: 'Score 4,000+ in one game', requirement: 4000, category: 'score_milestone' },
-  { id: 'score_6000', emoji: '🏆', name: 'Legendary', description: 'Score 6,000+ in one game', requirement: 6000, category: 'score_milestone' },
-  { id: 'score_8000', emoji: '🦄', name: 'Mythical', description: 'Score 8,000+ in one game', requirement: 8000, category: 'score_milestone' },
+  { id: 'score_2000', emoji: '💯', name: 'Century Club', description: 'Score 2,000+ in one game', requirement: 2000, category: 'score_milestone' },
+  { id: 'score_4000', emoji: '🌟', name: 'Rising Star', description: 'Score 4,000+ in one game', requirement: 4000, category: 'score_milestone' },
+  { id: 'score_6000', emoji: '👑', name: 'Word King', description: 'Score 6,000+ in one game', requirement: 6000, category: 'score_milestone' },
+  { id: 'score_10000', emoji: '💎', name: 'Diamond Mind', description: 'Score 10,000+ in one game', requirement: 10000, category: 'score_milestone' },
+  { id: 'score_15000', emoji: '🏆', name: 'Legendary', description: 'Score 15,000+ in one game', requirement: 15000, category: 'score_milestone' },
+  { id: 'score_20000', emoji: '🦄', name: 'Mythical', description: 'Score 20,000+ in one game', requirement: 20000, category: 'score_milestone' },
 
   // Daily Streak
-  { id: 'streak_3', emoji: '🔥', name: 'Getting Warm', description: 'Reach a 3-day daily streak', requirement: 3, category: 'daily_streak' },
-  { id: 'streak_7', emoji: '⚡', name: 'Hot Streak', description: 'Reach a 7-day daily streak', requirement: 7, category: 'daily_streak' },
-  { id: 'streak_14', emoji: '🌋', name: 'On Fire', description: 'Reach a 14-day daily streak', requirement: 14, category: 'daily_streak' },
-  { id: 'streak_30', emoji: '☀️', name: 'Unstoppable', description: 'Reach a 30-day daily streak', requirement: 30, category: 'daily_streak' },
-  { id: 'streak_60', emoji: '🌈', name: 'Dedicated', description: 'Reach a 60-day daily streak', requirement: 60, category: 'daily_streak' },
-  { id: 'streak_100', emoji: '💫', name: 'Legendary Streak', description: 'Reach a 100-day daily streak', requirement: 100, category: 'daily_streak' },
+  { id: 'streak_1', emoji: '🌅', name: 'First Light', description: 'Complete your first daily', requirement: 1, category: 'daily_streak' },
+  { id: 'streak_2', emoji: '🔄', name: 'Double Down', description: 'Reach a 2-day daily streak', requirement: 2, category: 'daily_streak' },
+  { id: 'streak_5', emoji: '🌱', name: 'Seedling', description: 'Reach a 5-day daily streak', requirement: 5, category: 'daily_streak' },
+  { id: 'streak_10', emoji: '🔥', name: 'Warming Up', description: 'Reach a 10-day daily streak', requirement: 10, category: 'daily_streak' },
+  { id: 'streak_15', emoji: '⚡', name: 'Electrified', description: 'Reach a 15-day daily streak', requirement: 15, category: 'daily_streak' },
+  { id: 'streak_20', emoji: '🌊', name: 'Tidal Wave', description: 'Reach a 20-day daily streak', requirement: 20, category: 'daily_streak' },
+  { id: 'streak_30', emoji: '📅', name: 'Monthly Master', description: 'Reach a 30-day daily streak', requirement: 30, category: 'daily_streak' },
+  { id: 'streak_40', emoji: '🏃', name: 'Marathon Runner', description: 'Reach a 40-day daily streak', requirement: 40, category: 'daily_streak' },
+  { id: 'streak_50', emoji: '🌋', name: 'Eruption', description: 'Reach a 50-day daily streak', requirement: 50, category: 'daily_streak' },
+  { id: 'streak_75', emoji: '⚔️', name: 'Word Warrior', description: 'Reach a 75-day daily streak', requirement: 75, category: 'daily_streak' },
+  { id: 'streak_100', emoji: '💯', name: 'Centurion', description: 'Reach a 100-day daily streak', requirement: 100, category: 'daily_streak' },
+  { id: 'streak_125', emoji: '🛡️', name: 'Steadfast', description: 'Reach a 125-day daily streak', requirement: 125, category: 'daily_streak' },
+  { id: 'streak_150', emoji: '🐉', name: "Dragon's Breath", description: 'Reach a 150-day daily streak', requirement: 150, category: 'daily_streak' },
+  { id: 'streak_175', emoji: '🌠', name: 'Shooting Star', description: 'Reach a 175-day daily streak', requirement: 175, category: 'daily_streak' },
+  { id: 'streak_200', emoji: '👑', name: 'Word Royalty', description: 'Reach a 200-day daily streak', requirement: 200, category: 'daily_streak' },
+  { id: 'streak_250', emoji: '🏛️', name: 'Monumental', description: 'Reach a 250-day daily streak', requirement: 250, category: 'daily_streak' },
+  { id: 'streak_300', emoji: '🌍', name: 'World Class', description: 'Reach a 300-day daily streak', requirement: 300, category: 'daily_streak' },
+  { id: 'streak_365', emoji: '🎆', name: 'Year One', description: 'Reach a 365-day daily streak', requirement: 365, category: 'daily_streak' },
+  { id: 'streak_500', emoji: '🔱', name: 'Poseidon', description: 'Reach a 500-day daily streak', requirement: 500, category: 'daily_streak' },
+  { id: 'streak_730', emoji: '🌌', name: 'Eternal', description: 'Reach a 730-day daily streak', requirement: 730, category: 'daily_streak' },
 
   // Word Length
   { id: 'word_5', emoji: '📝', name: 'Wordsmith', description: 'Find a 5-letter word', requirement: 5, category: 'word_length' },
@@ -73,12 +87,17 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'games_250', emoji: '🏅', name: 'Veteran', description: 'Play 250 games', requirement: 250, category: 'games_played' },
   { id: 'games_500', emoji: '⭐', name: 'Expert', description: 'Play 500 games', requirement: 500, category: 'games_played' },
 
-  // Lifetime Score
-  { id: 'lifetime_1000', emoji: '🪙', name: 'Bronze', description: 'Reach 1,000 lifetime score', requirement: 1000, category: 'lifetime_score' },
-  { id: 'lifetime_10000', emoji: '🥈', name: 'Silver', description: 'Reach 10,000 lifetime score', requirement: 10000, category: 'lifetime_score' },
-  { id: 'lifetime_50000', emoji: '🥇', name: 'Gold', description: 'Reach 50,000 lifetime score', requirement: 50000, category: 'lifetime_score' },
-  { id: 'lifetime_100000', emoji: '💠', name: 'Platinum', description: 'Reach 100,000 lifetime score', requirement: 100000, category: 'lifetime_score' },
-  { id: 'lifetime_500000', emoji: '👑', name: 'Master', description: 'Reach 500,000 lifetime score', requirement: 500000, category: 'lifetime_score' },
+  // Lifetime Score (matches tile unlocks)
+  { id: 'lifetime_5000', emoji: '🪙', name: 'Copper', description: 'Reach 5,000 lifetime score', requirement: 5000, category: 'lifetime_score' },
+  { id: 'lifetime_25000', emoji: '🥉', name: 'Bronze', description: 'Reach 25,000 lifetime score', requirement: 25000, category: 'lifetime_score' },
+  { id: 'lifetime_100000', emoji: '🥈', name: 'Silver', description: 'Reach 100,000 lifetime score', requirement: 100000, category: 'lifetime_score' },
+  { id: 'lifetime_250000', emoji: '🥇', name: 'Gold', description: 'Reach 250,000 lifetime score', requirement: 250000, category: 'lifetime_score' },
+  { id: 'lifetime_500000', emoji: '❤️', name: 'Ruby', description: 'Reach 500,000 lifetime score', requirement: 500000, category: 'lifetime_score' },
+  { id: 'lifetime_1000000', emoji: '💚', name: 'Emerald', description: 'Reach 1,000,000 lifetime score', requirement: 1000000, category: 'lifetime_score' },
+  { id: 'lifetime_2500000', emoji: '💠', name: 'Platinum', description: 'Reach 2,500,000 lifetime score', requirement: 2500000, category: 'lifetime_score' },
+  { id: 'lifetime_5000000', emoji: '💎', name: 'Diamond', description: 'Reach 5,000,000 lifetime score', requirement: 5000000, category: 'lifetime_score' },
+  { id: 'lifetime_10000000', emoji: '👑', name: 'Legendary', description: 'Reach 10,000,000 lifetime score', requirement: 10000000, category: 'lifetime_score' },
+  { id: 'lifetime_25000000', emoji: '✨', name: 'Iridescence', description: 'Reach 25,000,000 lifetime score', requirement: 25000000, category: 'lifetime_score' },
 
   // Words Per Game (Single Game)
   { id: 'wpg_10', emoji: '🎯', name: 'Sharp Eye', description: 'Find 10+ words in one game', requirement: 10, category: 'words_per_game' },
@@ -87,11 +106,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'wpg_25', emoji: '🐙', name: 'Octopus', description: 'Find 25+ words in one game', requirement: 25, category: 'words_per_game' },
 
   // Daily Challenge Specific
-  { id: 'daily_1', emoji: '🌅', name: 'Early Bird', description: 'Complete your first daily', requirement: 1, category: 'daily_specific' },
   { id: 'daily_10', emoji: '🎯', name: 'Daily Devotee', description: 'Complete 10 dailies', requirement: 10, category: 'daily_specific' },
-  { id: 'daily_30', emoji: '📆', name: 'Monthly Master', description: 'Complete 30 dailies', requirement: 30, category: 'daily_specific' },
-  { id: 'daily_100', emoji: '🗓️', name: 'Yearly Champion', description: 'Complete 100 dailies', requirement: 100, category: 'daily_specific' },
-  { id: 'daily_score_200', emoji: '💯', name: 'Daily Dominator', description: 'Score 200+ on a daily challenge', requirement: 200, category: 'daily_specific' },
+  { id: 'daily_30', emoji: '📆', name: 'Daily Regular', description: 'Complete 30 dailies', requirement: 30, category: 'daily_specific' },
+  { id: 'daily_100', emoji: '🗓️', name: 'Daily Champion', description: 'Complete 100 dailies', requirement: 100, category: 'daily_specific' },
+  { id: 'daily_score_3000', emoji: '💯', name: 'Daily Dominator', description: 'Score 3,000+ on a daily challenge', requirement: 3000, category: 'daily_specific' },
 
   // Special
   { id: 'blitz_5', emoji: '⚡', name: 'Speed Demon', description: 'Find 5+ words in Blitz mode', requirement: 5, category: 'special' },

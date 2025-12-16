@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Flame, Trophy } from 'lucide-react-native';
 
 // Components
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
@@ -96,12 +97,76 @@ const StatsCard = ({
   </View>
 );
 
+// Stat Pill for daily challenge (like Wordle style)
+const DailyStatPill = ({ 
+  label, 
+  value, 
+  icon: Icon,
+  iconColor,
+  highlight = false,
+  secondaryText,
+}: { 
+  label: string; 
+  value: number;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  iconColor: string;
+  highlight?: boolean;
+  secondaryText: string;
+}) => (
+  <View style={[
+    styles.dailyStatPill,
+    highlight && styles.dailyStatPillHighlight,
+  ]}>
+    <Text style={[styles.dailyStatPillLabel, { color: secondaryText }]}>{label}</Text>
+    <View style={styles.dailyStatPillValueRow}>
+      <Icon size={18} color={iconColor} />
+      <Text style={styles.dailyStatPillValue}>{value}</Text>
+    </View>
+  </View>
+);
+
+// Hook for countdown timer to next daily challenge
+const useCountdownToMidnight = () => {
+  const [timeLeft, setTimeLeft] = useState('');
+  
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      
+      const diff = tomorrow.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      return `${hours}h ${minutes}m ${seconds}s`;
+    };
+    
+    setTimeLeft(calculateTimeLeft());
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return timeLeft;
+};
+
 export default function WordBuilder() {
   // Theme
   const { background } = useTheme();
   
+  // Countdown timer for next daily challenge
+  const countdownToNextDaily = useCountdownToMidnight();
+  
   // Segment State
   const [segment, setSegment] = useState<SegmentKey>('play');
+  
+  // Mode Selection State (for two-step selection)
+  const [modeSelection, setModeSelection] = useState<'none' | 'blitz' | 'standard'>('none');
   
   // Game State
   const [gameMode, setGameMode] = useState<GameMode>('menu');
@@ -738,17 +803,40 @@ export default function WordBuilder() {
           ]}>
             <Text style={[styles.dailyTitle, dynamicStyles.text]}>Daily Challenge</Text>
             <Text style={[styles.dailySubtitle, dynamicStyles.textSecondary]}>
-              {formatDate()} • 6 Letters • 60 Seconds
+              {formatDate()}
             </Text>
             
-            {dailyPlayed && dailyResult ? (
+            {/* Score display (only when completed) */}
+            {dailyPlayed && dailyResult && (
               <View style={styles.dailyCompletedInfo}>
                 <Text style={styles.dailyCompletedScore}>{dailyResult.score}</Text>
                 <Text style={[styles.dailyCompletedLabel, dynamicStyles.textSecondary]}>
                   Today's Score • {dailyResult.words.length} words
                 </Text>
               </View>
-            ) : (
+            )}
+
+            {/* Streak Stats */}
+            <View style={styles.dailyStatPillRow}>
+              <DailyStatPill
+                label="Current streak"
+                value={dailyChallenge?.dailyStreak || 0}
+                icon={Flame}
+                iconColor="#e85d04"
+                highlight={true}
+                secondaryText={background.secondaryText}
+              />
+              <DailyStatPill
+                label="Best streak"
+                value={dailyChallenge?.bestDailyStreak || 0}
+                icon={Trophy}
+                iconColor="#d4a017"
+                secondaryText={background.secondaryText}
+              />
+            </View>
+
+            {/* Play Button (only when not completed) */}
+            {!dailyPlayed && (
               <TouchableOpacity 
                 style={[styles.dailyButton, dynamicStyles.button, { borderWidth: 2 }]}
                 onPress={startDailyChallenge}
@@ -756,39 +844,75 @@ export default function WordBuilder() {
                 <Text style={[styles.dailyButtonText, dynamicStyles.text]}>Play Today's Challenge</Text>
               </TouchableOpacity>
             )}
+
+            {/* Countdown Timer (only when completed) */}
+            {dailyPlayed && (
+              <View style={styles.dailyCountdownContainer}>
+                <Text style={[styles.dailyCountdownLabel, dynamicStyles.textSecondary]}>
+                  Next challenge in
+                </Text>
+                <Text style={[styles.dailyCountdownTime, dynamicStyles.text]}>
+                  {countdownToNextDaily}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Blitz Mode */}
-          <View style={styles.modeSection}>
-            <Text style={[styles.modeSectionTitle, dynamicStyles.text]}>Blitz Mode (30 sec)</Text>
-            <View style={styles.letterCountRow}>
-              {[6, 7, 8].map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  style={[styles.letterCountButton, dynamicStyles.button, { borderWidth: 2 }]}
-                  onPress={() => startPracticeGame('blitz', count)}
-                >
-                  <Text style={[styles.letterCountText, dynamicStyles.text]}>{count}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          {/* Mode Selection */}
+          {modeSelection === 'none' ? (
+            // Step 1: Choose Mode
+            <>
+              <TouchableOpacity
+                style={[styles.modeCard, dynamicStyles.card, { borderWidth: 2 }]}
+                onPress={() => setModeSelection('blitz')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modeCardTitle, dynamicStyles.text]}>Blitz Mode</Text>
+                <Text style={[styles.modeCardSubtitle, dynamicStyles.textSecondary]}>30 seconds</Text>
+              </TouchableOpacity>
 
-          {/* Standard Mode */}
-          <View style={styles.modeSection}>
-            <Text style={[styles.modeSectionTitle, dynamicStyles.text]}>Standard Mode (60 sec)</Text>
-            <View style={styles.letterCountRow}>
-              {[6, 7, 8].map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  style={[styles.letterCountButton, dynamicStyles.button, { borderWidth: 2 }]}
-                  onPress={() => startPracticeGame('standard', count)}
-                >
-                  <Text style={[styles.letterCountText, dynamicStyles.text]}>{count}</Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={[styles.modeCard, dynamicStyles.card, { borderWidth: 2 }]}
+                onPress={() => setModeSelection('standard')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modeCardTitle, dynamicStyles.text]}>Standard Mode</Text>
+                <Text style={[styles.modeCardSubtitle, dynamicStyles.textSecondary]}>60 seconds</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // Step 2: Choose Letter Count
+            <View style={[styles.letterSelectCard, dynamicStyles.card, { borderWidth: 2 }]}>
+              <Text style={[styles.letterSelectTitle, dynamicStyles.text]}>
+                {modeSelection === 'blitz' ? 'Blitz Mode' : 'Standard Mode'}
+              </Text>
+              <Text style={[styles.letterSelectSubtitle, dynamicStyles.textSecondary]}>
+                How many letters?
+              </Text>
+              
+              <View style={styles.letterCountRow}>
+                {[6, 7, 8].map((count) => (
+                  <TouchableOpacity
+                    key={count}
+                    style={[styles.letterCountButton, dynamicStyles.button, { borderWidth: 2 }]}
+                    onPress={() => {
+                      startPracticeGame(modeSelection, count);
+                      setModeSelection('none');
+                    }}
+                  >
+                    <Text style={[styles.letterCountText, dynamicStyles.text]}>{count}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              <TouchableOpacity
+                style={styles.backToModesButton}
+                onPress={() => setModeSelection('none')}
+              >
+                <Text style={[styles.backToModesText, dynamicStyles.textSecondary]}>← Back</Text>
+              </TouchableOpacity>
             </View>
-          </View>
+          )}
           
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1057,10 +1181,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
+    textAlign: 'center',
   },
   dailySubtitle: {
     fontSize: 14,
     marginBottom: 16,
+    textAlign: 'center',
   },
   dailyButton: {
     borderRadius: 12,
@@ -1076,7 +1202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dailyCompletedScore: {
-    fontSize: 32,
+    fontSize: 48,
     fontWeight: 'bold',
     color: COLORS.accent,
   },
@@ -1084,18 +1210,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  modeSection: {
-    marginBottom: 24,
+  // Daily Stat Pills (streak display)
+  dailyStatPillRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 16,
   },
-  modeSectionTitle: {
+  dailyStatPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#f3e7d7',
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  dailyStatPillHighlight: {
+    backgroundColor: 'rgba(78, 204, 163, 0.15)',
+  },
+  dailyStatPillLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  dailyStatPillValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dailyStatPillValue: {
     fontSize: 18,
     fontWeight: '600',
+    color: '#2c2416',
+  },
+  // Countdown Timer
+  dailyCountdownContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  dailyCountdownLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  dailyCountdownTime: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  // Mode Selection Cards
+  modeCard: {
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 12,
+    alignItems: 'center',
+  },
+  modeCardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  modeCardSubtitle: {
+    fontSize: 14,
+  },
+  
+  // Letter Count Selection
+  letterSelectCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  letterSelectTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  letterSelectSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
   },
   letterCountRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
+    marginBottom: 16,
   },
   letterCountButton: {
     borderRadius: 12,
@@ -1107,6 +1305,13 @@ const styles = StyleSheet.create({
   letterCountText: {
     fontSize: 18,
     fontWeight: '600',
+  },
+  backToModesButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  backToModesText: {
+    fontSize: 14,
   },
   
   // Customize Segment
