@@ -56,36 +56,38 @@ export const useHangman = () => {
     setStatus('playing');
   }, []);
 
-  // Guess a letter
+  // Guess a letter (case-insensitive, whitespace-safe)
   const guessLetter = useCallback(
     (letter: string) => {
       if (status !== 'playing') return;
 
-      const upperLetter = letter.toUpperCase();
+      const normalizedLetter = letter.trim().toLowerCase();
 
-      // Already guessed
-      if (guessedLetters.includes(upperLetter)) return;
+      // Already guessed (case-insensitive)
+      if (guessedLetters.map(l => l.toLowerCase()).includes(normalizedLetter)) return;
 
-      const newGuessedLetters = [... guessedLetters, upperLetter];
+      const newGuessedLetters = [...guessedLetters, letter]; // Store as user input for UI
       setGuessedLetters(newGuessedLetters);
 
-      // Check if letter is in word (ignore spaces for phrases)
-      const wordLetters = word.replace(/\s/g, '');
-      if (wordLetters.includes(upperLetter)) {
-        const newCorrectGuesses = [...correctGuesses, upperLetter];
+      // Normalize word (remove spaces & toLowerCase for comparison)
+      const wordLetters = word.replace(/\s/g, '').toLowerCase();
+
+      if (wordLetters.includes(normalizedLetter)) {
+        const newCorrectGuesses = [...correctGuesses, letter];
         setCorrectGuesses(newCorrectGuesses);
 
-        // Check for win - all letters guessed (excluding spaces)
-        const uniqueLetters = [...new Set(wordLetters. split(''))];
-        const allGuessed = uniqueLetters. every((l) => newGuessedLetters.includes(l));
+        // Win check - all unique letters (lower) in word are in guessedLetters (lower)
+        const uniqueLetters = [...new Set(wordLetters.split(''))];
+        const guessedNormalized = newGuessedLetters.map(l => l.toLowerCase());
+        const allGuessed = uniqueLetters.every((l) => guessedNormalized.includes(l));
         if (allGuessed) {
           setStatus('won');
         }
       } else {
-        const newIncorrectGuesses = [... incorrectGuesses, upperLetter];
+        const newIncorrectGuesses = [...incorrectGuesses, letter];
         setIncorrectGuesses(newIncorrectGuesses);
 
-        // Check for loss
+        // Loss check
         if (newIncorrectGuesses.length >= maxAttempts) {
           setStatus('lost');
         }
@@ -96,29 +98,30 @@ export const useHangman = () => {
 
   // Get display word (with blanks for unguessed letters, spaces shown as gaps)
   const getDisplayWord = useCallback(() => {
+    const guessedNormalized = guessedLetters.map(l => l.toLowerCase());
     return word
       .split('')
       .map((letter) => {
         if (letter === ' ') return ' '; // Space for gap
-        return guessedLetters.includes(letter) ? letter : '_';
+        return guessedNormalized.includes(letter.toLowerCase()) ? letter : '_';
       });
   }, [word, guessedLetters]);
 
-  // Check if a letter has been guessed
+  // Check if a letter has been guessed (case-insensitive)
   const isLetterGuessed = useCallback(
-    (letter: string) => guessedLetters.includes(letter. toUpperCase()),
+    (letter: string) => guessedLetters.map(l => l.toLowerCase()).includes(letter.toLowerCase()),
     [guessedLetters]
   );
 
-  // Check if a letter was correct
+  // Check if a letter was correct (case-insensitive)
   const isLetterCorrect = useCallback(
-    (letter: string) => correctGuesses.includes(letter.toUpperCase()),
+    (letter: string) => correctGuesses.map(l => l.toLowerCase()).includes(letter.toLowerCase()),
     [correctGuesses]
   );
 
-  // Check if a letter was incorrect
+  // Check if a letter was incorrect (case-insensitive)
   const isLetterIncorrect = useCallback(
-    (letter: string) => incorrectGuesses.includes(letter.toUpperCase()),
+    (letter: string) => incorrectGuesses.map(l => l.toLowerCase()).includes(letter.toLowerCase()),
     [incorrectGuesses]
   );
 

@@ -5,12 +5,12 @@ import { COLORS } from '../../shared/theme';
 
 type WordDisplayProps = {
   displayWord: string[]; // Array of letters or '_' for unguessed
-  isWon?:  boolean;
-  isLost?:  boolean;
+  isWon?: boolean;
+  isLost?: boolean;
   actualWord?: string; // Show the actual word when game is lost
 };
 
-export const WordDisplay:  React.FC<WordDisplayProps> = ({
+export const WordDisplay: React.FC<WordDisplayProps> = ({
   displayWord,
   isWon = false,
   isLost = false,
@@ -21,7 +21,7 @@ export const WordDisplay:  React.FC<WordDisplayProps> = ({
   // When lost, show the actual word with missed letters highlighted
   const getLetterStyle = (letter: string, index: number) => {
     if (isWon) {
-      return { color:  COLORS.accent };
+      return { color: COLORS.accent };
     }
     if (isLost) {
       // If the letter was not guessed (was a blank), show in red
@@ -30,39 +30,47 @@ export const WordDisplay:  React.FC<WordDisplayProps> = ({
       }
       return { color: background.textColor };
     }
-    if (letter === '_') {
-      return { color: background.secondaryText };
-    }
     return { color: background.textColor };
   };
 
-  // Determine what letters to show
+  // Use this for "reveal": show solution at game's end with color cues
   const lettersToShow = isLost && actualWord
-    ? actualWord. split('')
+    ? actualWord.split('')
     : displayWord;
 
   return (
     <View style={styles.container}>
       <View style={styles.wordContainer}>
-        {lettersToShow.map((letter, index) => (
-          <View key={index} style={styles.letterContainer}>
-            <Text style={[styles.letter, getLetterStyle(letter, index)]}>
-              {letter}
-            </Text>
-            <View
-              style={[
-                styles. underline,
-                {
-                  backgroundColor: isWon
-                    ? COLORS.accent
-                    : isLost && displayWord[index] === '_'
-                    ? COLORS.danger
-                    : background.borderColor,
-                },
-              ]}
-            />
-          </View>
-        ))}
+        {lettersToShow.map((letter, index) => {
+          // If this is a space, render nothing (just a gap)
+          if (letter === ' ') {
+            return <View key={index} style={styles.spaceGap} />;
+          }
+
+          // If not a space:
+          const showLetter = letter !== '_';
+
+          return (
+            <View key={index} style={styles.letterContainer}>
+              <Text style={[styles.letter, getLetterStyle(letter, index)]}>
+                {showLetter ? letter : ' '}
+              </Text>
+              <View
+                style={[
+                  styles.underline,
+                  {
+                    backgroundColor: isWon
+                      ? COLORS.accent
+                      : isLost && displayWord[index] === '_'
+                      ? COLORS.danger
+                      : background.borderColor,
+                    opacity: 1,
+                  },
+                ]}
+              />
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -85,18 +93,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     marginVertical: 6,
   },
-  letter:  {
+  letter: {
     fontSize: 32,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     minWidth: 24,
     textAlign: 'center',
+    marginBottom: 0,
   },
   underline: {
     height: 3,
     width: 24,
     borderRadius: 2,
     marginTop: 4,
+  },
+  spaceGap: {
+    width: 28,
+    marginHorizontal: 8,
   },
 });
 
