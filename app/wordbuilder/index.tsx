@@ -22,6 +22,10 @@ import { GameTile } from '../../src/wordbuilder/components/GameTile';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
 import { AchievementPopup } from '../../src/wordbuilder/components/AchievementPopup';
 
+// Shared Managers
+import { SoundManager } from '../../src/shared/SoundManager';
+import { HapticManager } from '../../src/shared/HapticManager';
+
 // Theme
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
@@ -202,9 +206,15 @@ export default function WordBuilder() {
   const [showSwipeTooltip, setShowSwipeTooltip] = useState(false);
   const SWIPE_TOOLTIP_KEY = 'wordbuilder_swipe_tooltip_shown';
 
-  // Load all player data on mount
+  // Initialize managers and load all player data on mount
   useEffect(() => {
-    const loadAllPlayerData = async () => {
+    const initializeApp = async () => {
+      // Initialize sound and haptic managers
+      await Promise.all([
+        SoundManager.init(),
+        HapticManager.init(),
+      ]);
+      
       if (DEBUG_UNLOCK_ALL) {
         await unlockAllTilesForTesting();
       }
@@ -229,7 +239,7 @@ export default function WordBuilder() {
         setDailyResult({ score: todayResult.score, words: todayResult.words });
       }
     };
-    loadAllPlayerData();
+    initializeApp();
   }, []);
 
   // Check if we should show swipe tooltip when game ends
@@ -284,19 +294,30 @@ export default function WordBuilder() {
   };
 
   const getTileSize = () => {
-    const baseSize = (width - 80) / 3;
+    // Smaller tiles with more padding
+    const baseSize = (width - 120) / 3;  // Was -80, now -120 for smaller tiles
     if (letterCount <= 6) return baseSize;
-    return (width - 90) / 4;
+    return (width - 130) / 4;  // Was -90, now -130 for smaller tiles
   };
 
   // Timer effect
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      
+      // Timer warning at 10 seconds
+      if (timeLeft === 10) {
+        HapticManager.timerWarning();
+        SoundManager.countdown();
+      }
     } else if (timeLeft === 0 && gameMode !== 'menu' && !gameOver) {
       setGameOver(true);
       setGameOverPage('results');
       setMessage('Time\'s up!');
+      
+      // Game over feedback
+      HapticManager.gameOver();
+      SoundManager.gameOver();
       
       // Calculate all possible words
       const allPossible = findAllPossibleWords(letters, foundWords);
@@ -340,6 +361,9 @@ export default function WordBuilder() {
         const newAchievements = await checkAchievements(gameResult, progress);
         if (newAchievements.length > 0) {
           setPendingAchievements(prev => [...prev, ...newAchievements]);
+          // Achievement feedback
+          HapticManager.achievement();
+          SoundManager.achievement();
         }
         
         await refreshPlayerData();
@@ -400,6 +424,11 @@ export default function WordBuilder() {
 
   const handleLetterPress = useCallback((index: number) => {
     if (gameOver) return;
+    
+    // Haptic & sound feedback on tile tap
+    HapticManager.tap();
+    SoundManager.tap();
+    
     if (selectedIndices.includes(index)) {
       const newSelected = selectedIndices.filter((i: number) => i !== index);
       setSelectedIndices(newSelected);
@@ -414,21 +443,38 @@ export default function WordBuilder() {
   const handleSubmit = useCallback(() => {
     if (gameOver) return;
     const word = currentWord.toLowerCase();
-    if (word.length < 2) { setMessage('Words must be at least 2 letters!'); return; }
-    if (foundWords.includes(word)) { setMessage('Already found that word!'); return; }
+    if (word.length < 2) { 
+      setMessage('Words must be at least 2 letters!'); 
+      HapticManager.error();
+      SoundManager.error();
+      return; 
+    }
+    if (foundWords.includes(word)) { 
+      setMessage('Already found that word!'); 
+      HapticManager.error();
+      SoundManager.error();
+      return; 
+    }
     if (VALID_WORDS.has(word)) {
       const { score: points, bonusApplied } = calculateWordScoreWithBonus(word, letterCount);
       setScore(score + points);
       setFoundWords([...foundWords, word]);
+      
       if (bonusApplied) {
         setMessage(`+${points} points! 🎉 2x ALL LETTERS BONUS!`);
+        HapticManager.bonus();
+        SoundManager.bonus();
       } else {
         setMessage(`+${points} points!`);
+        HapticManager.validWord();
+        SoundManager.success();
       }
       setSelectedIndices([]);
       setCurrentWord('');
     } else {
       setMessage('Not a valid word!');
+      HapticManager.invalidWord();
+      SoundManager.error();
     }
   }, [gameOver, currentWord, foundWords, score, letterCount]);
 
@@ -634,10 +680,31 @@ export default function WordBuilder() {
           </View>
         </ScrollView>
         
-        {/* Page Indicator Dots */}
-        <View style={styles.pageIndicator}>
-          <View style={[styles.pageDot, gameOverPage === 'results' && styles.pageDotActive]} />
-          <View style={[styles.pageDot, gameOverPage === 'words' && styles.pageDotActive]} />
+        {/* Page Indicator Dots + Swipe Hint */}
+        <View style={styles.pageIndicatorContainer}>
+          <View style={styles.pageIndicatorLabels}>
+            <Text style={[
+              styles.pageIndicatorLabel, 
+              { color: gameOverPage === 'results' ? background.textColor : background.secondaryText }
+            ]}>
+              Results
+            </Text>
+            <Text style={[
+              styles.pageIndicatorLabel,
+              { color: gameOverPage === 'words' ? background.textColor : background.secondaryText }
+            ]}>
+              All Words
+            </Text>
+          </View>
+          <View style={styles.pageIndicator}>
+            <View style={[styles.pageDot, gameOverPage === 'results' && styles.pageDotActive]} />
+            <View style={[styles.pageDot, gameOverPage === 'words' && styles.pageDotActive]} />
+          </View>
+          {gameOverPage === 'results' && (
+            <Text style={[styles.swipeHintText, { color: background.secondaryText }]}>
+              Swipe for all words →
+            </Text>
+          )}
         </View>
         
         {/* First-Time Swipe Tooltip */}
@@ -1530,11 +1597,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingBottom: 30,
   },
+  pageIndicatorContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingBottom: 20,
+  },
+  pageIndicatorLabels: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+    marginBottom: 8,
+  },
+  pageIndicatorLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   pageIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 15,
   },
   pageDot: {
     width: 8,
@@ -1544,6 +1625,11 @@ const styles = StyleSheet.create({
   },
   pageDotActive: {
     backgroundColor: COLORS.accent,
+  },
+  swipeHintText: {
+    fontSize: 13,
+    marginTop: 10,
+    fontStyle: 'italic',
   },
   gameOverTitle: {
     fontSize: 32,

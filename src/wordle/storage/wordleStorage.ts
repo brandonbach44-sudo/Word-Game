@@ -11,6 +11,9 @@ export type DailyLockState = {
   result: "won" | "lost";
   // Persisted so Daily Share still works if the user reopens the app the same day.
   shareText?: string;
+  // Added for stats and result overlays
+  guessesCount?: number;
+  timeSeconds?: number | null;
 };
 
 function isDailyLockState(value: any): value is DailyLockState {

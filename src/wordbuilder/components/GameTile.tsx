@@ -111,6 +111,9 @@ export const GameTile = ({
   tierName,
   variant,
 }: GameTileProps) => {
+  // Dynamic font size - letter takes up ~55% of tile
+  const fontSize = Math.round(tileSize * 0.55);
+  
   // Check what type of tile this is
   const isMetalTier = TIER_CONFIGS[tierName] !== undefined;
   const isGemTier = GEM_IMAGES[tierName] !== undefined || tierName === 'iridescence';
@@ -184,7 +187,7 @@ export const GameTile = ({
             end={{ x: 1, y: 1 }}
             style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: tierConfig.border }]}
           >
-            <Text style={[styles.letterText, { color: tierConfig.letterColor, textShadowColor: tierConfig.letterShadow, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }]}>
+            <Text style={[styles.letterText, { fontSize, color: tierConfig.letterColor, textShadowColor: tierConfig.letterShadow, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }]}>
               {letter}
             </Text>
           </LinearGradient>
@@ -225,7 +228,7 @@ export const GameTile = ({
                 style={StyleSheet.absoluteFill}
               />
             </Animated.View>
-            <Text style={[styles.letterText, { color: tierConfig.letterColor, textShadowColor: tierConfig.letterShadow, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }]}>
+            <Text style={[styles.letterText, { fontSize, color: tierConfig.letterColor, textShadowColor: tierConfig.letterShadow, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }]}>
               {letter}
             </Text>
           </LinearGradient>
@@ -247,7 +250,7 @@ export const GameTile = ({
             imageStyle={styles.tileImage}
             resizeMode="cover"
           >
-            <Text style={[styles.letterText, styles.gemLetter]}>{letter}</Text>
+            <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
           </ImageBackground>
         </View>
       </TouchableOpacity>
@@ -299,7 +302,7 @@ export const GameTile = ({
                 }
               ]} 
             />
-            <Text style={[styles.letterText, styles.gemLetter]}>{letter}</Text>
+            <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
           </ImageBackground>
         </Animated.View>
       </TouchableOpacity>
@@ -324,7 +327,7 @@ export const GameTile = ({
             },
           ]}
         >
-          <Text style={[styles.letterText, { color: defaultStyle.text }]}>{letter}</Text>
+          <Text style={[styles.letterText, { fontSize, color: defaultStyle.text }]}>{letter}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -357,7 +360,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   letterText: {
-    fontSize: 32,
     fontWeight: 'bold',
     zIndex: 10,
     color: '#fff',

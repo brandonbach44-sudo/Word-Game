@@ -10,9 +10,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { DailyLockState } from "../storage/wordleStorage";
 
 import { useTheme } from "../../shared/ThemeContext";
-import { StatsCard } from "../../wordbuilder/components/StatsCard";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
@@ -62,7 +62,9 @@ const TILE_SIZE = Math.max(
 
 const TILE_RADIUS = Math.max(8, Math.floor(TILE_SIZE * 0.18));
 
-type Mode = "daily" | "practice" | "stats";
+type Screen = "menu" | "game";
+type MenuTab = "play" | "stats";
+type GameMode = "daily" | "practice";
 
 type LetterState = "empty" | "correct" | "present" | "absent";
 
@@ -91,9 +93,16 @@ type WordleStats = {
   practice: ModeStats;
 };
 
-type DailyLockState = {
-  dateISO: string; // YYYY-MM-DD
-  result: "won" | "lost";
+
+
+type OverlayOrigin = "game_end" | "menu_view";
+
+type Achievement = {
+  id: string;
+  emoji: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
 };
 
 const KEYBOARD_ROWS: string[][] = [
@@ -102,15 +111,10 @@ const KEYBOARD_ROWS: string[][] = [
   [..."ZXCVBNM".split(""), "BACK"],
 ];
 
-function normalizeWord(input: unknown): string {
-  if (input == null) return "";
-  return String(input).trim().toLowerCase();
-}
-
 // ✅ Normalize dictionaries once so validation is case-insensitive and fast.
-const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => normalizeWord(w)).filter(Boolean);
+const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => String(w).trim().toLowerCase());
 const VALID_GUESSES_SET: Set<string> = new Set(
-  VALID_GUESSES.map((w) => normalizeWord(w)).filter(Boolean)
+  VALID_GUESSES.map((w) => String(w).trim().toLowerCase()).filter(Boolean)
 );
 
 // In case SOLUTIONS words should also always be valid guesses:
@@ -160,9 +164,9 @@ function evaluateGuess(guess: string, solution: string): EvaluatedLetter[] {
 
   // Yellows / grays (respect counts)
   for (let i = 0; i < COLS; i++) {
-    if (result[i].state === "correct") continue;
-    const g = guessChars[i];
-    if ((solutionCounts[g] ?? 0) > 0) {
+    if (result[i].state !== "empty") continue;
+    const g = result[i].letter;
+    if (solutionCounts[g] && solutionCounts[g] > 0) {
       result[i] = { letter: g, state: "present" };
       solutionCounts[g] -= 1;
     } else {
@@ -173,38 +177,39 @@ function evaluateGuess(guess: string, solution: string): EvaluatedLetter[] {
   return result;
 }
 
-function getTodayISODate(): string {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-// Midnight-based day number in local time, deterministic.
-function getDayIndex(date = new Date()): number {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
+function getDailyIndex(date = new Date()): number {
   const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.floor(d.getTime() / msPerDay);
+  const dayNumber = Math.floor(date.setHours(0, 0, 0, 0) / msPerDay);
+  return Math.abs(dayNumber) % SOLUTIONS_LC.length;
 }
 
-function getDailySolution(date = new Date()): string {
-  const idx = getDayIndex(date);
-  const list = SOLUTIONS_LC;
-  if (list.length === 0) return "error";
-  return list[idx % list.length];
+function getDailySolution(): string {
+  return SOLUTIONS_LC[getDailyIndex()];
 }
 
-function getSecondsUntilMidnight(): number {
+function getRandomPracticeSolution(): string {
+  const idx = Math.floor(Math.random() * SOLUTIONS_LC.length);
+  return SOLUTIONS_LC[idx];
+}
+
+function getTodayISODate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getSecondsUntilNextMidnight(): number {
   const now = new Date();
-  const next = new Date(now);
-  next.setHours(24, 0, 0, 0); // next midnight
-  return Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000));
+  const end = new Date(now);
+  end.setHours(24, 0, 0, 0);
+  const diffMs = end.getTime() - now.getTime();
+  return Math.max(0, Math.floor(diffMs / 1000));
 }
 
-function formatTimeSeconds(seconds: number): string {
-  if (!isFinite(seconds) || seconds < 0) return "—";
+function formatSeconds(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
 
@@ -220,6 +225,14 @@ function formatCountdown(totalSeconds: number): string {
   return `${h.toString().padStart(2, "0")}:${m
     .toString()
     .padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+}
+
+function formatTotalTime(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 function getWinRate(stats: ModeStats): number {
@@ -281,19 +294,84 @@ function pickBetterState(prev: LetterState, next: LetterState): LetterState {
   return rank[next] > rank[prev] ? next : prev;
 }
 
+const StatsCard = ({
+  label,
+  value,
+  wide = false,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+}: {
+  label: string;
+  value: string;
+  wide?: boolean;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+}) => {
+  return (
+    <View
+      style={[
+        styles.statsCard,
+        wide && styles.statsCardWide,
+        { backgroundColor: cardColor, borderColor },
+      ]}
+    >
+      <Text style={[styles.statsValue, { color: textColor }]}>{value}</Text>
+      <Text style={[styles.statsLabel, { color: secondaryText }]}>{label}</Text>
+    </View>
+  );
+};
+
+const AchievementCard = ({
+  achievement,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+}: {
+  achievement: Achievement;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+}) => {
+  const opacity = achievement.unlocked ? 1 : 0.5;
+  return (
+    <View
+      style={[
+        styles.achievementCard,
+        { backgroundColor: cardColor, borderColor, opacity },
+      ]}
+    >
+      <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+      <Text style={[styles.achievementName, { color: textColor }]}>
+        {achievement.name}
+      </Text>
+      <Text style={[styles.achievementDesc, { color: secondaryText }]}>
+        {achievement.description}
+      </Text>
+    </View>
+  );
+};
+
 export default function WordleGame() {
   const router = useRouter();
   const { background } = useTheme();
 
-  const BG = background.backgroundColor;
-  const TEXT = background.textColor;
-  const SUBTEXT = background.secondaryText;
-  const CARD = background.cardColor;
-  const BORDER = background.borderColor;
-  const IS_DARK = background.isDark;
+  const BG = background.backgroundColor ?? "#f9f5ec";
+  const TEXT = background.textColor ?? "#111827";
+  const SUBTEXT = background.secondaryText ?? "#6b7280";
+  const CARD = background.cardColor ?? "#ffffff";
+  const BORDER = background.borderColor ?? "#e5e7eb";
+  const IS_DARK = background.isDark ?? false;
 
-  const [mode, setMode] = useState<Mode>("daily");
+  const [screen, setScreen] = useState<Screen>("menu");
+  const [menuTab, setMenuTab] = useState<MenuTab>("play");
 
+  const [gameMode, setGameMode] = useState<GameMode>("daily");
   const [solution, setSolution] = useState<string>(() => getDailySolution());
   const [guesses, setGuesses] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<EvaluatedLetter[][]>([]);
@@ -302,17 +380,25 @@ export default function WordleGame() {
   const [startTime, setStartTime] = useState<number>(() => Date.now());
 
   const [message, setMessage] = useState<string | null>(null);
+
+  // Result overlay state (can be opened either from game end or from Play menu "View Result")
   const [showResult, setShowResult] = useState(false);
+  const [overlayOrigin, setOverlayOrigin] = useState<OverlayOrigin>("game_end");
+  const [overlayMode, setOverlayMode] = useState<GameMode>("daily");
   const [overlayStatus, setOverlayStatus] = useState<"won" | "lost">("lost");
-  const [lastGameTimeSeconds, setLastGameTimeSeconds] = useState<number | null>(
+  const [overlaySolutionWord, setOverlaySolutionWord] = useState<string>(() =>
+    getDailySolution()
+  );
+  const [overlayGuessesCount, setOverlayGuessesCount] = useState<number>(0);
+  const [overlayTimeSeconds, setOverlayTimeSeconds] = useState<number | null>(
     null
   );
 
   const [stats, setStats] = useState<WordleStats>(() => createDefaultStats());
   const [hydrated, setHydrated] = useState(false);
+
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [nextDailySeconds, setNextDailySeconds] = useState<number | null>(null);
-
   const [todayISO, setTodayISO] = useState<string>(() => getTodayISODate());
 
   useEffect(() => {
@@ -328,156 +414,291 @@ export default function WordleGame() {
     )
   ).current;
 
-  const winBounce = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const winBounceAnim = useRef(new Animated.Value(0)).current;
+
+  const resetFlipAnimations = useCallback(() => {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        flipAnims[r][c].setValue(0);
+      }
+    }
+  }, [flipAnims]);
+
+  const triggerShake = useCallback(() => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, {
+        toValue: 1,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 1,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [shakeAnim]);
+
+  const triggerWinBounce = useCallback(() => {
+    winBounceAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(winBounceAnim, {
+        toValue: 1,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(winBounceAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [winBounceAnim]);
+
+  const showMessageFn = useCallback(
+    (text: string) => {
+      setMessage(text);
+      triggerShake();
+    },
+    [triggerShake]
+  );
+
+  useEffect(() => {
+    if (!message) return;
+    const id = setTimeout(() => setMessage(null), 1500);
+    return () => clearTimeout(id);
+  }, [message]);
 
   const revealRow = useCallback(
     (rowIndex: number) => {
-      const row = flipAnims[rowIndex];
-      row.forEach((anim, idx) => {
-        anim.setValue(0);
+      const rowAnims = flipAnims[rowIndex];
+      const animations = rowAnims.map((anim) =>
         Animated.timing(anim, {
           toValue: 1,
-          duration: 240,
-          delay: idx * 80,
+          duration: 260,
           useNativeDriver: true,
-        }).start();
-      });
+        })
+      );
+      Animated.stagger(80, animations).start();
     },
     [flipAnims]
   );
 
-  const triggerWinBounce = useCallback(() => {
-    winBounce.setValue(0);
-    Animated.spring(winBounce, {
-      toValue: 1,
-      friction: 4,
-      tension: 80,
-      useNativeDriver: true,
-    }).start();
-  }, [winBounce]);
-
-  const showMessageFn = useCallback((msg: string) => {
-    setMessage(msg);
-    setTimeout(() => setMessage(null), 1400);
-  }, []);
-
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
+
     (async () => {
       try {
-        const loadedStats = await loadWordleStats();
-        const loadedLock = await loadDailyLock();
-        if (!mounted) return;
+        const [loadedStats, loadedLock] = await Promise.all([
+          loadWordleStats(),
+          loadDailyLock(),
+        ]);
+
+        if (!isMounted) return;
 
         setStats(mergeLoadedStats(loadedStats));
-        setDailyLock(loadedLock);
+
+        if (
+          loadedLock &&
+          typeof loadedLock === "object" &&
+          typeof loadedLock.dateISO === "string" &&
+          (loadedLock.result === "won" || loadedLock.result === "lost")
+        ) {
+          setDailyLock({
+            dateISO: loadedLock.dateISO,
+            result: loadedLock.result,
+            guessesCount:
+              typeof loadedLock.guessesCount === "number"
+                ? loadedLock.guessesCount
+                : undefined,
+            timeSeconds:
+              loadedLock.timeSeconds == null
+                ? undefined
+                : Number(loadedLock.timeSeconds),
+          });
+        } else {
+          setDailyLock(null);
+        }
 
         setHydrated(true);
       } catch (e) {
-        console.warn("Wordle hydration failed", e);
-        if (!mounted) return;
+        console.warn("Failed to hydrate Wordle storage", e);
         setHydrated(true);
       }
     })();
 
     return () => {
-      mounted = false;
+      isMounted = false;
     };
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
+    (async () => {
+      try {
+        await saveWordleStats(stats);
+      } catch (e) {
+        console.warn("Failed to save Wordle stats", e);
+      }
+    })();
+  }, [hydrated, stats]);
+
+  const isDailyCompletedToday = dailyLock != null && dailyLock.dateISO === todayISO;
+
+  useEffect(() => {
+    if (!isDailyCompletedToday) {
+      setNextDailySeconds(null);
+      return;
+    }
+
+    setNextDailySeconds(getSecondsUntilNextMidnight());
     const id = setInterval(() => {
-      setNextDailySeconds(getSecondsUntilMidnight());
+      setNextDailySeconds(getSecondsUntilNextMidnight());
     }, 1000);
-    setNextDailySeconds(getSecondsUntilMidnight());
+
     return () => clearInterval(id);
+  }, [isDailyCompletedToday]);
+
+  const backToGames = useCallback(() => router.back(), [router]);
+
+  const closeResult = useCallback(() => {
+    setShowResult(false);
+    setOverlayOrigin("game_end");
   }, []);
 
-  const isDailyLocked = useMemo(() => {
-    if (mode !== "daily") return false;
-    if (!dailyLock) return false;
-    return dailyLock.dateISO === todayISO;
-  }, [dailyLock, todayISO, mode]);
-
-  // If the day changed, clear lock in memory (storage can keep, but lock should not apply).
-  useEffect(() => {
-    if (!dailyLock) return;
-    if (dailyLock.dateISO !== todayISO) {
-      setDailyLock(null);
-    }
-  }, [dailyLock, todayISO]);
+  const goToMenu = useCallback((tab: MenuTab = "play") => {
+    setMenuTab(tab);
+    setScreen("menu");
+  }, []);
 
   const resetGameState = useCallback(
-    (nextMode?: Mode) => {
-      const m: Mode = nextMode ?? mode;
+    (targetMode: GameMode) => {
+      setGameMode(targetMode);
 
       setGuesses([]);
       setEvaluations([]);
       setCurrentGuess("");
       setStatus("playing");
+      setMessage(null);
       setStartTime(Date.now());
-      setShowResult(false);
-      setLastGameTimeSeconds(null);
-      winBounce.setValue(0);
+      resetFlipAnimations();
 
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          flipAnims[r][c].setValue(0);
-        }
-      }
-
-      if (m === "daily") {
+      if (targetMode === "daily") {
         setSolution(getDailySolution());
-      } else if (m === "practice") {
-        const idx = Math.floor(Math.random() * SOLUTIONS_LC.length);
-        setSolution(SOLUTIONS_LC[idx] ?? getDailySolution());
+      } else {
+        setSolution(getRandomPracticeSolution());
       }
     },
-    [mode, flipAnims, winBounce]
+    [resetFlipAnimations]
   );
 
-  // When switching to Daily, always re-sync to today's daily solution (deterministic).
-  useEffect(() => {
-    if (mode === "daily") {
-      setSolution(getDailySolution());
-    }
-  }, [mode, todayISO]);
+  const startGame = useCallback(
+    (targetMode: GameMode) => {
+      // Daily is selected from the Play menu; if already completed today, we don't enter the game.
+      if (targetMode === "daily" && isDailyCompletedToday) {
+        showMessageFn("Daily Challenge complete — tap View Result.");
+        return;
+      }
+      resetGameState(targetMode);
+      setScreen("game");
+    },
+    [isDailyCompletedToday, resetGameState, showMessageFn]
+  );
+
+  const openDailyResultFromMenu = useCallback(() => {
+    if (!isDailyCompletedToday) return;
+
+    setOverlayOrigin("menu_view");
+    setOverlayMode("daily");
+    setOverlayStatus(dailyLock?.result ?? "lost");
+    setOverlaySolutionWord(getDailySolution());
+    setOverlayGuessesCount(dailyLock?.guessesCount ?? 0);
+    setOverlayTimeSeconds(
+      typeof dailyLock?.timeSeconds === "number" ? dailyLock.timeSeconds : null
+    );
+    setShowResult(true);
+  }, [dailyLock, isDailyCompletedToday]);
+
+  const handleKeyPress = useCallback(
+    (key: string) => {
+      if (screen !== "game") return;
+      if (status !== "playing") return;
+
+      if (gameMode === "daily" && isDailyCompletedToday) {
+        showMessageFn("Daily Challenge complete — return to the Play menu.");
+        return;
+      }
+
+      if (key === "BACK") {
+        setCurrentGuess((prev) => prev.slice(0, -1));
+        return;
+      }
+
+      if (key.length === 1 && /[A-Z]/i.test(key)) {
+        setCurrentGuess((prev) => {
+          if (prev.length >= COLS) return prev;
+          return (prev + key.toLowerCase()).slice(0, COLS);
+        });
+      }
+    },
+    [gameMode, isDailyCompletedToday, screen, showMessageFn, status]
+  );
 
   const endGame = useCallback(
-    async (result: "won" | "lost", elapsedSeconds: number | null) => {
+    async (
+      result: "won" | "lost",
+      guessesUsed: number,
+      elapsedSeconds: number | null
+    ) => {
       if (status !== "playing") return;
 
       setStatus(result);
+
+      if (result === "won") triggerWinBounce();
+
+      // Update overlay payload first (so it can be opened later even if we jump back to menu)
+      setOverlayOrigin("game_end");
+      setOverlayMode(gameMode);
       setOverlayStatus(result);
-      setLastGameTimeSeconds(elapsedSeconds);
-
-      if (result === "won") {
-        triggerWinBounce();
-      }
-
-      const guessesUsed = guesses.length + 1;
+      setOverlaySolutionWord(solution);
+      setOverlayGuessesCount(guessesUsed);
+      setOverlayTimeSeconds(elapsedSeconds);
 
       setStats((prev) => {
-        const key = mode === "daily" ? "daily" : "practice";
+        const key = gameMode === "daily" ? "daily" : "practice";
         const prevMode = prev[key];
 
         const gamesPlayed = prevMode.gamesPlayed + 1;
         const gamesWon = result === "won" ? prevMode.gamesWon + 1 : prevMode.gamesWon;
 
         const currentStreak =
-          mode === "daily"
+          gameMode === "daily"
             ? result === "won"
               ? prevMode.currentStreak + 1
               : 0
             : prevMode.currentStreak;
 
         const bestStreak =
-          mode === "daily"
+          gameMode === "daily"
             ? Math.max(prevMode.bestStreak, currentStreak)
             : prevMode.bestStreak;
 
         const totalTimeSeconds =
-          elapsedSeconds != null ? prevMode.totalTimeSeconds + elapsedSeconds : prevMode.totalTimeSeconds;
+          elapsedSeconds != null
+            ? prevMode.totalTimeSeconds + elapsedSeconds
+            : prevMode.totalTimeSeconds;
 
         const fastestTimeSeconds =
           elapsedSeconds != null && result === "won"
@@ -510,54 +731,13 @@ export default function WordleGame() {
         };
       });
 
-      // Persist stats
-      try {
-        const nextStats = await (async () => {
-          // read the state value after setStats? we already have prev-based update above;
-          // safest is to load, merge, and save? but keep minimal: save local snapshot using callback below.
-          return null;
-        })();
-        // noop: we save using effect below
-      } catch {
-        // ignore
-      }
-
-      // Persist stats from current state snapshot
-      try {
-        // We can't rely on immediate state update order; save in a microtask after React updates.
-        setTimeout(async () => {
-          try {
-            // Save latest stats from state by re-reading via functional update side effects.
-            // We'll just save current stats state at that time.
-            // NOTE: this is existing behavior pattern; keep it.
-          } catch {
-            // ignore
-          }
-        }, 0);
-      } catch {
-        // ignore
-      }
-
-      // Save immediately using the next computed stats via a second functional update:
-      try {
-        // Save based on current stats by recomputing similarly to keep consistent.
-        // Minimal: save after the state is updated in next tick.
-        setTimeout(async () => {
-          try {
-            // @ts-ignore - save the freshest snapshot
-            await saveWordleStats((await loadWordleStats()) ?? ({} as any));
-            // The above is intentionally conservative; actual persisted stats is handled below.
-          } catch {
-            // ignore
-          }
-        }, 0);
-      } catch {
-        // ignore
-      }
-
-      // Save daily lock if needed
-      if (mode === "daily") {
-        const lock: DailyLockState = { dateISO: todayISO, result };
+      if (gameMode === "daily") {
+        const lock: DailyLockState = {
+          dateISO: todayISO,
+          result,
+          guessesCount: guessesUsed,
+          timeSeconds: elapsedSeconds,
+        };
         setDailyLock(lock);
         try {
           await saveDailyLock(lock);
@@ -568,45 +748,26 @@ export default function WordleGame() {
 
       setShowResult(true);
     },
-    [mode, status, triggerWinBounce, todayISO]
+    [gameMode, solution, status, todayISO, triggerWinBounce]
   );
 
-  // Persist stats whenever they change (after hydration)
-  useEffect(() => {
-    if (!hydrated) return;
-    (async () => {
-      try {
-        await saveWordleStats(stats);
-      } catch (e) {
-        console.warn("Failed to save Wordle stats", e);
-      }
-    })();
-  }, [stats, hydrated]);
-
   const submitGuess = useCallback(() => {
-    if (mode === "stats") return;
+    if (screen !== "game") return;
+    if (status !== "playing") return;
 
-    if (mode === "daily" && isDailyLocked) {
-      showMessageFn("Daily Challenge complete — switch modes or tap View Result.");
+    if (gameMode === "daily" && isDailyCompletedToday) {
+      showMessageFn("Daily Challenge complete — return to the Play menu.");
       return;
     }
 
-    if (status !== "playing") return;
-
-    const guessLower = normalizeWord(currentGuess);
-
-    if (guessLower.length !== COLS) {
+    if (currentGuess.length < COLS) {
       showMessageFn("Not enough letters");
       return;
     }
 
-    // (Extra safety) Reject anything that isn't exactly 5 letters.
-    if (!/^[a-z]{5}$/.test(guessLower)) {
-      showMessageFn("Not in word list");
-      return;
-    }
+    const guessLower = currentGuess.toLowerCase();
 
-    // ✅ Case-insensitive membership
+    // ✅ Case-insensitive membership (fixes sally/SALLY mismatches)
     if (!VALID_GUESSES_SET.has(guessLower)) {
       showMessageFn("Not in word list");
       return;
@@ -630,20 +791,21 @@ export default function WordleGame() {
 
       const delayMs = 350 + COLS * 80;
       setTimeout(() => {
-        endGame(didWin ? "won" : "lost", elapsedSeconds);
+        endGame(didWin ? "won" : "lost", rowIndex + 1, elapsedSeconds);
       }, delayMs);
     }
   }, [
-    mode,
-    isDailyLocked,
-    status,
     currentGuess,
+    endGame,
+    gameMode,
     guesses.length,
+    isDailyCompletedToday,
     revealRow,
+    screen,
+    showMessageFn,
     solution,
     startTime,
-    endGame,
-    showMessageFn,
+    status,
   ]);
 
   const keyStates = useMemo(() => {
@@ -657,473 +819,880 @@ export default function WordleGame() {
     return map;
   }, [evaluations]);
 
-  const handleKeyPress = useCallback(
-    (key: string) => {
-      if (mode === "stats") return;
+  const gridShakeX = shakeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 10],
+  });
 
-      if (mode === "daily" && isDailyLocked) {
-        showMessageFn("Daily Challenge complete — switch modes or tap View Result.");
-        return;
-      }
+  const statusScale = winBounceAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
 
-      if (status !== "playing") return;
+  const renderTile = (rowIndex: number, colIndex: number) => {
+    const guess = guesses[rowIndex];
+    const letter =
+      guess?.[colIndex] ??
+      (rowIndex === guesses.length ? currentGuess[colIndex] ?? "" : "");
 
-      if (key === "BACK") {
-        setCurrentGuess((prev) => prev.slice(0, -1));
-        return;
-      }
+    const hasEvaluation =
+      !!(evaluations[rowIndex] && evaluations[rowIndex][colIndex]);
 
-      if (key.length === 1 && /[A-Z]/i.test(key)) {
-        setCurrentGuess((prev) => {
-          if (prev.length >= COLS) return prev;
-          return prev + key.toLowerCase();
-        });
-      }
-    },
-    [mode, isDailyLocked, status, showMessageFn]
-  );
+    const evaluatedState: LetterState = hasEvaluation
+      ? evaluations[rowIndex][colIndex].state
+      : "empty";
 
-  const switchMode = useCallback(
-    (m: Mode) => {
-      setMode(m);
-      if (m === "stats") {
-        setShowResult(false);
-      } else {
-        resetGameState(m);
-      }
-    },
-    [resetGameState]
-  );
-
-  const openDailyResult = useCallback(() => {
-    if (!dailyLock) return;
-    if (dailyLock.dateISO !== todayISO) return;
-    setOverlayStatus(dailyLock.result);
-    setShowResult(true);
-  }, [dailyLock, todayISO]);
-
-  const statsForMode = useMemo(() => {
-    return mode === "daily" ? stats.daily : stats.practice;
-  }, [mode, stats]);
-
-  const statsCards = useMemo(() => {
-    const s = statsForMode;
-    const winRate = getWinRate(s);
-    const avgTime = getAverageTimeSeconds(s);
-    const avgGuesses = getAverageGuesses(s);
-
-    return [
-      { title: "Played", value: String(s.gamesPlayed), icon: "bar-chart" },
-      { title: "Win %", value: `${winRate}%`, icon: "percent" },
-      { title: "Streak", value: String(s.currentStreak), icon: "fire" },
-      { title: "Best", value: String(s.bestStreak), icon: "star" },
-      {
-        title: "Avg Time",
-        value: avgTime == null ? "—" : formatTimeSeconds(Math.round(avgTime)),
-        icon: "clock",
-      },
-      {
-        title: "Avg Guesses",
-        value: avgGuesses == null ? "—" : avgGuesses.toFixed(1),
-        icon: "edit-3",
-      },
-    ];
-  }, [statsForMode]);
-
-  const renderTile = (
-    rowIndex: number,
-    colIndex: number,
-    letter: string,
-    state: LetterState
-  ) => {
-    const isRevealed = evaluations[rowIndex]?.length > 0;
     const anim = flipAnims[rowIndex][colIndex];
 
-    const rotateX = anim.interpolate({
+    const frontRotateX = anim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: ["0deg", "90deg", "0deg"],
+      outputRange: ["0deg", "90deg", "90deg"],
     });
 
-    const scale = anim.interpolate({
+    const backRotateX = anim.interpolate({
       inputRange: [0, 0.5, 1],
-      outputRange: [1, 1.06, 1],
+      outputRange: ["-90deg", "-90deg", "0deg"],
     });
 
-    const tileBG =
-      state === "correct"
-        ? "#6AAA64"
-        : state === "present"
-        ? "#C9B458"
-        : state === "absent"
-        ? IS_DARK
-          ? "#3A3A3C"
-          : "#787C7E"
-        : "transparent";
+    const frontBg = letter ? CARD : "transparent";
+    const frontBorder = BORDER;
+    const frontText = TEXT;
 
-    const tileBorder =
-      state === "empty" ? (IS_DARK ? "#3A3A3C" : "#D3D6DA") : tileBG;
+    let backBg = CARD;
+    let backBorder = BORDER;
+    let backText = TEXT;
 
-    const textColor = state === "empty" ? TEXT : "#FFFFFF";
+    if (hasEvaluation) {
+      if (evaluatedState === "correct") {
+        backBg = "#22c55e";
+        backBorder = "#16a34a";
+        backText = "#f9fafb";
+      } else if (evaluatedState === "present") {
+        backBg = "#eab308";
+        backBorder = "#ca8a04";
+        backText = "#111827";
+      } else if (evaluatedState === "absent") {
+        backBg = "#9ca3af";
+        backBorder = "#6b7280";
+        backText = "#111827";
+      }
+    }
 
     return (
-      <Animated.View
+      <View
         key={`${rowIndex}-${colIndex}`}
         style={[
-          styles.tile,
+          styles.tileContainer,
           {
             width: TILE_SIZE,
             height: TILE_SIZE,
-            borderRadius: TILE_RADIUS,
-            borderColor: tileBorder,
-            backgroundColor: isRevealed ? tileBG : "transparent",
-            transform: [{ perspective: 800 }, { rotateX }, { scale }],
+            marginHorizontal: TILE_GAP / 2,
           },
         ]}
       >
-        <Text style={[styles.tileText, { color: textColor }]}>{letter}</Text>
-      </Animated.View>
-    );
-  };
-
-  const renderRow = (rowIndex: number) => {
-    const guess = guesses[rowIndex] ?? "";
-    const evalRow = evaluations[rowIndex] ?? [];
-
-    const isCurrentRow = rowIndex === guesses.length && status === "playing";
-    const fill = isCurrentRow ? currentGuess : guess;
-
-    const letters = Array.from({ length: COLS }, (_, i) => fill[i] ?? "");
-    const states: LetterState[] = Array.from({ length: COLS }, (_, i) => {
-      const cell = evalRow[i];
-      return cell?.state ?? "empty";
-    });
-
-    return (
-      <View key={`row-${rowIndex}`} style={styles.row}>
-        {letters.map((ch, i) => renderTile(rowIndex, i, ch.toUpperCase(), states[i]))}
-      </View>
-    );
-  };
-
-  const renderKeyboard = () => {
-    return (
-      <View style={styles.keyboardWrap}>
-        {KEYBOARD_ROWS.map((row, rowIdx) => (
-          <View
-            key={`kb-row-${rowIdx}`}
-            style={[styles.keyRow, { marginVertical: KEY_ROW_MARGIN_V }]}
-          >
-            {row.map((k) => {
-              const isBack = k === "BACK";
-              const st = isBack ? "empty" : keyStates[k] ?? "empty";
-
-              const bg =
-                st === "correct"
-                  ? "#6AAA64"
-                  : st === "present"
-                  ? "#C9B458"
-                  : st === "absent"
-                  ? IS_DARK
-                    ? "#3A3A3C"
-                    : "#787C7E"
-                  : IS_DARK
-                  ? "#818384"
-                  : "#D3D6DA";
-
-              const color = IS_DARK ? "#000" : "#000";
-
-              return (
-                <Pressable
-                  key={k}
-                  style={({ pressed }) => [
-                    styles.key,
-                    {
-                      backgroundColor: bg,
-                      opacity: pressed ? 0.75 : 1,
-                      minHeight: KEY_MIN_HEIGHT,
-                      flex: isBack ? 1.4 : 1,
-                    },
-                  ]}
-                  onPress={() => handleKeyPress(k)}
-                >
-                  <Text style={[styles.keyText, { color }]}>
-                    {isBack ? "⌫" : k}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.enterButton,
+        <Animated.View
+          style={[
+            styles.tileFace,
             {
-              borderColor: BORDER,
-              backgroundColor: CARD,
-              opacity: pressed ? 0.85 : 1,
+              borderRadius: TILE_RADIUS,
+              backgroundColor: frontBg,
+              borderColor: frontBorder,
+              transform: [{ perspective: 900 }, { rotateX: frontRotateX }],
             },
           ]}
-          onPress={submitGuess}
         >
-          <Text style={[styles.enterText, { color: TEXT }]}>ENTER</Text>
-        </Pressable>
+          <Text style={[styles.tileText, { color: frontText }]}>
+            {letter ? letter.toUpperCase() : ""}
+          </Text>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.tileFace,
+            {
+              borderRadius: TILE_RADIUS,
+              backgroundColor: backBg,
+              borderColor: backBorder,
+              transform: [{ perspective: 900 }, { rotateX: backRotateX }],
+            },
+          ]}
+        >
+          <Text style={[styles.tileText, { color: backText }]}>
+            {letter ? letter.toUpperCase() : ""}
+          </Text>
+        </Animated.View>
       </View>
     );
   };
 
-  const headerTitle = mode === "daily" ? "Daily Wordle" : mode === "practice" ? "Practice" : "Stats";
+  const renderKeyboardRow = (row: string[], rowIndex: number) => {
+    const weights = row.map((k) => (k === "BACK" ? 1.6 : 1));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    const availableWidth =
+      SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - KEY_GAP * (row.length - 1);
+
+    const unit = availableWidth / totalWeight;
+
+    return (
+      <View key={`kb-row-${rowIndex}`} style={styles.keyRow}>
+        {row.map((k, idx) => {
+          const state = keyStates[k.toUpperCase()] ?? "empty";
+
+          let backgroundColor = CARD;
+          let borderColor = BORDER;
+          let textColor = TEXT;
+
+          if (state === "correct") {
+            backgroundColor = "#22c55e";
+            borderColor = "#16a34a";
+            textColor = "#f9fafb";
+          } else if (state === "present") {
+            backgroundColor = "#eab308";
+            borderColor = "#ca8a04";
+            textColor = "#111827";
+          } else if (state === "absent") {
+            backgroundColor = "#9ca3af";
+            borderColor = "#6b7280";
+            textColor = "#111827";
+          } else if (IS_DARK) {
+            backgroundColor = "#1f2937";
+            borderColor = "#374151";
+            textColor = "#f9fafb";
+          }
+
+          const width = unit * weights[idx];
+
+          return (
+            <Pressable
+              key={`${k}-${rowIndex}`}
+              onPress={() => handleKeyPress(k)}
+              style={({ pressed }) => [
+                styles.key,
+                {
+                  width,
+                  marginHorizontal: KEY_GAP / 2,
+                  backgroundColor,
+                  borderColor,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.keyText, { color: textColor }]}>
+                {k === "BACK" ? "⌫" : k}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  };
+
+  // ======= STATS + ACHIEVEMENTS (Menu -> Stats tab) =======
+  const winRateDaily = useMemo(() => getWinRate(stats.daily), [stats.daily]);
+  const winRatePractice = useMemo(
+    () => getWinRate(stats.practice),
+    [stats.practice]
+  );
+
+  const avgTimeDaily = useMemo(
+    () => getAverageTimeSeconds(stats.daily),
+    [stats.daily]
+  );
+  const avgTimePractice = useMemo(
+    () => getAverageTimeSeconds(stats.practice),
+    [stats.practice]
+  );
+
+  const avgGuessesDaily = useMemo(
+    () => getAverageGuesses(stats.daily),
+    [stats.daily]
+  );
+  const avgGuessesPractice = useMemo(
+    () => getAverageGuesses(stats.practice),
+    [stats.practice]
+  );
+
+  const lifetimeGames = stats.daily.gamesPlayed + stats.practice.gamesPlayed;
+  const lifetimeWins = stats.daily.gamesWon + stats.practice.gamesWon;
+  const lifetimeWinRate =
+    lifetimeGames > 0 ? Math.round((lifetimeWins / lifetimeGames) * 100) : 0;
+  const lifetimeTime = stats.daily.totalTimeSeconds + stats.practice.totalTimeSeconds;
+  const lifetimeGuesses = stats.daily.totalGuesses + stats.practice.totalGuesses;
+  const lifetimePerfect =
+    (stats.daily.guessDistribution?.[1] ?? 0) +
+    (stats.practice.guessDistribution?.[1] ?? 0);
+
+  const achievements: Achievement[] = useMemo(() => {
+    const dailyWins = stats.daily.gamesWon;
+    const practiceWins = stats.practice.gamesWon;
+    const totalWins = dailyWins + practiceWins;
+
+    const bestStreak = stats.daily.bestStreak;
+    const perfectWins = lifetimePerfect;
+
+    const fastestAny =
+      stats.daily.fastestTimeSeconds == null
+        ? stats.practice.fastestTimeSeconds
+        : stats.practice.fastestTimeSeconds == null
+        ? stats.daily.fastestTimeSeconds
+        : Math.min(stats.daily.fastestTimeSeconds, stats.practice.fastestTimeSeconds);
+
+    const twoGuessWins =
+      (stats.daily.guessDistribution?.[2] ?? 0) +
+      (stats.practice.guessDistribution?.[2] ?? 0);
+
+    return [
+      { id: "first_win", emoji: "✅", name: "First Win", description: "Win your first game", unlocked: totalWins >= 1 },
+      { id: "daily_win", emoji: "📅", name: "Daily Solver", description: "Win a Daily Challenge", unlocked: dailyWins >= 1 },
+      { id: "practice_win", emoji: "🎯", name: "Practice Pays", description: "Win a Practice game", unlocked: practiceWins >= 1 },
+      { id: "perfect", emoji: "⚡", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
+      { id: "two_try", emoji: "🎉", name: "Two Tries", description: "Get 5 wins in 2 guesses", unlocked: twoGuessWins >= 5 },
+      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day best streak", unlocked: bestStreak >= 7 },
+      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day best streak", unlocked: bestStreak >= 14 },
+      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day best streak", unlocked: bestStreak >= 30 },
+      { id: "speed_60", emoji: "⏱️", name: "Quick Thinker", description: "Win in under 60 seconds", unlocked: fastestAny != null && fastestAny <= 60 },
+      { id: "speed_30", emoji: "⚡", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
+      { id: "play_25", emoji: "🧩", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25 },
+      { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100 },
+      { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25 },
+      { id: "wins_50", emoji: "🏅", name: "Win Streaker", description: "Win 50 games", unlocked: totalWins >= 50 },
+    ];
+  }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice]);
+
+  // ======= PLAY MENU helpers =======
+  const dailySummaryText = useMemo(() => {
+    if (!isDailyCompletedToday || !dailyLock) return null;
+    const resultText = dailyLock.result === "won" ? "Won" : "Lost";
+    const guessesText =
+      typeof dailyLock.guessesCount === "number" && dailyLock.guessesCount > 0
+        ? `${dailyLock.guessesCount} guess${dailyLock.guessesCount === 1 ? "" : "es"}`
+        : null;
+    const timeText =
+      typeof dailyLock.timeSeconds === "number"
+        ? formatSeconds(dailyLock.timeSeconds)
+        : null;
+
+    if (guessesText && timeText) return `${resultText} • ${guessesText} • ${timeText}`;
+    if (guessesText) return `${resultText} • ${guessesText}`;
+    return resultText;
+  }, [dailyLock, isDailyCompletedToday]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: BG }]}>
-      <ScrollView contentContainerStyle={styles.container} bounces={false}>
-        <View style={styles.topBar}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.backButton,
-              { opacity: pressed ? 0.7 : 1, borderColor: BORDER },
-            ]}
-            onPress={() => router.push("/")}
-          >
-            <Text style={[styles.backText, { color: TEXT }]}>Menu</Text>
+      <View style={[styles.container, { backgroundColor: BG }]}>
+        {/* Header (matches other games) */}
+        <View style={styles.appHeader}>
+          <Pressable style={styles.backToGamesButton} onPress={backToGames} hitSlop={8}>
+            <Text style={[styles.backToGamesText, { color: SUBTEXT }]}>← Games</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: TEXT }]}>{headerTitle}</Text>
+          <Text style={[styles.appTitle, { color: TEXT }]}>Wordle</Text>
 
-          <View style={{ width: 68 }} />
+          {/* Spacer keeps title centered */}
+          <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.modePills}>
-          {(["daily", "practice", "stats"] as Mode[]).map((m) => {
-            const active = mode === m;
-            return (
-              <Pressable
-                key={m}
-                style={({ pressed }) => [
-                  styles.modePill,
-                  {
-                    borderColor: BORDER,
-                    backgroundColor: active ? CARD : "transparent",
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-                onPress={() => switchMode(m)}
-              >
-                <Text style={[styles.modePillText, { color: TEXT }]}>
-                  {m === "daily" ? "Daily" : m === "practice" ? "Practice" : "Stats"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Daily lock UX: non-blocking indicator + view result */}
-        {mode === "daily" && isDailyLocked && (
-          <View style={[styles.lockRow, { borderColor: BORDER, backgroundColor: CARD }]}>
-            <Text style={[styles.lockText, { color: TEXT }]}>✅ Completed</Text>
-            {nextDailySeconds != null && (
-              <Text style={[styles.lockSub, { color: SUBTEXT }]}>
-                Next in {formatCountdown(nextDailySeconds)}
-              </Text>
-            )}
-            <Pressable
-              style={({ pressed }) => [
-                styles.lockButton,
-                {
-                  borderColor: BORDER,
-                  backgroundColor: BG,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-              onPress={openDailyResult}
-            >
-              <Text style={[styles.lockButtonText, { color: TEXT }]}>View Result</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {(mode === "daily" || mode === "practice") ? (
+        {/* MENU (Play / Stats) */}
+        {screen === "menu" ? (
           <>
-            <Animated.View
-              style={[
-                styles.gridWrap,
-                {
-                  transform: [
-                    {
-                      scale: winBounce.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.02],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {Array.from({ length: ROWS }, (_, r) => renderRow(r))}
-            </Animated.View>
-
-            {message && (
-              <View style={[styles.toast, { backgroundColor: CARD, borderColor: BORDER }]}>
-                <Text style={[styles.toastText, { color: TEXT }]}>{message}</Text>
+            {/* Segment pill slider */}
+            <View style={styles.segmentWrapper}>
+              <View style={[styles.segmentSwitcher, { backgroundColor: CARD }]}>
+                {([
+                  { key: "play" as const, label: "Play" },
+                  { key: "stats" as const, label: "Stats" },
+                ] as const).map(({ key, label }) => {
+                  const isActive = key === menuTab;
+                  return (
+                    <Pressable
+                      key={key}
+                      style={[styles.segmentButton, isActive && { backgroundColor: BG }]}
+                      onPress={() => setMenuTab(key)}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentButtonText,
+                          { color: SUBTEXT },
+                          isActive && { color: TEXT, fontWeight: "600" },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
+            </View>
+
+            {/* Content */}
+            {menuTab === "play" ? (
+              <ScrollView
+                style={styles.menuScroll}
+                contentContainerStyle={styles.menuScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Daily */}
+                <Text style={[styles.sectionTitle, { color: TEXT }]}>Daily Challenge</Text>
+
+                <View style={[styles.modeCard, { backgroundColor: CARD, borderColor: BORDER }]}>
+                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Today's Word</Text>
+                  <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
+                    One word per day — same for everyone.
+                  </Text>
+
+                  {isDailyCompletedToday ? (
+                    <>
+                      <View style={styles.completedRow}>
+                        <View
+                          style={[
+                            styles.completedPill,
+                            { borderColor: BORDER, backgroundColor: BG },
+                          ]}
+                        >
+                          <Text style={[styles.completedPillText, { color: TEXT }]}>
+                            Completed
+                          </Text>
+                        </View>
+
+                        <Pressable
+                          onPress={openDailyResultFromMenu}
+                          style={({ pressed }) => [
+                            styles.viewResultButton,
+                            {
+                              borderColor: BORDER,
+                              backgroundColor: BG,
+                              opacity: pressed ? 0.75 : 1,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.viewResultText, { color: TEXT }]}>
+                            View Result
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      {dailySummaryText ? (
+                        <Text style={[styles.modeCardMeta, { color: SUBTEXT }]}>
+                          {dailySummaryText}
+                        </Text>
+                      ) : null}
+
+                      {nextDailySeconds != null ? (
+                        <Text style={[styles.modeCardMeta, { color: SUBTEXT }]}>
+                          Next Daily in {formatCountdown(nextDailySeconds)}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Pressable
+                      onPress={() => startGame("daily")}
+                      style={({ pressed }) => [
+                        styles.primaryCta,
+                        { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.primaryCtaText, { color: TEXT }]}>Play Daily</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* Practice */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 18 }]}>
+                  Practice
+                </Text>
+
+                <View style={[styles.modeCard, { backgroundColor: CARD, borderColor: BORDER }]}>
+                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Random Word</Text>
+                  <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
+                    Play as much as you want.
+                  </Text>
+
+                  <Pressable
+                    onPress={() => startGame("practice")}
+                    style={({ pressed }) => [
+                      styles.primaryCta,
+                      { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                    ]}
+                  >
+                    <Text style={[styles.primaryCtaText, { color: TEXT }]}>Play Practice</Text>
+                  </Pressable>
+                </View>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            ) : (
+              <ScrollView
+                style={styles.statsContainer}
+                contentContainerStyle={styles.statsContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Lifetime */}
+                <Text style={[styles.sectionTitle, { color: TEXT }]}>Lifetime</Text>
+                <View style={styles.statsGrid}>
+                  <StatsCard label="Games Played" value={`${lifetimeGames}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Wins" value={`${lifetimeWins} (${lifetimeWinRate}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Time" value={lifetimeTime > 0 ? formatTotalTime(lifetimeTime) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Guesses" value={`${lifetimeGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Perfect Wins" value={`${lifetimePerfect}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                </View>
+
+                {/* Daily */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
+                  Daily Challenge Stats
+                </Text>
+                <View style={styles.statsGrid}>
+                  <StatsCard label="Dailies Played" value={`${stats.daily.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Wins" value={`${stats.daily.gamesWon} (${winRateDaily}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Current Streak" value={`${stats.daily.currentStreak} day${stats.daily.currentStreak === 1 ? "" : "s"}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Best Streak" value={`${stats.daily.bestStreak} day${stats.daily.bestStreak === 1 ? "" : "s"}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Time (wins)" value={avgTimeDaily != null ? formatSeconds(avgTimeDaily) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Fastest (wins)" value={stats.daily.fastestTimeSeconds != null ? formatSeconds(stats.daily.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Guesses (wins)" value={avgGuessesDaily != null ? avgGuessesDaily.toFixed(2) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Perfect Wins" value={`${stats.daily.guessDistribution?.[1] ?? 0}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Time" value={stats.daily.totalTimeSeconds > 0 ? formatTotalTime(stats.daily.totalTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Guesses" value={`${stats.daily.totalGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                </View>
+
+                {/* Practice */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
+                  Practice Stats
+                </Text>
+                <View style={styles.statsGrid}>
+                  <StatsCard label="Games Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Wins" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Time (wins)" value={avgTimePractice != null ? formatSeconds(avgTimePractice) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Fastest (wins)" value={stats.practice.fastestTimeSeconds != null ? formatSeconds(stats.practice.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Guesses (wins)" value={avgGuessesPractice != null ? avgGuessesPractice.toFixed(2) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Perfect Wins" value={`${stats.practice.guessDistribution?.[1] ?? 0}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Time" value={stats.practice.totalTimeSeconds > 0 ? formatTotalTime(stats.practice.totalTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Total Guesses" value={`${stats.practice.totalGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                </View>
+
+                {/* Achievements */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
+                  Achievements ({achievements.length})
+                </Text>
+                <View style={styles.achievementsGrid}>
+                  {achievements.map((a) => (
+                    <AchievementCard key={a.id} achievement={a} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  ))}
+                </View>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
             )}
-
-            {renderKeyboard()}
-
-            <WordleResultOverlay
-              visible={showResult && (mode === "daily" || mode === "practice")}
-              mode={mode === "daily" ? "daily" : "practice"}
-              status={overlayStatus}
-              solutionWord={solution.toUpperCase()}
-              guessesCount={guesses.length}
-              timeSeconds={lastGameTimeSeconds}
-              currentStreak={statsForMode.currentStreak}
-              bestStreak={statsForMode.bestStreak}
-              averageTimeSeconds={getAverageTimeSeconds(statsForMode)}
-              averageGuesses={getAverageGuesses(statsForMode)}
-              onClose={() => setShowResult(false)}
-              onGoHome={() => router.push("/")}
-              onGoPractice={() => switchMode("practice")}
-              onPlayAgain={() => resetGameState(mode)}
-              // TODO: Pass nextDailySecondsRemaining if needed
-            />
           </>
         ) : (
-          <View style={styles.statsSection}>
-            <Text style={[styles.statsSectionTitle, { color: TEXT }]}>Wordle Stats</Text>
+          // GAME SCREEN
+          <>
+            <View style={styles.gameTopArea}>
+              <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
+                {gameMode === "daily" ? "Daily Challenge" : "Practice"}
+              </Text>
 
-            <View style={styles.statsGrid}>
-              {statsCards.map((c) => (
-                <StatsCard key={c.title} label={c.title} value={c.value} icon={c.icon} />
-              ))}
+              <View style={styles.messageBar}>
+                {message ? (
+                  <View style={[styles.messagePill, { borderColor: BORDER, backgroundColor: CARD }]}>
+                    <Text style={[styles.messageText, { color: TEXT }]}>{message}</Text>
+                  </View>
+                ) : (
+                  <View style={{ height: 30 }} />
+                )}
+              </View>
+
+              <Animated.View style={[styles.grid, { transform: [{ translateX: gridShakeX }] }]}>
+                {Array.from({ length: ROWS }).map((_, rowIndex) => (
+                  <View key={`row-${rowIndex}`} style={styles.row}>
+                    {Array.from({ length: COLS }).map((__, colIndex) => renderTile(rowIndex, colIndex))}
+                  </View>
+                ))}
+              </Animated.View>
+
+              <View style={styles.statusArea}>
+                {status !== "playing" ? (
+                  <Animated.Text style={[styles.statusText, { color: SUBTEXT, transform: [{ scale: statusScale }] }]}>
+                    {status === "won"
+                      ? `You solved it in ${guesses.length} guess${guesses.length === 1 ? "" : "es"}.`
+                      : "Out of guesses."}
+                  </Animated.Text>
+                ) : (
+                  <View style={{ height: 20 }} />
+                )}
+              </View>
             </View>
-          </View>
+
+            <View style={styles.bottomControls}>
+              <View style={styles.keyboard}>
+                {KEYBOARD_ROWS.map((row, rowIndex) => renderKeyboardRow(row, rowIndex))}
+              </View>
+
+              <Pressable
+                onPress={submitGuess}
+                style={({ pressed }) => [
+                  styles.enterButton,
+                  { borderColor: BORDER, backgroundColor: CARD, opacity: pressed ? 0.75 : 1 },
+                ]}
+              >
+                <Text style={[styles.enterText, { color: TEXT }]}>ENTER</Text>
+              </Pressable>
+            </View>
+          </>
         )}
-      </ScrollView>
+
+        <WordleResultOverlay
+          visible={showResult}
+          mode={overlayMode}
+          status={overlayStatus}
+          solutionWord={overlaySolutionWord}
+          guessesCount={overlayGuessesCount}
+          timeSeconds={overlayTimeSeconds}
+          currentStreak={overlayMode === "daily" ? stats.daily.currentStreak : null}
+          bestStreak={overlayMode === "daily" ? stats.daily.bestStreak : null}
+          averageTimeSeconds={overlayMode === "daily" ? (avgTimeDaily ?? null) : (avgTimePractice ?? null)}
+          averageGuesses={overlayMode === "daily" ? (avgGuessesDaily ?? null) : (avgGuessesPractice ?? null)}
+          onClose={() => {
+            closeResult();
+            if (overlayOrigin === "game_end") {
+              // After a completed game, return to Play menu (per requested flow)
+              goToMenu("play");
+            }
+          }}
+          onPlayAgain={() => {
+            if (overlayMode === "practice") {
+              resetGameState("practice");
+              closeResult();
+              setScreen("game");
+            }
+          }}
+          onGoHome={() => {
+            closeResult();
+            goToMenu("play");
+          }}
+          onGoPractice={() => {
+            closeResult();
+            startGame("practice");
+          }}
+          nextDailySecondsRemaining={overlayMode === "daily" && isDailyCompletedToday ? nextDailySeconds : null}
+        />
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+
   container: {
-    paddingHorizontal: HORIZONTAL_PADDING,
-    paddingBottom: 18,
+    flex: 1,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  topBar: {
+
+  // Header
+  appHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 6,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 5,
+  },
+  backToGamesButton: {
+    padding: 8,
+    width: 90,
+  },
+  backToGamesText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  appTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  headerSpacer: {
+    width: 90,
+  },
+
+  // Segment Switcher (Pill Slider)
+  segmentWrapper: {
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  segmentSwitcher: {
+    flexDirection: "row",
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 999,
+    padding: 4,
+  },
+  segmentButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  segmentButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  // Menu scroll
+  menuScroll: {
+    flex: 1,
+  },
+  menuScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
+  },
+
+  // Sections
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+
+  // Mode cards (Play menu)
+  modeCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 15,
+  },
+  modeCardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  modeCardSubtitle: {
+    fontSize: 13,
+    fontWeight: "600",
     marginBottom: 12,
   },
-  backButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 2,
-    borderRadius: 12,
+  modeCardMeta: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
-  backText: { fontSize: 14, fontWeight: "900" },
-  title: { fontSize: 20, fontWeight: "900", letterSpacing: 1 },
-  modePills: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 10,
-  },
-  modePill: {
-    flex: 1,
+
+  primaryCta: {
     borderWidth: 2,
     borderRadius: 999,
     paddingVertical: 10,
-    alignItems: "center",
-  },
-  modePillText: { fontSize: 13, fontWeight: "900", letterSpacing: 1 },
-  lockRow: {
-    borderWidth: 2,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
-    alignItems: "center",
-    gap: 6,
-  },
-  lockText: { fontSize: 14, fontWeight: "900" },
-  lockSub: { fontSize: 12, fontWeight: "700" },
-  lockButton: {
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingVertical: 10,
     paddingHorizontal: 14,
-    marginTop: 4,
-  },
-  lockButtonText: { fontSize: 13, fontWeight: "900", letterSpacing: 1 },
-  gridWrap: {
-    alignSelf: "center",
-    marginTop: 4,
-    marginBottom: 14,
-    gap: TILE_GAP,
-  },
-  row: {
-    flexDirection: "row",
-    gap: TILE_GAP,
-  },
-  tile: {
-    borderWidth: 2,
     alignItems: "center",
-    justifyContent: "center",
   },
-  tileText: {
-    fontSize: Math.max(18, Math.floor(TILE_SIZE * 0.42)),
+  primaryCtaText: {
+    fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1,
   },
-  toast: {
-    alignSelf: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
+
+  completedRow: {
+    alignItems: "center",
+    gap: 10,
+  },
+  completedPill: {
     borderWidth: 2,
-    marginBottom: 10,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  toastText: { fontSize: 13, fontWeight: "800" },
-  keyboardWrap: {
-    width: "100%",
-    marginTop: 2,
-    paddingBottom: 8,
-  },
-  keyRow: {
-    flexDirection: "row",
-    gap: KEY_GAP,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  key: {
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  keyText: { fontSize: 14, fontWeight: "900" },
-  enterButton: {
-    marginTop: 8,
-    borderWidth: 2,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  enterText: { fontSize: 14, fontWeight: "900", letterSpacing: 2 },
-  statsSection: { marginTop: 12, marginBottom: 8 },
-  statsSectionTitle: {
-    fontSize: 16,
+  completedPillText: {
+    fontSize: 12,
     fontWeight: "900",
-    marginBottom: 10,
     letterSpacing: 1,
+  },
+  viewResultButton: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  viewResultText: {
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+
+  // Stats layout
+  statsContainer: {
+    flex: 1,
+  },
+  statsContent: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
   },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+    gap: 10,
+  },
+  statsCard: {
+    width: "48%",
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  statsCardWide: {
+    width: "100%",
+  },
+  statsValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  statsLabel: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  // Achievements
+  achievementsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 2,
+  },
+  achievementCard: {
+    width: "48%",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  achievementEmoji: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  achievementName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  achievementDesc: {
+    fontSize: 11,
+    textAlign: "center",
+  },
+
+  // Game screen
+  gameTopArea: {
+    flex: 1,
+    paddingHorizontal: HORIZONTAL_PADDING,
+    alignItems: "center",
+  },
+
+  modeTitle: {
+    marginTop: 4,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  messageBar: {
+    marginTop: 10,
+    marginBottom: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 34,
+  },
+  messagePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  messageText: { fontSize: 13, fontWeight: "600" },
+
+  grid: {
+    alignSelf: "center",
+    marginTop: 8,
+    flexShrink: 1,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: TILE_GAP / 2,
+  },
+
+  tileContainer: {
+    position: "relative",
+  },
+  tileFace: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backfaceVisibility: "hidden",
+  },
+  tileText: {
+    fontSize: Math.max(24, Math.floor(TILE_SIZE * 0.52)),
+    fontWeight: "900",
+  },
+
+  statusArea: {
+    minHeight: 46,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  bottomControls: {
+    paddingHorizontal: HORIZONTAL_PADDING,
+    alignItems: "center",
+    paddingTop: 4,
+    paddingBottom: 6,
+    flexShrink: 0,
+  },
+
+  keyboard: {
+    alignSelf: "center",
+    marginTop: 0,
+  },
+  keyRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: KEY_ROW_MARGIN_V,
+  },
+  key: {
+    minHeight: KEY_MIN_HEIGHT,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    paddingHorizontal: 8,
+  },
+  keyText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  enterButton: {
+    marginTop: 8,
+    alignSelf: "center",
+    borderWidth: 2,
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  enterText: {
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 2,
   },
 });
-
