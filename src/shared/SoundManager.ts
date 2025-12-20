@@ -1,7 +1,7 @@
 // Shared Sound Manager
 // Used across all games in the Word Games app
 
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOUND_ENABLED_KEY = 'wordgames_sound_enabled';
