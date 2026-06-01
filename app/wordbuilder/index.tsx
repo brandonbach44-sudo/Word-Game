@@ -58,6 +58,7 @@ import {
 import { TierName } from '../../src/wordbuilder/utils/tiers';
 import {
   Achievement,
+  ACHIEVEMENTS,
   checkAchievements,
   getUnlockedAchievements,
   GameResult,
@@ -186,6 +187,7 @@ export default function WordBuilder() {
   const [gameOverPage, setGameOverPage] = useState<GameOverPage>('results');
   const [possibleWords, setPossibleWords] = useState<PossibleWord[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverScrollRef = useRef<ScrollView>(null);
 
   // Player Data State
@@ -294,10 +296,31 @@ export default function WordBuilder() {
   };
 
   const getTileSize = () => {
-    // Smaller tiles with more padding
-    const baseSize = (width - 120) / 3;  // Was -80, now -120 for smaller tiles
-    if (letterCount <= 6) return baseSize;
-    return (width - 130) / 4;  // Was -90, now -130 for smaller tiles
+    if (letterCount <= 6) return Math.floor((width - 90) / 3);  // 3 per row
+    return Math.floor((width - 70) / 4);  // 4 per row
+  };
+
+  // Returns letter indices split into rows for explicit row layout
+  const getLetterRows = (): number[][] => {
+    if (letterCount <= 6) {
+      // 3 + 3
+      return [
+        Array.from({ length: 3 }, (_, i) => i),
+        Array.from({ length: letters.length - 3 }, (_, i) => i + 3),
+      ];
+    } else if (letterCount === 7) {
+      // 4 + 3
+      return [
+        Array.from({ length: 4 }, (_, i) => i),
+        Array.from({ length: 3 }, (_, i) => i + 4),
+      ];
+    } else {
+      // 4 + 4
+      return [
+        Array.from({ length: 4 }, (_, i) => i),
+        Array.from({ length: 4 }, (_, i) => i + 4),
+      ];
+    }
   };
 
   // Timer effect
@@ -471,10 +494,19 @@ export default function WordBuilder() {
       }
       setSelectedIndices([]);
       setCurrentWord('');
+      // Auto-clear score message after 2 seconds
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = setTimeout(() => {
+        setMessage('');
+      }, 2000);
     } else {
       setMessage('Not a valid word!');
       HapticManager.invalidWord();
       SoundManager.error();
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = setTimeout(() => {
+        setMessage('');
+      }, 2000);
     }
   }, [gameOver, currentWord, foundWords, score, letterCount]);
 
@@ -733,10 +765,12 @@ export default function WordBuilder() {
     const tileSize = getTileSize();
     const isDaily = gameMode === 'daily';
 
+    const letterRows = getLetterRows();
+
     return (
       <SafeAreaView style={[styles.gameplayContainer, dynamicStyles.container]}>
         <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-        
+
         <View style={styles.header}>
           <TouchableOpacity onPress={backToMenu}>
             <Text style={[styles.backButton, dynamicStyles.textSecondary]}>← Back</Text>
@@ -747,6 +781,9 @@ export default function WordBuilder() {
           <Text style={styles.scoreText}>{score} pts</Text>
         </View>
 
+        {/* Top spacer pushes interactive content toward bottom for thumb reach */}
+        <View style={{ flex: 1 }} />
+
         <Text style={[styles.message, dynamicStyles.textSecondary]}>{message}</Text>
 
         <View style={styles.wordDisplay}>
@@ -755,19 +792,24 @@ export default function WordBuilder() {
           </Text>
         </View>
 
+        {/* Letter grid rendered as explicit rows */}
         <View style={styles.letterGrid}>
-          {letters.map((letter: string, index: number) => (
-            <GameTile
-              key={index}
-              letter={letter}
-              index={index}
-              isSelected={selectedIndices.includes(index)}
-              selectionOrder={selectedIndices.includes(index) ? selectedIndices.indexOf(index) + 1 : null}
-              onPress={handleLetterPress}
-              tileSize={tileSize}
-              tierName={equippedTier}
-              variant={equippedVariant}
-            />
+          {letterRows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.letterRow}>
+              {row.map((index) => (
+                <GameTile
+                  key={index}
+                  letter={letters[index]}
+                  index={index}
+                  isSelected={selectedIndices.includes(index)}
+                  selectionOrder={selectedIndices.includes(index) ? selectedIndices.indexOf(index) + 1 : null}
+                  onPress={handleLetterPress}
+                  tileSize={tileSize}
+                  tierName={equippedTier}
+                  variant={equippedVariant}
+                />
+              ))}
+            </View>
           ))}
         </View>
 
@@ -780,29 +822,25 @@ export default function WordBuilder() {
           </TouchableOpacity>
         </View>
 
+        {!isDaily && (
+          <TouchableOpacity
+            style={[styles.refreshButton, dynamicStyles.button]}
+            onPress={handleRefresh}
+          >
+            <Text style={[styles.refreshButtonText, dynamicStyles.textSecondary]}>↺ Refresh Letters</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.foundWordsSection}>
           <Text style={[styles.foundWordsTitle, dynamicStyles.textSecondary]}>Found: {foundWords.length}</Text>
-          <ScrollView 
-            horizontal 
-            style={styles.foundWordsScrollHorizontal}
-            showsHorizontalScrollIndicator={false}
-          >
+          <View style={styles.foundWordsWrap}>
             {foundWords.map((word: string, index: number) => (
               <View key={index} style={styles.foundWordBadgeSmall}>
                 <Text style={styles.foundWordTextSmall}>{word.toUpperCase()}</Text>
               </View>
             ))}
-          </ScrollView>
+          </View>
         </View>
-
-        {!isDaily && (
-          <TouchableOpacity 
-            style={[styles.refreshButton, dynamicStyles.button]} 
-            onPress={handleRefresh}
-          >
-            <Text style={[styles.refreshButtonText, dynamicStyles.textSecondary]}>Refresh Letters</Text>
-          </TouchableOpacity>
-        )}
       </SafeAreaView>
     );
   }
@@ -1158,30 +1196,38 @@ export default function WordBuilder() {
             <Text style={[styles.loadingText, dynamicStyles.textSecondary]}>Loading stats...</Text>
           )}
           
-          {/* Achievements Section */}
-          {unlockedAchievements.length > 0 && (
-            <>
-              <Text style={[styles.statsTitle, dynamicStyles.text, { marginTop: 25 }]}>
-                Achievements ({unlockedAchievements.length})
-              </Text>
-              <View style={styles.achievementsGrid}>
-                {unlockedAchievements.map((achievement) => (
-                  <View 
-                    key={achievement.id} 
-                    style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
-                  >
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-                    <Text style={[styles.achievementName, { color: background.textColor }]}>
-                      {achievement.name}
-                    </Text>
-                    <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>
-                      {achievement.description}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
+          {/* Achievements Section - Show ALL achievements */}
+          <Text style={[styles.statsTitle, dynamicStyles.text, { marginTop: 25 }]}>
+            Achievements ({unlockedAchievements.length}/{ACHIEVEMENTS.length})
+          </Text>
+          <View style={styles.achievementsGrid}>
+            {ACHIEVEMENTS.map((achievement) => {
+              const isUnlocked = unlockedAchievements.some(a => a.id === achievement.id);
+              return (
+                <View 
+                  key={achievement.id} 
+                  style={[
+                    styles.achievementCard, 
+                    { 
+                      backgroundColor: background.cardColor, 
+                      borderColor: background.borderColor,
+                      opacity: isUnlocked ? 1 : 0.4,
+                    }
+                  ]}
+                >
+                  <Text style={[styles.achievementEmoji, !isUnlocked && styles.achievementEmojiLocked]}>
+                    {achievement.emoji}
+                  </Text>
+                  <Text style={[styles.achievementName, { color: background.textColor }]}>
+                    {achievement.name}
+                  </Text>
+                  <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>
+                    {achievement.description}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
           
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1445,6 +1491,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     marginBottom: 6,
   },
+  achievementEmojiLocked: {
+    opacity: 0.5,
+  },
   achievementName: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -1514,34 +1563,39 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   letterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    width: width - 40,
+    alignItems: 'center',
     gap: 10,
-    marginBottom: 25,
-    marginTop: 15,
-    minHeight: 200,
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  letterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 20,
-    marginBottom: 25,
+    gap: 16,
+    marginBottom: 14,
   },
   clearButton: {
     backgroundColor: COLORS.danger,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
+    paddingHorizontal: 44,
+    paddingVertical: 16,
+    borderRadius: 30,
+    minWidth: 120,
+    alignItems: 'center',
   },
   submitButton: {
     backgroundColor: COLORS.accent,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
+    paddingHorizontal: 44,
+    paddingVertical: 16,
+    borderRadius: 30,
+    minWidth: 120,
+    alignItems: 'center',
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -1555,8 +1609,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 8,
   },
-  foundWordsScrollHorizontal: {
-    maxHeight: 40,
+  foundWordsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    maxHeight: 88,
+    overflow: 'hidden',
   },
   foundWordBadgeSmall: {
     paddingHorizontal: 10,
@@ -1569,15 +1627,16 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
   },
   refreshButton: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 8,
-    marginBottom: 15,
-    borderWidth: 1,
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    minWidth: 180,
   },
   refreshButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   
