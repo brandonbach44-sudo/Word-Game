@@ -1,8 +1,13 @@
-import React from "react";
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import React, { useRef } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Share2 } from "lucide-react-native";
+import ViewShot from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
 
 import { useTheme } from "../../shared/ThemeContext";
+import { WordleShareCard } from "./WordleShareCard";
+
+type CellState = "correct" | "present" | "absent" | "empty";
 
 type Props = {
   visible: boolean;
@@ -21,6 +26,7 @@ type Props = {
   onGoPractice: () => void;
   nextDailySecondsRemaining?: number | null;
   shareText?: string;
+  evaluationRows?: CellState[][];
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -107,8 +113,31 @@ const WordleResultOverlay = ({
   onGoPractice,
   nextDailySecondsRemaining,
   shareText,
+  evaluationRows,
 }: Props) => {
   const { background } = useTheme();
+  const cardRef = useRef<ViewShot>(null);
+
+  const handleShare = async () => {
+    try {
+      if (cardRef.current && evaluationRows && evaluationRows.length > 0) {
+        // Capture the styled card as an image
+        const uri = await (cardRef.current as any).capture();
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share your result" });
+        }
+      } else {
+        // Fallback to text share if no evaluations
+        const text = shareText && shareText.length > 0
+          ? shareText
+          : `Word Fury ${isDaily ? "Daily" : "Practice"} ${isWin ? `${guessesCount}/6` : "X/6"}${timeSeconds != null ? ` • ${formatSeconds(timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+        const { Share } = require("react-native");
+        Share.share({ message: text });
+      }
+    } catch (e) {
+      console.warn("Share failed", e);
+    }
+  };
 
   const BG = background.backgroundColor ?? "#f9f5ec";
   const TEXT = background.textColor ?? "#111827";
@@ -155,8 +184,29 @@ const WordleResultOverlay = ({
   const avgTimeText =
     averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
 
+  // Hidden share card — captured off-screen by ViewShot
+  const dateString = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
   return (
     <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.55)" }]}>
+      {/* Off-screen card for image capture */}
+      {evaluationRows && evaluationRows.length > 0 && (
+        <View style={styles.offScreen}>
+          <ViewShot ref={cardRef} options={{ format: "png", quality: 1 }}>
+            <WordleShareCard
+              mode={mode}
+              status={status}
+              solutionWord={solutionWord}
+              guessesCount={guessesCount}
+              timeSeconds={timeSeconds}
+              evaluationRows={evaluationRows}
+              currentStreak={currentStreak}
+              dateString={dateString}
+            />
+          </ViewShot>
+        </View>
+      )}
+
       <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
         {/* Brand */}
         <Text style={[styles.brand, { color: SUBTEXT }]}>WORD FURY</Text>
@@ -305,16 +355,8 @@ const WordleResultOverlay = ({
 
         {hasThisGameData && (
           <Pressable
-            style={({ pressed }) => [
-              styles.shareButton,
-              { opacity: pressed ? 0.75 : 1 },
-            ]}
-            onPress={() => {
-              const text = shareText && shareText.length > 0
-                ? shareText
-                : `Word Fury ${isDaily ? "Daily" : "Practice"} ${isWin ? `${guessesCount}/6` : "X/6"}${timeSeconds != null ? ` • ${formatSeconds(timeSeconds)}` : ""}\n\nPlay Word Fury!`;
-              Share.share({ message: text });
-            }}
+            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={handleShare}
           >
             <View style={styles.shareButtonInner}>
               <Share2 size={18} color="#fff" />
@@ -353,6 +395,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 18,
+  },
+  offScreen: {
+    position: "absolute",
+    top: -2000,
+    left: 0,
   },
   card: {
     width: "100%",

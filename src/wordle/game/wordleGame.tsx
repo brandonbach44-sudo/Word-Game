@@ -434,6 +434,7 @@ export default function WordleGame() {
   const [overlayGuessesCount, setOverlayGuessesCount] = useState<number>(0);
   const [overlayTimeSeconds, setOverlayTimeSeconds] = useState<number | null>(null);
   const [overlayShareText, setOverlayShareText] = useState<string>("");
+  const [overlayEvaluationRows, setOverlayEvaluationRows] = useState<LetterState[][]>([]);
 
   const [stats, setStats] = useState<WordleStats>(() => createDefaultStats());
   const [hydrated, setHydrated] = useState(false);
@@ -764,6 +765,7 @@ export default function WordleGame() {
       const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
       const shareText = `${modeStr} ${resultStr}${timeStr}\n\n${emojiRows.join("\n")}`;
       setOverlayShareText(shareText);
+      setOverlayEvaluationRows(evaluations.map(row => row.map(cell => cell.state)));
 
       setStats((prev) => {
         const key = gameMode === "daily" ? "daily" : "practice";
@@ -1521,6 +1523,7 @@ export default function WordleGame() {
           }}
           nextDailySecondsRemaining={overlayMode === "daily" && isDailyCompletedToday ? nextDailySeconds : null}
           shareText={overlayShareText}
+          evaluationRows={overlayEvaluationRows}
         />
       </View>
     </SafeAreaView>
