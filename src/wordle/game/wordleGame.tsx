@@ -325,6 +325,44 @@ const StatsCard = ({
   );
 };
 
+const GuessDistChart = ({
+  distribution,
+  totalWins,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+}: {
+  distribution: Record<number, number>;
+  totalWins: number;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+}) => {
+  const maxCount = Math.max(1, ...Object.values(distribution));
+  return (
+    <View style={[styles.distCard, { backgroundColor: cardColor, borderColor }]}>
+      <Text style={[styles.distTitle, { color: textColor }]}>Guess Distribution</Text>
+      {[1, 2, 3, 4, 5, 6].map((n) => {
+        const count = distribution[n] ?? 0;
+        const pct = totalWins > 0 ? Math.max(0.04, count / maxCount) : 0.04;
+        return (
+          <View key={n} style={styles.distRow}>
+            <Text style={[styles.distLabel, { color: secondaryText }]}>{n}</Text>
+            <View style={styles.distBarWrap}>
+              <View style={[styles.distBar, { flex: pct, backgroundColor: "#22c55e" }]}>
+                <Text style={styles.distCount}>{count}</Text>
+              </View>
+              <View style={{ flex: 1 - pct }} />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 const AchievementCard = ({
   achievement,
   textColor,
@@ -1060,20 +1098,34 @@ export default function WordleGame() {
       (stats.practice.guessDistribution?.[2] ?? 0);
 
     return [
+      // First wins
       { id: "first_win", emoji: "✅", name: "First Win", description: "Win your first game", unlocked: totalWins >= 1 },
       { id: "daily_win", emoji: "📅", name: "Daily Solver", description: "Win a Daily Challenge", unlocked: dailyWins >= 1 },
       { id: "practice_win", emoji: "🎯", name: "Practice Pays", description: "Win a Practice game", unlocked: practiceWins >= 1 },
+      // Guess skill
       { id: "perfect", emoji: "⚡", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
-      { id: "two_try", emoji: "🎉", name: "Two Tries", description: "Get 5 wins in 2 guesses", unlocked: twoGuessWins >= 5 },
-      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day best streak", unlocked: bestStreak >= 7 },
-      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day best streak", unlocked: bestStreak >= 14 },
-      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day best streak", unlocked: bestStreak >= 30 },
+      { id: "lucky_guess", emoji: "🍀", name: "Lucky Guess", description: "Win in 2 guesses", unlocked: twoGuessWins >= 1 },
+      { id: "two_try_5", emoji: "🎉", name: "Two Tries", description: "Win in 2 guesses 5 times", unlocked: twoGuessWins >= 5 },
+      { id: "clutch", emoji: "😅", name: "Clutch", description: "Win on the 6th guess", unlocked: ((stats.daily.guessDistribution?.[6] ?? 0) + (stats.practice.guessDistribution?.[6] ?? 0)) >= 1 },
+      { id: "comeback", emoji: "😤", name: "Comeback", description: "Win after reaching guess 5", unlocked: ((stats.daily.guessDistribution?.[5] ?? 0) + (stats.practice.guessDistribution?.[5] ?? 0)) >= 1 },
+      // Streaks
+      { id: "streak_3", emoji: "🌱", name: "On a Roll", description: "Reach a 3-day streak", unlocked: bestStreak >= 3 },
+      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day streak", unlocked: bestStreak >= 7 },
+      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day streak", unlocked: bestStreak >= 14 },
+      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day streak", unlocked: bestStreak >= 30 },
+      // Speed
       { id: "speed_60", emoji: "⏱️", name: "Quick Thinker", description: "Win in under 60 seconds", unlocked: fastestAny != null && fastestAny <= 60 },
-      { id: "speed_30", emoji: "⚡", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
+      { id: "speed_30", emoji: "💨", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
+      { id: "speed_20", emoji: "🚀", name: "Speed Demon", description: "Win in under 20 seconds", unlocked: fastestAny != null && fastestAny <= 20 },
+      // Consistency
+      { id: "sharpshooter", emoji: "🎯", name: "Sharpshooter", description: "80%+ win rate after 20+ dailies", unlocked: stats.daily.gamesPlayed >= 20 && winRateDaily >= 80 },
+      { id: "hat_trick", emoji: "🎩", name: "Hat Trick", description: "Win 3 practice games in a row", unlocked: practiceWins >= 3 },
+      // Volume
+      { id: "marathon", emoji: "🏃", name: "Marathon", description: "Complete 50 daily challenges", unlocked: stats.daily.gamesPlayed >= 50 },
       { id: "play_25", emoji: "🧩", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25 },
       { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100 },
       { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25 },
-      { id: "wins_50", emoji: "🏅", name: "Win Streaker", description: "Win 50 games", unlocked: totalWins >= 50 },
+      { id: "wins_50", emoji: "🏅", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50 },
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice]);
 
@@ -1244,51 +1296,59 @@ export default function WordleGame() {
                 contentContainerStyle={styles.statsContent}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Lifetime */}
-                <Text style={[styles.sectionTitle, { color: TEXT }]}>Lifetime</Text>
-                <View style={styles.statsGrid}>
-                  <StatsCard label="Games Played" value={`${lifetimeGames}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Wins" value={`${lifetimeWins} (${lifetimeWinRate}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Time" value={lifetimeTime > 0 ? formatTotalTime(lifetimeTime) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Guesses" value={`${lifetimeGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Perfect Wins" value={`${lifetimePerfect}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                {/* ── DAILY CHALLENGE (primary) ── */}
+                <Text style={[styles.sectionTitle, { color: TEXT }]}>Daily Challenge</Text>
+
+                {/* Streak highlight row */}
+                <View style={styles.streakRow}>
+                  <View style={[styles.streakBox, { backgroundColor: CARD, borderColor: BORDER }]}>
+                    <Text style={[styles.streakNum, { color: TEXT }]}>{stats.daily.currentStreak}</Text>
+                    <Text style={[styles.streakLbl, { color: SUBTEXT }]}>Current Streak</Text>
+                  </View>
+                  <View style={[styles.streakBox, { backgroundColor: CARD, borderColor: BORDER }]}>
+                    <Text style={[styles.streakNum, { color: TEXT }]}>{stats.daily.bestStreak}</Text>
+                    <Text style={[styles.streakLbl, { color: SUBTEXT }]}>Best Streak</Text>
+                  </View>
+                  <View style={[styles.streakBox, { backgroundColor: CARD, borderColor: BORDER }]}>
+                    <Text style={[styles.streakNum, { color: "#22c55e" }]}>{winRateDaily}%</Text>
+                    <Text style={[styles.streakLbl, { color: SUBTEXT }]}>Win Rate</Text>
+                  </View>
                 </View>
 
-                {/* Daily */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
-                  Daily Challenge Stats
-                </Text>
+                {/* Played / Won / Lost row */}
                 <View style={styles.statsGrid}>
-                  <StatsCard label="Dailies Played" value={`${stats.daily.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Wins" value={`${stats.daily.gamesWon} (${winRateDaily}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Current Streak" value={`${stats.daily.currentStreak} day${stats.daily.currentStreak === 1 ? "" : "s"}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Best Streak" value={`${stats.daily.bestStreak} day${stats.daily.bestStreak === 1 ? "" : "s"}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Avg Time (wins)" value={avgTimeDaily != null ? formatSeconds(avgTimeDaily) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Fastest (wins)" value={stats.daily.fastestTimeSeconds != null ? formatSeconds(stats.daily.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Avg Guesses (wins)" value={avgGuessesDaily != null ? avgGuessesDaily.toFixed(2) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Perfect Wins" value={`${stats.daily.guessDistribution?.[1] ?? 0}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Time" value={stats.daily.totalTimeSeconds > 0 ? formatTotalTime(stats.daily.totalTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Guesses" value={`${stats.daily.totalGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Played" value={`${stats.daily.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Won" value={`${stats.daily.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Lost" value={`${stats.daily.gamesPlayed - stats.daily.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Guesses" value={avgGuessesDaily != null ? avgGuessesDaily.toFixed(1) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Time" value={avgTimeDaily != null ? formatSeconds(avgTimeDaily) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Fastest" value={stats.daily.fastestTimeSeconds != null ? formatSeconds(stats.daily.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                 </View>
 
-                {/* Practice */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
-                  Practice Stats
-                </Text>
+                {/* Guess distribution chart */}
+                <GuessDistChart
+                  distribution={stats.daily.guessDistribution}
+                  totalWins={stats.daily.gamesWon}
+                  textColor={TEXT}
+                  secondaryText={SUBTEXT}
+                  cardColor={CARD}
+                  borderColor={BORDER}
+                />
+
+                {/* ── PRACTICE (secondary) ── */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Practice</Text>
                 <View style={styles.statsGrid}>
-                  <StatsCard label="Games Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Wins" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Avg Time (wins)" value={avgTimePractice != null ? formatSeconds(avgTimePractice) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Fastest (wins)" value={stats.practice.fastestTimeSeconds != null ? formatSeconds(stats.practice.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Avg Guesses (wins)" value={avgGuessesPractice != null ? avgGuessesPractice.toFixed(2) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Perfect Wins" value={`${stats.practice.guessDistribution?.[1] ?? 0}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Time" value={stats.practice.totalTimeSeconds > 0 ? formatTotalTime(stats.practice.totalTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  <StatsCard label="Total Guesses" value={`${stats.practice.totalGuesses}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Won" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Lost" value={`${stats.practice.gamesPlayed - stats.practice.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Guesses" value={avgGuessesPractice != null ? avgGuessesPractice.toFixed(1) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Avg Time" value={avgTimePractice != null ? formatSeconds(avgTimePractice) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Fastest" value={stats.practice.fastestTimeSeconds != null ? formatSeconds(stats.practice.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                 </View>
 
-                {/* Achievements */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 25 }]}>
-                  Achievements ({achievements.length})
+                {/* ── ACHIEVEMENTS ── */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>
+                  Achievements ({achievements.filter(a => a.unlocked).length}/{achievements.length})
                 </Text>
                 <View style={styles.achievementsGrid}>
                   {achievements.map((a) => (
@@ -1571,6 +1631,72 @@ const styles = StyleSheet.create({
   statsLabel: {
     fontSize: 12,
     textAlign: "center",
+  },
+
+  // Streak highlight row
+  streakRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  streakBox: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  streakNum: {
+    fontSize: 28,
+    fontWeight: "900",
+    marginBottom: 2,
+  },
+  streakLbl: {
+    fontSize: 11,
+    textAlign: "center",
+  },
+
+  // Guess distribution chart
+  distCard: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 14,
+    marginTop: 12,
+  },
+  distTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 10,
+    letterSpacing: 0.5,
+  },
+  distRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  distLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    width: 18,
+    marginRight: 8,
+  },
+  distBarWrap: {
+    flex: 1,
+    flexDirection: "row",
+    height: 22,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  distBar: {
+    borderRadius: 4,
+    justifyContent: "center",
+    paddingLeft: 6,
+    minWidth: 28,
+  },
+  distCount: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#fff",
   },
 
   // Achievements
