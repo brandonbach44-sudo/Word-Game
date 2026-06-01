@@ -694,10 +694,16 @@ export default function WordleGame() {
         const gamesPlayed = prevMode.gamesPlayed + 1;
         const gamesWon = result === "won" ? prevMode.gamesWon + 1 : prevMode.gamesWon;
 
+        // For streak to continue, the last daily must have been played yesterday
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayISO = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+        const playedYesterday = dailyLock?.dateISO === yesterdayISO;
+
         const currentStreak =
           gameMode === "daily"
             ? result === "won"
-              ? prevMode.currentStreak + 1
+              ? (prevMode.currentStreak === 0 || playedYesterday ? prevMode.currentStreak + 1 : 1)
               : 0
             : prevMode.currentStreak;
 
