@@ -1,121 +1,129 @@
-// src/wordgrid/components/GridWithGesture.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { GestureResponderEvent, PanResponder, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
-import { Position } from '../utils/pathFinder';
+import React, { useCallback, useState } from 'react';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import type { Position } from '../utils/pathFinder';
 
-type GridProps = {
+const GRID_SIZE = 4;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / GRID_SIZE);
+
+interface Props {
   grid: string[][];
-  onPathComplete: (path: Position[]) => { success: boolean } | void;
-};
-
-export default function GridWithGesture({ grid, onPathComplete }: GridProps) {
-  const [currentPath, setCurrentPath] = useState<Position[]>([]);
-  const [pulseColor, setPulseColor] = useState<string | null>(null);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt: GestureResponderEvent) => {
-        const pos = getCellFromTouch(evt.nativeEvent.locationX, evt.nativeEvent.locationY, grid.length);
-        if (pos) setCurrentPath([pos]);
-      },
-      onPanResponderMove: (evt: GestureResponderEvent) => {
-        const pos = getCellFromTouch(evt.nativeEvent.locationX, evt.nativeEvent.locationY, grid.length);
-        if (pos && !currentPath.some(p => p.row === pos.row && p.col === pos.col)) {
-          setCurrentPath(prev => [...prev, pos]);
-        }
-      },
-      onPanResponderRelease: () => {
-        const result = onPathComplete(currentPath);
-        if (result) {
-          setPulseColor(result.success ? 'green' : 'red');
-        }
-        setCurrentPath([]);
-      },
-    })
-  ).current;
-
-  return (
-    <View style={styles.container} {...panResponder.panHandlers}>
-      {grid.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row.map((letter, colIndex) => {
-            const isSelected = currentPath.some(p => p.row === rowIndex && p.col === colIndex);
-            return (
-              <PulseCell
-                key={colIndex}
-                letter={letter}
-                isSelected={isSelected}
-                pulseColor={pulseColor}
-              />
-            );
-          })}
-        </View>
-      ))}
-
-      {/* Path lines */}
-      <Svg style={StyleSheet.absoluteFill}>
-        {currentPath.map((pos, i) => {
-          if (i === 0) return null;
-          const prev = currentPath[i - 1];
-          const cellSize = 68;
-          const x1 = prev.col * cellSize + cellSize / 2;
-          const y1 = prev.row * cellSize + cellSize / 2;
-          const x2 = pos.col * cellSize + cellSize / 2;
-          const y2 = pos.row * cellSize + cellSize / 2;
-          return <Line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="blue" strokeWidth={4} />;
-        })}
-      </Svg>
-    </View>
-  );
+  onPathComplete: (path: Position[]) => void;
+  disabled?: boolean;
 }
 
-// Animated cell component
-function PulseCell({ letter, isSelected, pulseColor }: { letter: string; isSelected: boolean; pulseColor: string | null }) {
-  const color = useSharedValue('#f0f0f0');
+export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
+  const [selectedCells, setSelectedCells] = useState<Position[]>([]);
 
-  useEffect(() => {
-    if (isSelected && pulseColor) {
-      color.value = withSequence(
-        withTiming(pulseColor, { duration: 200 }),
-        withTiming('#f0f0f0', { duration: 400 })
-      );
-    }
-  }, [isSelected, pulseColor]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    backgroundColor: color.value,
-  }));
-
-  return (
-    <Animated.View style={[styles.cell, animatedStyle]}>
-      <Text style={styles.letter}>{letter}</Text>
-    </Animated.View>
-  );
-}
-
-function getCellFromTouch(x: number, y: number, size: number): Position | null {
-  const cellSize = 68;
-  const row = Math.floor(y / cellSize);
-  const col = Math.floor(x / cellSize);
-  if (row >= 0 && row < size && col >= 0 && col < size) {
+  const getCellFromCoords = useCallback((x: number, y: number): Position | null => {
+    const col = Math.floor(x / CELL_SIZE);
+    const row = Math.floor(y / CELL_SIZE);
+    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null;
     return { row, col };
-  }
-  return null;
+  }, []);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!disabled)
+    .onStart((e) => {
+      const cell = getCellFromCoords(e.x, e.y);
+      if (cell) setSelectedCells([cell]);
+    })
+    .onUpdate((e) => {
+      const cell = getCellFromCoords(e.x, e.y);
+      if (!cell) return;
+      setSelectedCells((prev) => {
+        const exists = prev.some((c) => c.row === cell.row && c.col === cell.col);
+        if (exists) return prev;
+        return [...prev, cell];
+      });
+    })
+    .onEnd(() => {
+      const path = selectedCells;
+      setSelectedCells([]);
+      if (path.length >= 3) {
+        onPathComplete(path);
+      }
+    });
+
+  return (
+    <GestureDetector gesture={panGesture}>
+      <View
+        style={[
+          styles.gridContainer,
+          { width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE },
+        ]}
+      >
+        {grid.map((row, r) => (
+          <View key={r} style={styles.row}>
+            {row.map((letter, c) => {
+              const selIndex = selectedCells.findIndex(
+                (cell) => cell.row === r && cell.col === c
+              );
+              const isSelected = selIndex !== -1;
+              return (
+                <View
+                  key={c}
+                  style={[
+                    styles.cell,
+                    { width: CELL_SIZE, height: CELL_SIZE },
+                    isSelected && styles.selectedCell,
+                  ]}
+                >
+                  {isSelected && (
+                    <View style={styles.indexBadge}>
+                      <Text style={styles.indexText}>{selIndex + 1}</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.letter, isSelected && styles.selectedLetter]}>
+                    {letter}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    </GestureDetector>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  row: { flexDirection: 'row' },
+  gridContainer: {
+    alignSelf: 'center',
+    marginVertical: 12,
+  },
+  row: {
+    flexDirection: 'row',
+  },
   cell: {
-    width: 60,
-    height: 60,
-    margin: 4,
+    borderWidth: 2,
+    borderColor: '#c8b89a',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f5f0e6',
     borderRadius: 8,
   },
-  letter: { fontSize: 24, fontWeight: 'bold' },
+  selectedCell: {
+    backgroundColor: '#4ecca3',
+    borderColor: '#3db892',
+  },
+  letter: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#3d2e1c',
+  },
+  selectedLetter: {
+    color: '#fff',
+  },
+  indexBadge: {
+    position: 'absolute',
+    top: 3,
+    right: 5,
+  },
+  indexText: {
+    fontSize: 9,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });

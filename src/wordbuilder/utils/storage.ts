@@ -6,7 +6,7 @@ const TILES_KEY = 'wordbuilder_tiles';
 const DAILY_KEY = 'wordbuilder_daily';
 
 // Debug flag - set to true to unlock all tiles for testing
-export const DEBUG_UNLOCK_ALL = true;
+export const DEBUG_UNLOCK_ALL = false;
 
 // ==================== INTERFACES ====================
 
