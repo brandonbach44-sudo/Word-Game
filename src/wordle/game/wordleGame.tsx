@@ -15,6 +15,8 @@ import type { DailyLockState } from "../storage/wordleStorage";
 import { useTheme } from "../../shared/ThemeContext";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
+import { AchievementPopup } from "../../wordbuilder/components/AchievementPopup";
+// AchievementPopup is shared from wordbuilder — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
 import {
   loadDailyLock,
@@ -438,6 +440,12 @@ export default function WordleGame() {
   const [nextDailySeconds, setNextDailySeconds] = useState<number | null>(null);
   const [todayISO, setTodayISO] = useState<string>(() => getTodayISODate());
 
+  // Achievement popup state
+  const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
+  const [currentPopupAchievement, setCurrentPopupAchievement] = useState<Achievement | null>(null);
+  // Track IDs already unlocked at session start so we don't re-fire old ones
+  const sessionStartUnlockedRef = useRef<Set<string> | null>(null);
+
   useEffect(() => {
     const id = setInterval(() => {
       setTodayISO(getTodayISODate());
@@ -580,6 +588,35 @@ export default function WordleGame() {
       isMounted = false;
     };
   }, []);
+
+  // Capture baseline unlocked IDs once hydrated so we don't fire old achievements
+  useEffect(() => {
+    if (hydrated && sessionStartUnlockedRef.current === null) {
+      sessionStartUnlockedRef.current = new Set(
+        achievements.filter((a) => a.unlocked).map((a) => a.id)
+      );
+    }
+  }, [hydrated, achievements]);
+
+  // Detect newly unlocked achievements and queue popups
+  useEffect(() => {
+    if (!hydrated || sessionStartUnlockedRef.current === null) return;
+    const newlyUnlocked = achievements.filter(
+      (a) => a.unlocked && !sessionStartUnlockedRef.current!.has(a.id)
+    );
+    if (newlyUnlocked.length > 0) {
+      newlyUnlocked.forEach((a) => sessionStartUnlockedRef.current!.add(a.id));
+      setPendingAchievements((prev) => [...prev, ...newlyUnlocked]);
+    }
+  }, [achievements, hydrated]);
+
+  // Show popups one at a time
+  useEffect(() => {
+    if (pendingAchievements.length > 0 && !currentPopupAchievement) {
+      setCurrentPopupAchievement(pendingAchievements[0]);
+      setPendingAchievements((prev) => prev.slice(1));
+    }
+  }, [pendingAchievements, currentPopupAchievement]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1149,6 +1186,12 @@ export default function WordleGame() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: BG }]}>
+      <AchievementPopup
+        achievement={currentPopupAchievement as any}
+        onDismiss={() => setCurrentPopupAchievement(null)}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
       <View style={[styles.container, { backgroundColor: BG }]}>
         {/* Header (matches other games) */}
         <View style={styles.appHeader}>
