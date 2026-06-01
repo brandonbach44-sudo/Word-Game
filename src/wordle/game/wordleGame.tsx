@@ -32,7 +32,7 @@ const HORIZONTAL_PADDING = 16;
 
 // Keyboard tuning (smaller height so it always fits)
 const KEY_GAP = 6;
-const KEY_MIN_HEIGHT = 42;
+const KEY_MIN_HEIGHT = 54;
 const KEY_ROW_MARGIN_V = 3;
 
 // Tiles tuning (responsive to width + height)
@@ -390,9 +390,8 @@ export default function WordleGame() {
     getDailySolution()
   );
   const [overlayGuessesCount, setOverlayGuessesCount] = useState<number>(0);
-  const [overlayTimeSeconds, setOverlayTimeSeconds] = useState<number | null>(
-    null
-  );
+  const [overlayTimeSeconds, setOverlayTimeSeconds] = useState<number | null>(null);
+  const [overlayShareText, setOverlayShareText] = useState<string>("");
 
   const [stats, setStats] = useState<WordleStats>(() => createDefaultStats());
   const [hydrated, setHydrated] = useState(false);
@@ -676,6 +675,18 @@ export default function WordleGame() {
       setOverlayGuessesCount(guessesUsed);
       setOverlayTimeSeconds(elapsedSeconds);
 
+      // Build share text
+      const emojiRows = evaluations.map((row) =>
+        row.map((cell) =>
+          cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
+        ).join("")
+      );
+      const timeStr = elapsedSeconds != null ? ` • ${formatSeconds(elapsedSeconds)}` : "";
+      const modeStr = gameMode === "daily" ? "Wordle Daily" : "Wordle Practice";
+      const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
+      const shareText = `${modeStr} ${resultStr}${timeStr}\n\n${emojiRows.join("\n")}`;
+      setOverlayShareText(shareText);
+
       setStats((prev) => {
         const key = gameMode === "daily" ? "daily" : "practice";
         const prevMode = prev[key];
@@ -868,9 +879,9 @@ export default function WordleGame() {
         backBorder = "#16a34a";
         backText = "#f9fafb";
       } else if (evaluatedState === "present") {
-        backBg = "#eab308";
-        backBorder = "#ca8a04";
-        backText = "#111827";
+        backBg = "#fde047";
+        backBorder = "#facc15";
+        backText = "#1a1a1a";
       } else if (evaluatedState === "absent") {
         backBg = "#9ca3af";
         backBorder = "#6b7280";
@@ -948,9 +959,9 @@ export default function WordleGame() {
             borderColor = "#16a34a";
             textColor = "#f9fafb";
           } else if (state === "present") {
-            backgroundColor = "#eab308";
-            borderColor = "#ca8a04";
-            textColor = "#111827";
+            backgroundColor = "#fde047";
+            borderColor = "#facc15";
+            textColor = "#1a1a1a";
           } else if (state === "absent") {
             backgroundColor = "#9ca3af";
             borderColor = "#6b7280";
@@ -972,9 +983,9 @@ export default function WordleGame() {
                 {
                   width,
                   marginHorizontal: KEY_GAP / 2,
-                  backgroundColor,
+                  backgroundColor: pressed ? (backgroundColor === "#fde047" ? "#fbbf24" : backgroundColor) : backgroundColor,
                   borderColor,
-                  opacity: pressed ? 0.72 : 1,
+                  transform: [{ scale: pressed ? 0.88 : 1 }],
                 },
               ]}
             >
@@ -1374,6 +1385,7 @@ export default function WordleGame() {
             startGame("practice");
           }}
           nextDailySecondsRemaining={overlayMode === "daily" && isDailyCompletedToday ? nextDailySeconds : null}
+          shareText={overlayShareText}
         />
       </View>
     </SafeAreaView>
@@ -1678,7 +1690,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   keyText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "900",
   },
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "../../shared/ThemeContext";
 
@@ -18,7 +18,8 @@ type Props = {
   onPlayAgain: () => void;
   onGoHome: () => void;
   onGoPractice: () => void;
-  nextDailySecondsRemaining?: number | null; // countdown for next Daily
+  nextDailySecondsRemaining?: number | null;
+  shareText?: string;
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -104,6 +105,7 @@ const WordleResultOverlay = ({
   onGoHome,
   onGoPractice,
   nextDailySecondsRemaining,
+  shareText,
 }: Props) => {
   const { background } = useTheme();
 
@@ -300,6 +302,18 @@ const WordleResultOverlay = ({
           )}
         </View>
 
+        {shareText ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.shareButton,
+              { opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={() => Share.share({ message: shareText })}
+          >
+            <Text style={styles.shareButtonText}>Share Result 📤</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           style={({ pressed }) => [
             styles.secondaryButton,
@@ -442,6 +456,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1,
+  },
+  shareButton: {
+    marginTop: 10,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    backgroundColor: "#22c55e",
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
   secondaryButton: {
     marginTop: 10,
