@@ -5,10 +5,12 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Share2 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { DailyLockState } from "../storage/wordleStorage";
 
@@ -1285,20 +1287,21 @@ export default function WordleGame() {
                           </Text>
                         </Pressable>
 
-                        {dailyLock?.shareText ? (
+                        {isDailyCompletedToday && (
                           <Pressable
                             onPress={() => {
-                              const { Share } = require("react-native");
-                              Share.share({ message: dailyLock.shareText! });
+                              const text = dailyLock?.shareText
+                                ?? `Word Fury Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+                              Share.share({ message: text });
                             }}
                             style={({ pressed }) => [
                               styles.shareIconButton,
                               { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
                             ]}
                           >
-                            <Text style={styles.shareIconText}>📤</Text>
+                            <Share2 size={16} color={TEXT} />
                           </Pressable>
-                        ) : null}
+                        )}
                       </View>
 
                       {dailySummaryText ? (

@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Flame, Trophy } from 'lucide-react-native';
+import { Flame, Share2, Trophy } from 'lucide-react-native';
 
 // Components
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
@@ -196,6 +196,7 @@ export default function WordBuilder() {
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [dailyResult, setDailyResult] = useState<{ score: number; words: string[] } | null>(null);
+  const [showDailyResultModal, setShowDailyResultModal] = useState(false);
   const [equippedTier, setEquippedTier] = useState<TierName>('default');
   const [equippedVariant, setEquippedVariant] = useState<number>(1);
 
@@ -539,6 +540,15 @@ export default function WordBuilder() {
   const formatDate = () => {
     const today = new Date();
     return today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
+
+  const shareDailyFromMenu = async () => {
+    if (!dailyResult) return;
+    const streakText = dailyChallenge && dailyChallenge.dailyStreak > 1
+      ? `Streak: ${dailyChallenge.dailyStreak} days\n`
+      : '';
+    const msg = `Word Builder Daily\n${formatDate()}\n\nScore: ${dailyResult.score}\nWords: ${dailyResult.words.length}\n${streakText}\nPlay Word Fury!`;
+    try { await Share.share({ message: msg }); } catch (e) {}
   };
 
   const shareDaily = async (totalFound: number, totalPossible: number, percentFound: number) => {
@@ -950,6 +960,24 @@ export default function WordBuilder() {
               </TouchableOpacity>
             )}
 
+            {/* View Results + Share (when completed) */}
+            {dailyPlayed && (
+              <View style={styles.dailyActionRow}>
+                <TouchableOpacity
+                  style={[styles.dailyActionButton, dynamicStyles.button, { borderWidth: 1.5 }]}
+                  onPress={() => setShowDailyResultModal(true)}
+                >
+                  <Text style={[styles.dailyActionText, dynamicStyles.text]}>View Results</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.dailyShareIconButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, borderWidth: 1.5 }]}
+                  onPress={shareDailyFromMenu}
+                >
+                  <Share2 size={18} color={background.textColor} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Countdown Timer (only when completed) */}
             {dailyPlayed && (
               <View style={styles.dailyCountdownContainer}>
@@ -1232,6 +1260,39 @@ export default function WordBuilder() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
+
+      {/* Daily Result Modal */}
+      {showDailyResultModal && dailyResult && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+            <Text style={[styles.modalTitle, { color: background.textColor }]}>Daily Results</Text>
+            <Text style={[styles.modalDate, { color: background.secondaryText }]}>{formatDate()}</Text>
+            <Text style={[styles.modalScore, { color: COLORS.accent }]}>{dailyResult.score}</Text>
+            <Text style={[styles.modalScoreLabel, { color: background.secondaryText }]}>points</Text>
+            <Text style={[styles.modalWords, { color: background.textColor }]}>{dailyResult.words.length} words found</Text>
+            {dailyChallenge && dailyChallenge.dailyStreak > 1 && (
+              <Text style={[styles.modalStreak, { color: background.secondaryText }]}>
+                🔥 {dailyChallenge.dailyStreak} day streak
+              </Text>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalShareBtn, { backgroundColor: COLORS.accent }]}
+                onPress={shareDailyFromMenu}
+              >
+                <Share2 size={16} color="#fff" />
+                <Text style={styles.modalShareText}>Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalCloseBtn, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+                onPress={() => setShowDailyResultModal(false)}
+              >
+                <Text style={[styles.modalCloseBtnText, { color: background.textColor }]}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1354,6 +1415,102 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#2c2416',
+  },
+  // Daily action row (View Results + Share)
+  dailyActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  dailyActionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  dailyActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dailyShareIconButton: {
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Daily result modal
+  modalOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    zIndex: 100,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 28,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  modalDate: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  modalScore: {
+    fontSize: 56,
+    fontWeight: 'bold',
+  },
+  modalScoreLabel: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  modalWords: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  modalStreak: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalShareBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  modalShareText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalCloseBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalCloseBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Countdown Timer
   dailyCountdownContainer: {

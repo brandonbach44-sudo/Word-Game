@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { Share2 } from "lucide-react-native";
 
 import { useTheme } from "../../shared/ThemeContext";
 
@@ -302,17 +303,25 @@ const WordleResultOverlay = ({
           )}
         </View>
 
-        {shareText ? (
+        {hasThisGameData && (
           <Pressable
             style={({ pressed }) => [
               styles.shareButton,
               { opacity: pressed ? 0.75 : 1 },
             ]}
-            onPress={() => Share.share({ message: shareText })}
+            onPress={() => {
+              const text = shareText && shareText.length > 0
+                ? shareText
+                : `Word Fury ${isDaily ? "Daily" : "Practice"} ${isWin ? `${guessesCount}/6` : "X/6"}${timeSeconds != null ? ` • ${formatSeconds(timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+              Share.share({ message: text });
+            }}
           >
-            <Text style={styles.shareButtonText}>Share Result 📤</Text>
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
+            </View>
           </Pressable>
-        ) : null}
+        )}
 
         <Pressable
           style={({ pressed }) => [
@@ -464,6 +473,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: "center",
     backgroundColor: "#22c55e",
+  },
+  shareButtonInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   shareButtonText: {
     fontSize: 15,
