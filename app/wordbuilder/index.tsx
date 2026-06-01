@@ -466,8 +466,8 @@ export default function WordBuilder() {
   const handleSubmit = useCallback(() => {
     if (gameOver) return;
     const word = currentWord.toLowerCase();
-    if (word.length < 2) { 
-      setMessage('Words must be at least 2 letters!'); 
+    if (word.length < 3) {
+      setMessage('Words must be at least 3 letters!');
       HapticManager.error();
       SoundManager.error();
       return; 
