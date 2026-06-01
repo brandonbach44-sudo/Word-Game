@@ -702,6 +702,7 @@ export default function WordleGame() {
     setOverlayTimeSeconds(
       typeof dailyLock?.timeSeconds === "number" ? dailyLock.timeSeconds : null
     );
+    setOverlayShareText(dailyLock?.shareText ?? "");
     setShowResult(true);
   }, [dailyLock, isDailyCompletedToday]);
 
@@ -829,6 +830,7 @@ export default function WordleGame() {
           result,
           guessesCount: guessesUsed,
           timeSeconds: elapsedSeconds,
+          shareText,
         };
         setDailyLock(lock);
         try {
@@ -1263,7 +1265,7 @@ export default function WordleGame() {
                           ]}
                         >
                           <Text style={[styles.completedPillText, { color: TEXT }]}>
-                            Completed
+                            Completed ✓
                           </Text>
                         </View>
 
@@ -1282,6 +1284,21 @@ export default function WordleGame() {
                             View Result
                           </Text>
                         </Pressable>
+
+                        {dailyLock?.shareText ? (
+                          <Pressable
+                            onPress={() => {
+                              const { Share } = require("react-native");
+                              Share.share({ message: dailyLock.shareText! });
+                            }}
+                            style={({ pressed }) => [
+                              styles.shareIconButton,
+                              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                            ]}
+                          >
+                            <Text style={styles.shareIconText}>📤</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
 
                       {dailySummaryText ? (
@@ -1407,9 +1424,15 @@ export default function WordleGame() {
           // GAME SCREEN
           <>
             <View style={styles.gameTopArea}>
-              <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
-                {gameMode === "daily" ? "Daily Challenge" : "Practice"}
-              </Text>
+              <View style={styles.gameHeader}>
+                <Pressable onPress={() => goToMenu("play")} hitSlop={8}>
+                  <Text style={[styles.gameBackText, { color: SUBTEXT }]}>← Menu</Text>
+                </Pressable>
+                <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
+                  {gameMode === "daily" ? "Daily Challenge" : "Practice"}
+                </Text>
+                <View style={styles.gameHeaderSpacer} />
+              </View>
 
               <View style={styles.messageBar}>
                 {message ? (
@@ -1612,8 +1635,21 @@ const styles = StyleSheet.create({
   },
 
   completedRow: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  shareIconButton: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shareIconText: {
+    fontSize: 16,
   },
   completedPill: {
     borderWidth: 2,
@@ -1773,6 +1809,21 @@ const styles = StyleSheet.create({
   },
 
   // Game screen
+  gameHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  gameBackText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  gameHeaderSpacer: {
+    width: 60,
+  },
   gameTopArea: {
     flex: 1,
     paddingHorizontal: HORIZONTAL_PADDING,
