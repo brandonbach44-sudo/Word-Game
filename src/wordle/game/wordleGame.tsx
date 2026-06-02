@@ -1332,7 +1332,7 @@ export default function WordleGame() {
                 </View>
 
                 {/* Practice */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 18 }]}>
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>
                   Practice
                 </Text>
 
@@ -1601,28 +1601,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 12,
   },
 
   // Mode cards (Play menu)
   modeCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 15,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 22,
   },
   modeCardTitle: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "800",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   modeCardSubtitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 18,
   },
   modeCardMeta: {
-    marginTop: 10,
-    fontSize: 12,
+    marginTop: 14,
+    fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
   },
@@ -1630,12 +1630,12 @@ const styles = StyleSheet.create({
   primaryCta: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: "center",
   },
   primaryCtaText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "900",
     letterSpacing: 1,
   },
@@ -1643,40 +1643,40 @@ const styles = StyleSheet.create({
   completedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     flexWrap: "wrap",
   },
   shareIconButton: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   shareIconText: {
-    fontSize: 16,
+    fontSize: 18,
   },
   completedPill: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   completedPillText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1,
   },
   viewResultButton: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     alignItems: "center",
   },
   viewResultText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "900",
     letterSpacing: 1,
   },
