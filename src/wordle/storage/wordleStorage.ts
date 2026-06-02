@@ -2,6 +2,33 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STATS_KEY = "wordle_stats_v1";
 const DAILY_LOCK_KEY = "wordle_daily_lock_v1";
+const PREFS_KEY = "wordle_prefs_v1";
+
+export type WordlePrefs = {
+  hardMode: boolean;
+  colorBlindMode: boolean;
+};
+
+const DEFAULT_PREFS: WordlePrefs = { hardMode: false, colorBlindMode: false };
+
+export async function loadWordlePrefs(): Promise<WordlePrefs> {
+  try {
+    const raw = await AsyncStorage.getItem(PREFS_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_PREFS, ...parsed };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export async function saveWordlePrefs(prefs: WordlePrefs): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch (e) {
+    console.warn("saveWordlePrefs error", e);
+  }
+}
 
 // We keep stats functions intentionally loose-typed (any) so they play nicely
 // with the ModeStats type defined in wordleGame.tsx without circular imports.

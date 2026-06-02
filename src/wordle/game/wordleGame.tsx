@@ -23,8 +23,11 @@ import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
 import {
   loadDailyLock,
   loadWordleStats,
+  loadWordlePrefs,
   saveDailyLock,
   saveWordleStats,
+  saveWordlePrefs,
+  type WordlePrefs,
 } from "../storage/wordleStorage";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -89,12 +92,15 @@ export type ModeStats = {
   totalTimeSeconds: number;
   fastestTimeSeconds: number | null;
   totalGuesses: number;
+  totalLettersTyped: number;
+  bestGuessCount: number | null;
   guessDistribution: GuessDistribution; // wins only
 };
 
 type WordleStats = {
   daily: ModeStats;
   practice: ModeStats;
+  dailyHistory: Record<string, "won" | "lost">;
 };
 
 
@@ -133,6 +139,8 @@ function createEmptyModeStats(): ModeStats {
     totalTimeSeconds: 0,
     fastestTimeSeconds: null,
     totalGuesses: 0,
+    totalLettersTyped: 0,
+    bestGuessCount: null,
     guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
   };
 }
@@ -141,6 +149,7 @@ function createDefaultStats(): WordleStats {
   return {
     daily: createEmptyModeStats(),
     practice: createEmptyModeStats(),
+    dailyHistory: {},
   };
 }
 
@@ -272,6 +281,8 @@ function mergeLoadedStats(loaded: any | null): WordleStats {
     fastestTimeSeconds:
       x.fastestTimeSeconds == null ? null : Number(x.fastestTimeSeconds),
     totalGuesses: Number(x.totalGuesses ?? 0),
+    totalLettersTyped: Number(x.totalLettersTyped ?? 0),
+    bestGuessCount: x.bestGuessCount == null ? null : Number(x.bestGuessCount),
     guessDistribution: {
       1: Number(x.guessDistribution?.[1] ?? 0),
       2: Number(x.guessDistribution?.[2] ?? 0),
@@ -285,6 +296,7 @@ function mergeLoadedStats(loaded: any | null): WordleStats {
   return {
     daily: coerceMode(daily),
     practice: coerceMode(practice),
+    dailyHistory: typeof loaded.dailyHistory === "object" && loaded.dailyHistory !== null ? loaded.dailyHistory : {},
   };
 }
 
@@ -410,6 +422,12 @@ export default function WordleGame() {
   const BORDER = background.borderColor ?? "#e5e7eb";
   const IS_DARK = background.isDark ?? false;
 
+  const COLOR_CORRECT       = prefs.colorBlindMode ? "#f97316" : "#22c55e";
+  const COLOR_CORRECT_BORDER = prefs.colorBlindMode ? "#ea580c" : "#16a34a";
+  const COLOR_PRESENT        = prefs.colorBlindMode ? "#60a5fa" : "#fde047";
+  const COLOR_PRESENT_BORDER = prefs.colorBlindMode ? "#3b82f6" : "#facc15";
+  const COLOR_PRESENT_TEXT   = prefs.colorBlindMode ? "#fff"    : "#1a1a1a";
+
   const [screen, setScreen] = useState<Screen>("menu");
   const [menuTab, setMenuTab] = useState<MenuTab>("play");
 
@@ -438,6 +456,7 @@ export default function WordleGame() {
 
   const [stats, setStats] = useState<WordleStats>(() => createDefaultStats());
   const [hydrated, setHydrated] = useState(false);
+  const [prefs, setPrefs] = useState<WordlePrefs>({ hardMode: false, colorBlindMode: false });
 
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [nextDailySeconds, setNextDailySeconds] = useState<number | null>(null);
@@ -549,10 +568,12 @@ export default function WordleGame() {
 
     (async () => {
       try {
-        const [loadedStats, loadedLock] = await Promise.all([
+        const [loadedStats, loadedLock, loadedPrefs] = await Promise.all([
           loadWordleStats(),
           loadDailyLock(),
+          loadWordlePrefs(),
         ]);
+        if (isMounted) setPrefs(loadedPrefs);
 
         if (!isMounted) return;
 
@@ -727,12 +748,19 @@ export default function WordleGame() {
       if (key.length === 1 && /[A-Z]/i.test(key)) {
         setCurrentGuess((prev) => {
           if (prev.length >= COLS) return prev;
+          setStats((s) => { const k = gameMode === "daily" ? "daily" : "practice"; return { ...s, [k]: { ...s[k], totalLettersTyped: s[k].totalLettersTyped + 1 } }; });
           return (prev + key.toLowerCase()).slice(0, COLS);
         });
       }
     },
     [gameMode, isDailyCompletedToday, screen, showMessageFn, status]
   );
+
+  const togglePref = useCallback(async (key: keyof WordlePrefs) => {
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    await saveWordlePrefs(updated);
+  }, [prefs]);
 
   const endGame = useCallback(
     async (
@@ -807,13 +835,20 @@ export default function WordleGame() {
         const totalGuesses =
           result === "won" ? prevMode.totalGuesses + guessesUsed : prevMode.totalGuesses;
 
+        const bestGuessCount = result === "won"
+          ? prevMode.bestGuessCount == null ? guessesUsed : Math.min(prevMode.bestGuessCount, guessesUsed)
+          : prevMode.bestGuessCount;
+
         const guessDistribution = { ...prevMode.guessDistribution };
         if (result === "won" && guessesUsed >= 1 && guessesUsed <= 6) {
           guessDistribution[guessesUsed] = (guessDistribution[guessesUsed] ?? 0) + 1;
         }
 
+        const updatedHistory = key === "daily" ? { ...prev.dailyHistory, [todayISO]: result } : prev.dailyHistory;
+
         return {
           ...prev,
+          dailyHistory: updatedHistory,
           [key]: {
             ...prevMode,
             gamesPlayed,
@@ -823,6 +858,7 @@ export default function WordleGame() {
             totalTimeSeconds,
             fastestTimeSeconds,
             totalGuesses,
+            bestGuessCount,
             guessDistribution,
           },
         };
@@ -871,6 +907,24 @@ export default function WordleGame() {
       return;
     }
 
+    // Hard mode validation
+    if (prefs.hardMode && evaluations.length > 0) {
+      for (const prevRow of evaluations) {
+        for (let c = 0; c < COLS; c++) {
+          if (prevRow[c].state === "correct" && guessLower[c] !== prevRow[c].letter) {
+            showMessageFn(`Position ${c + 1} must be ${prevRow[c].letter.toUpperCase()}`);
+            return;
+          }
+        }
+        for (let c = 0; c < COLS; c++) {
+          if (prevRow[c].state === "present" && !guessLower.includes(prevRow[c].letter)) {
+            showMessageFn(`Must use ${prevRow[c].letter.toUpperCase()}`);
+            return;
+          }
+        }
+      }
+    }
+
     const rowIndex = guesses.length;
     const evalRow = evaluateGuess(guessLower, solution.toLowerCase());
 
@@ -895,9 +949,11 @@ export default function WordleGame() {
   }, [
     currentGuess,
     endGame,
+    evaluations,
     gameMode,
     guesses.length,
     isDailyCompletedToday,
+    prefs.hardMode,
     revealRow,
     screen,
     showMessageFn,
@@ -962,13 +1018,13 @@ export default function WordleGame() {
 
     if (hasEvaluation) {
       if (evaluatedState === "correct") {
-        backBg = "#22c55e";
-        backBorder = "#16a34a";
+        backBg = COLOR_CORRECT;
+        backBorder = COLOR_CORRECT_BORDER;
         backText = "#f9fafb";
       } else if (evaluatedState === "present") {
-        backBg = "#fde047";
-        backBorder = "#facc15";
-        backText = "#1a1a1a";
+        backBg = COLOR_PRESENT;
+        backBorder = COLOR_PRESENT_BORDER;
+        backText = COLOR_PRESENT_TEXT;
       } else if (evaluatedState === "absent") {
         backBg = "#9ca3af";
         backBorder = "#6b7280";
@@ -1042,13 +1098,13 @@ export default function WordleGame() {
           let textColor = TEXT;
 
           if (state === "correct") {
-            backgroundColor = "#22c55e";
-            borderColor = "#16a34a";
+            backgroundColor = COLOR_CORRECT;
+            borderColor = COLOR_CORRECT_BORDER;
             textColor = "#f9fafb";
           } else if (state === "present") {
-            backgroundColor = "#fde047";
-            borderColor = "#facc15";
-            textColor = "#1a1a1a";
+            backgroundColor = COLOR_PRESENT;
+            borderColor = COLOR_PRESENT_BORDER;
+            textColor = COLOR_PRESENT_TEXT;
           } else if (state === "absent") {
             backgroundColor = "#9ca3af";
             borderColor = "#6b7280";
@@ -1169,8 +1225,11 @@ export default function WordleGame() {
       { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100 },
       { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25 },
       { id: "wins_50", emoji: "🏅", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50 },
+      { id: "perfectionist", emoji: "🎓", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10 },
+      { id: "comeback_king", emoji: "👑", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5 },
+      { id: "early_bird", emoji: "🌅", name: "Early Bird", description: "Complete a daily challenge", unlocked: stats.daily.gamesPlayed >= 1 },
     ];
-  }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice]);
+  }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
 
   // ======= PLAY MENU helpers =======
   const dailySummaryText = useMemo(() => {
@@ -1363,6 +1422,22 @@ export default function WordleGame() {
                   </Pressable>
                 </View>
 
+                {/* Settings toggles */}
+                <Text style={[styles.sectionTitle,{color:TEXT,marginTop:24}]}>Settings</Text>
+                <View style={[styles.toggleCard,{backgroundColor:CARD,borderColor:BORDER}]}>
+                  {([{key:"hardMode" as const,label:"Hard Mode",sub:"Revealed letters must be used in future guesses"},{key:"colorBlindMode" as const,label:"Color Blind Mode",sub:"Orange & blue instead of green & yellow"}]).map(({key,label,sub})=>(
+                    <Pressable key={key} onPress={()=>togglePref(key)} style={styles.toggleRow}>
+                      <View style={styles.toggleInfo}>
+                        <Text style={[styles.toggleLabel,{color:TEXT}]}>{label}</Text>
+                        <Text style={[styles.toggleSub,{color:SUBTEXT}]}>{sub}</Text>
+                      </View>
+                      <View style={[styles.toggleTrack,{backgroundColor:prefs[key]?COLOR_CORRECT:BORDER}]}>
+                        <View style={[styles.toggleThumb,{left:prefs[key]?18:2}]}/>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+
                 <View style={{ height: 40 }} />
               </ScrollView>
             ) : (
@@ -1398,7 +1473,31 @@ export default function WordleGame() {
                   <StatsCard label="Avg Guesses" value={avgGuessesDaily != null ? avgGuessesDaily.toFixed(1) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Avg Time" value={avgTimeDaily != null ? formatSeconds(avgTimeDaily) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Fastest" value={stats.daily.fastestTimeSeconds != null ? formatSeconds(stats.daily.fastestTimeSeconds) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Best Solve" value={stats.daily.bestGuessCount != null ? `${stats.daily.bestGuessCount} guess${stats.daily.bestGuessCount===1?"":"es"}` : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Letters Typed" value={`${(stats.daily.totalLettersTyped+stats.practice.totalLettersTyped).toLocaleString()}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                 </View>
+
+                {/* 7-day calendar */}
+                {(()=>{
+                  const days=Array.from({length:7},(_,i)=>{
+                    const d=new Date(); d.setDate(d.getDate()-(6-i));
+                    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                    return {iso, result:(stats.dailyHistory??{})[iso], label:d.toLocaleDateString("en-US",{weekday:"narrow"})};
+                  });
+                  return (
+                    <View style={[styles.calendarCard,{backgroundColor:CARD,borderColor:BORDER}]}>
+                      <Text style={[styles.calendarTitle,{color:TEXT}]}>Last 7 Days</Text>
+                      <View style={styles.calendarRow}>
+                        {days.map(({iso,result,label})=>(
+                          <View key={iso} style={styles.calendarCell}>
+                            <View style={[styles.calendarDot,result==="won"?{backgroundColor:COLOR_CORRECT}:result==="lost"?{backgroundColor:"#ef4444"}:{backgroundColor:BORDER}]}/>
+                            <Text style={[styles.calendarLabel,{color:SUBTEXT}]}>{label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Guess distribution chart */}
                 <GuessDistChart
@@ -2016,4 +2115,45 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 2,
   },
+
+  // Settings toggles
+  toggleCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  toggleInfo: { flex: 1, marginRight: 16 },
+  toggleLabel: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
+  toggleSub: { fontSize: 12 },
+  toggleTrack: {
+    width: 42, height: 24, borderRadius: 12,
+    justifyContent: "center",
+  },
+  toggleThumb: {
+    position: "absolute",
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: "#fff",
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 2,
+    elevation: 2,
+  },
+  // 7-day calendar
+  calendarCard: {
+    borderRadius: 12, borderWidth: 1,
+    padding: 14, marginBottom: 12,
+  },
+  calendarTitle: { fontSize: 13, fontWeight: "800", marginBottom: 10, letterSpacing: 0.5 },
+  calendarRow: { flexDirection: "row", justifyContent: "space-between" },
+  calendarCell: { alignItems: "center", flex: 1 },
+  calendarDot: { width: 28, height: 28, borderRadius: 14, marginBottom: 4 },
+  calendarLabel: { fontSize: 11, fontWeight: "600" },
 });
