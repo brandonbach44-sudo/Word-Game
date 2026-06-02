@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Share2 } from "lucide-react-native";
+import { Flame, Share2, Trophy } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { DailyLockState } from "../storage/wordleStorage";
 
@@ -1250,59 +1250,72 @@ export default function WordleGame() {
                 contentContainerStyle={styles.menuScrollContent}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Daily */}
-                <Text style={[styles.sectionTitle, { color: TEXT }]}>Daily Challenge</Text>
-
-                <View style={[styles.modeCard, { backgroundColor: CARD, borderColor: BORDER }]}>
-                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Today's Word</Text>
-                  <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
-                    One word per day — same for everyone.
+                {/* Daily Challenge Card — Word Builder style */}
+                <View style={[
+                  styles.wbDailyCard,
+                  { backgroundColor: CARD, borderColor: isDailyCompletedToday ? "#4ecca3" : BORDER },
+                ]}>
+                  <Text style={[styles.wbDailyTitle, { color: TEXT }]}>Daily Challenge</Text>
+                  <Text style={[styles.wbDailySubtitle, { color: SUBTEXT }]}>
+                    {(() => { const d = new Date(); return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }); })()}
                   </Text>
 
-                  {isDailyCompletedToday ? (
-                    <>
-                      <View style={styles.completedRow}>
-                        <View
-                          style={[
-                            styles.completedPill,
-                            { borderColor: BORDER, backgroundColor: BG },
-                          ]}
-                        >
-                          <Text style={[styles.completedPillText, { color: TEXT }]}>
-                            Completed ✓
-                          </Text>
-                        </View>
+                  {/* Completed result info */}
+                  {isDailyCompletedToday && dailyLock && (
+                    <View style={styles.wbDailyCompletedInfo}>
+                      <Text style={styles.wbDailyCompletedScore}>
+                        {dailyLock.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}
+                      </Text>
+                      <Text style={[styles.wbDailyCompletedLabel, { color: SUBTEXT }]}>
+                        {dailyLock.result === "won" ? "Solved" : "Better luck tomorrow"}
+                        {dailyLock.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}
+                      </Text>
+                    </View>
+                  )}
 
-                        <Pressable
-                          onPress={openDailyResultFromMenu}
-                          style={({ pressed }) => [
-                            styles.viewResultButton,
-                            {
-                              borderColor: BORDER,
-                              backgroundColor: BG,
-                              opacity: pressed ? 0.75 : 1,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.viewResultText, { color: TEXT }]}>
-                            View Result
-                          </Text>
-                        </Pressable>
+                  {/* Streak pills */}
+                  <View style={styles.wbStatPillRow}>
+                    <View style={[styles.wbStatPill, styles.wbStatPillHighlight]}>
+                      <Text style={[styles.wbStatPillLabel, { color: SUBTEXT }]}>Current streak</Text>
+                      <View style={styles.wbStatPillValueRow}>
+                        <Flame size={18} color="#e85d04" />
+                        <Text style={[styles.wbStatPillValue, { color: TEXT }]}>{stats.daily.currentStreak}</Text>
                       </View>
+                    </View>
+                    <View style={[styles.wbStatPill, { backgroundColor: "#f3e7d7" }]}>
+                      <Text style={[styles.wbStatPillLabel, { color: SUBTEXT }]}>Best streak</Text>
+                      <View style={styles.wbStatPillValueRow}>
+                        <Trophy size={18} color="#d4a017" />
+                        <Text style={[styles.wbStatPillValue, { color: TEXT }]}>{stats.daily.bestStreak}</Text>
+                      </View>
+                    </View>
+                  </View>
 
-                      {dailySummaryText ? (
-                        <Text style={[styles.modeCardMeta, { color: SUBTEXT }]}>
-                          {dailySummaryText}
-                        </Text>
-                      ) : null}
+                  {/* Play button */}
+                  {!isDailyCompletedToday && (
+                    <Pressable
+                      onPress={() => startGame("daily")}
+                      style={({ pressed }) => [
+                        styles.wbDailyButton,
+                        { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                      ]}
+                    >
+                      <Text style={[styles.wbDailyButtonText, { color: TEXT }]}>Play Today's Challenge</Text>
+                    </Pressable>
+                  )}
 
-                      {nextDailySeconds != null ? (
-                        <Text style={[styles.modeCardMeta, { color: SUBTEXT }]}>
-                          Next Daily in {formatCountdown(nextDailySeconds)}
-                        </Text>
-                      ) : null}
-
-                      {/* Share button — bottom right */}
+                  {/* View Results + Share row */}
+                  {isDailyCompletedToday && (
+                    <View style={styles.wbDailyActionRow}>
+                      <Pressable
+                        onPress={openDailyResultFromMenu}
+                        style={({ pressed }) => [
+                          styles.wbDailyActionButton,
+                          { borderColor: BORDER, backgroundColor: BG, borderWidth: 1.5, opacity: pressed ? 0.75 : 1 },
+                        ]}
+                      >
+                        <Text style={[styles.wbDailyActionText, { color: TEXT }]}>View Results</Text>
+                      </Pressable>
                       <Pressable
                         onPress={() => {
                           const text = dailyLock?.shareText
@@ -1310,24 +1323,21 @@ export default function WordleGame() {
                           Share.share({ message: text });
                         }}
                         style={({ pressed }) => [
-                          styles.cardShareBtn,
-                          { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                          styles.wbDailyShareIconButton,
+                          { borderColor: BORDER, backgroundColor: BG, borderWidth: 1.5, opacity: pressed ? 0.75 : 1 },
                         ]}
                       >
-                        <Share2 size={15} color={SUBTEXT} />
-                        <Text style={[styles.cardShareText, { color: SUBTEXT }]}>Share</Text>
+                        <Share2 size={18} color={TEXT} />
                       </Pressable>
-                    </>
-                  ) : (
-                    <Pressable
-                      onPress={() => startGame("daily")}
-                      style={({ pressed }) => [
-                        styles.primaryCta,
-                        { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
-                      ]}
-                    >
-                      <Text style={[styles.primaryCtaText, { color: TEXT }]}>Play Daily</Text>
-                    </Pressable>
+                    </View>
+                  )}
+
+                  {/* Countdown */}
+                  {isDailyCompletedToday && nextDailySeconds != null && (
+                    <View style={[styles.wbDailyCountdown, { borderTopColor: BORDER }]}>
+                      <Text style={[styles.wbDailyCountdownLabel, { color: SUBTEXT }]}>Next challenge in</Text>
+                      <Text style={[styles.wbDailyCountdownTime, { color: TEXT }]}>{formatCountdown(nextDailySeconds)}</Text>
+                    </View>
                   )}
                 </View>
 
@@ -1604,6 +1614,113 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  // ── Word Builder-style daily card ──
+  wbDailyCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+  },
+  wbDailyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  wbDailySubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  wbDailyCompletedInfo: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  wbDailyCompletedScore: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: "#4ecca3",
+  },
+  wbDailyCompletedLabel: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  wbStatPillRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  wbStatPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#f3e7d7",
+    minWidth: 100,
+    alignItems: "center",
+  },
+  wbStatPillHighlight: {
+    backgroundColor: "rgba(78, 204, 163, 0.15)",
+  },
+  wbStatPillLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+  wbStatPillValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  wbStatPillValue: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  wbDailyButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 2,
+  },
+  wbDailyButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  wbDailyActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  wbDailyActionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  wbDailyActionText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  wbDailyShareIconButton: {
+    borderRadius: 12,
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wbDailyCountdown: {
+    alignItems: "center",
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  wbDailyCountdownLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  wbDailyCountdownTime: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+
   // Mode cards (Play menu)
   modeCard: {
     borderRadius: 12,
@@ -1640,61 +1757,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  completedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  shareIconButton: {
-    borderWidth: 2,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shareIconText: {
-    fontSize: 18,
-  },
-  completedPill: {
-    borderWidth: 2,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  completedPillText: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  viewResultButton: {
-    borderWidth: 2,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  viewResultText: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  cardShareBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-end",
-    marginTop: 14,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  cardShareText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
 
   // Stats layout
   statsContainer: {
