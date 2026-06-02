@@ -1288,22 +1288,6 @@ export default function WordleGame() {
                             View Result
                           </Text>
                         </Pressable>
-
-                        {isDailyCompletedToday && (
-                          <Pressable
-                            onPress={() => {
-                              const text = dailyLock?.shareText
-                                ?? `Word Fury Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
-                              Share.share({ message: text });
-                            }}
-                            style={({ pressed }) => [
-                              styles.shareIconButton,
-                              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
-                            ]}
-                          >
-                            <Share2 size={16} color={TEXT} />
-                          </Pressable>
-                        )}
                       </View>
 
                       {dailySummaryText ? (
@@ -1317,6 +1301,22 @@ export default function WordleGame() {
                           Next Daily in {formatCountdown(nextDailySeconds)}
                         </Text>
                       ) : null}
+
+                      {/* Share button — bottom right */}
+                      <Pressable
+                        onPress={() => {
+                          const text = dailyLock?.shareText
+                            ?? `Word Fury Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+                          Share.share({ message: text });
+                        }}
+                        style={({ pressed }) => [
+                          styles.cardShareBtn,
+                          { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+                        ]}
+                      >
+                        <Share2 size={15} color={SUBTEXT} />
+                        <Text style={[styles.cardShareText, { color: SUBTEXT }]}>Share</Text>
+                      </Pressable>
                     </>
                   ) : (
                     <Pressable
@@ -1332,7 +1332,7 @@ export default function WordleGame() {
                 </View>
 
                 {/* Practice */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 18 }]}>
                   Practice
                 </Text>
 
@@ -1606,23 +1606,23 @@ const styles = StyleSheet.create({
 
   // Mode cards (Play menu)
   modeCard: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    padding: 22,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 15,
   },
   modeCardTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   modeCardSubtitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 18,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   modeCardMeta: {
-    marginTop: 14,
-    fontSize: 13,
+    marginTop: 10,
+    fontSize: 12,
     fontWeight: "600",
     textAlign: "center",
   },
@@ -1630,12 +1630,12 @@ const styles = StyleSheet.create({
   primaryCta: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: "center",
   },
   primaryCtaText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900",
     letterSpacing: 1,
   },
@@ -1643,7 +1643,7 @@ const styles = StyleSheet.create({
   completedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     flexWrap: "wrap",
   },
   shareIconButton: {
@@ -1660,25 +1660,40 @@ const styles = StyleSheet.create({
   completedPill: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   completedPillText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1,
   },
   viewResultButton: {
     borderWidth: 2,
     borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     alignItems: "center",
   },
   viewResultText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 1,
+  },
+  cardShareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-end",
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  cardShareText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 
   // Stats layout
