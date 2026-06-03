@@ -1524,11 +1524,33 @@ export default function WordleGame() {
                 <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>
                   Achievements ({achievements.filter(a => a.unlocked).length}/{achievements.length})
                 </Text>
-                <View style={styles.achievementsGrid}>
-                  {achievements.map((a) => (
-                    <AchievementCard key={a.id} achievement={a} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-                  ))}
-                </View>
+
+                {/* Unlocked */}
+                {achievements.filter(a => a.unlocked).length > 0 && (
+                  <View style={styles.achievementsGrid}>
+                    {achievements.filter(a => a.unlocked).map((a) => (
+                      <AchievementCard key={a.id} achievement={a} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                    ))}
+                  </View>
+                )}
+
+                {/* Divider */}
+                {achievements.filter(a => a.unlocked).length > 0 && achievements.filter(a => !a.unlocked).length > 0 && (
+                  <View style={styles.lockedDivider}>
+                    <View style={[styles.dividerLine, { backgroundColor: BORDER }]} />
+                    <Text style={[styles.dividerText, { color: SUBTEXT }]}>Locked</Text>
+                    <View style={[styles.dividerLine, { backgroundColor: BORDER }]} />
+                  </View>
+                )}
+
+                {/* Locked */}
+                {achievements.filter(a => !a.unlocked).length > 0 && (
+                  <View style={styles.achievementsGrid}>
+                    {achievements.filter(a => !a.unlocked).map((a) => (
+                      <AchievementCard key={a.id} achievement={a} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                    ))}
+                  </View>
+                )}
 
                 <View style={{ height: 40 }} />
               </ScrollView>
@@ -2124,36 +2146,3 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.05)",
-  },
-  toggleInfo: { flex: 1, marginRight: 16 },
-  toggleLabel: { fontSize: 15, fontWeight: "700", marginBottom: 2 },
-  toggleSub: { fontSize: 12 },
-  toggleTrack: {
-    width: 42, height: 24, borderRadius: 12,
-    justifyContent: "center",
-  },
-  toggleThumb: {
-    position: "absolute",
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: "#fff",
-    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 2,
-    elevation: 2,
-  },
-  // 7-day calendar
-  calendarCard: {
-    borderRadius: 12, borderWidth: 1,
-    padding: 14, marginBottom: 12,
-  },
-  calendarTitle: { fontSize: 13, fontWeight: "800", marginBottom: 10, letterSpacing: 0.5 },
-  calendarRow: { flexDirection: "row", justifyContent: "space-between" },
-  calendarCell: { alignItems: "center", flex: 1 },
-  calendarDot: { width: 28, height: 28, borderRadius: 14, marginBottom: 4 },
-  calendarLabel: { fontSize: 11, fontWeight: "600" },
-});

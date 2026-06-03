@@ -1224,38 +1224,51 @@ export default function WordBuilder() {
             <Text style={[styles.loadingText, dynamicStyles.textSecondary]}>Loading stats...</Text>
           )}
           
-          {/* Achievements Section - Show ALL achievements */}
+          {/* Achievements Section — unlocked first, then locked */}
           <Text style={[styles.statsTitle, dynamicStyles.text, { marginTop: 25 }]}>
             Achievements ({unlockedAchievements.length}/{ACHIEVEMENTS.length})
           </Text>
-          <View style={styles.achievementsGrid}>
-            {ACHIEVEMENTS.map((achievement) => {
-              const isUnlocked = unlockedAchievements.some(a => a.id === achievement.id);
-              return (
-                <View 
-                  key={achievement.id} 
-                  style={[
-                    styles.achievementCard, 
-                    { 
-                      backgroundColor: background.cardColor, 
-                      borderColor: background.borderColor,
-                      opacity: isUnlocked ? 1 : 0.4,
-                    }
-                  ]}
+
+          {/* Unlocked */}
+          {unlockedAchievements.length > 0 && (
+            <View style={styles.achievementsGrid}>
+              {ACHIEVEMENTS.filter(a => unlockedAchievements.some(u => u.id === a.id)).map((achievement) => (
+                <View
+                  key={achievement.id}
+                  style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                 >
-                  <Text style={[styles.achievementEmoji, !isUnlocked && styles.achievementEmojiLocked]}>
-                    {achievement.emoji}
-                  </Text>
-                  <Text style={[styles.achievementName, { color: background.textColor }]}>
-                    {achievement.name}
-                  </Text>
-                  <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>
-                    {achievement.description}
-                  </Text>
+                  <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                  <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
+                  <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
                 </View>
-              );
-            })}
-          </View>
+              ))}
+            </View>
+          )}
+
+          {/* Divider */}
+          {unlockedAchievements.length > 0 && unlockedAchievements.length < ACHIEVEMENTS.length && (
+            <View style={styles.lockedDivider}>
+              <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
+              <Text style={[styles.dividerText, { color: background.secondaryText }]}>Locked</Text>
+              <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
+            </View>
+          )}
+
+          {/* Locked */}
+          {ACHIEVEMENTS.filter(a => !unlockedAchievements.some(u => u.id === a.id)).length > 0 && (
+            <View style={styles.achievementsGrid}>
+              {ACHIEVEMENTS.filter(a => !unlockedAchievements.some(u => u.id === a.id)).map((achievement) => (
+                <View
+                  key={achievement.id}
+                  style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+                >
+                  <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                  <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
+                  <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -2017,4 +2030,11 @@ const styles = StyleSheet.create({
   tooltipDismiss: {
     fontSize: 14,
   },
+
+  achievementCardLocked: { opacity: 0.5 },
+  achievementEmojiLocked: { opacity: 0.5 },
+  achievementTextLocked: { opacity: 0.7 },
+  lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' },
 });
