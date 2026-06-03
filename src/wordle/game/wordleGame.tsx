@@ -422,11 +422,13 @@ export default function WordleGame() {
   const BORDER = background.borderColor ?? "#e5e7eb";
   const IS_DARK = background.isDark ?? false;
 
-  const COLOR_CORRECT       = prefs.colorBlindMode ? "#f97316" : "#22c55e";
-  const COLOR_CORRECT_BORDER = prefs.colorBlindMode ? "#ea580c" : "#16a34a";
-  const COLOR_PRESENT        = prefs.colorBlindMode ? "#60a5fa" : "#fde047";
-  const COLOR_PRESENT_BORDER = prefs.colorBlindMode ? "#3b82f6" : "#facc15";
-  const COLOR_PRESENT_TEXT   = prefs.colorBlindMode ? "#fff"    : "#1a1a1a";
+  const { colorBlindMode } = useTheme();
+
+  const COLOR_CORRECT       = colorBlindMode ? "#f97316" : "#22c55e";
+  const COLOR_CORRECT_BORDER = colorBlindMode ? "#ea580c" : "#16a34a";
+  const COLOR_PRESENT        = colorBlindMode ? "#60a5fa" : "#fde047";
+  const COLOR_PRESENT_BORDER = colorBlindMode ? "#3b82f6" : "#facc15";
+  const COLOR_PRESENT_TEXT   = colorBlindMode ? "#fff"    : "#1a1a1a";
 
   const [screen, setScreen] = useState<Screen>("menu");
   const [menuTab, setMenuTab] = useState<MenuTab>("play");
@@ -1425,17 +1427,15 @@ export default function WordleGame() {
                 {/* Settings toggles */}
                 <Text style={[styles.sectionTitle,{color:TEXT,marginTop:24}]}>Settings</Text>
                 <View style={[styles.toggleCard,{backgroundColor:CARD,borderColor:BORDER}]}>
-                  {([{key:"hardMode" as const,label:"Hard Mode",sub:"Revealed letters must be used in future guesses"},{key:"colorBlindMode" as const,label:"Color Blind Mode",sub:"Orange & blue instead of green & yellow"}]).map(({key,label,sub})=>(
-                    <Pressable key={key} onPress={()=>togglePref(key)} style={styles.toggleRow}>
-                      <View style={styles.toggleInfo}>
-                        <Text style={[styles.toggleLabel,{color:TEXT}]}>{label}</Text>
-                        <Text style={[styles.toggleSub,{color:SUBTEXT}]}>{sub}</Text>
-                      </View>
-                      <View style={[styles.toggleTrack,{backgroundColor:prefs[key]?COLOR_CORRECT:BORDER}]}>
-                        <View style={[styles.toggleThumb,{left:prefs[key]?18:2}]}/>
-                      </View>
-                    </Pressable>
-                  ))}
+                  <Pressable onPress={()=>togglePref("hardMode")} style={styles.toggleRow}>
+                    <View style={styles.toggleInfo}>
+                      <Text style={[styles.toggleLabel,{color:TEXT}]}>Hard Mode</Text>
+                      <Text style={[styles.toggleSub,{color:SUBTEXT}]}>Revealed letters must be used in future guesses</Text>
+                    </View>
+                    <View style={[styles.toggleTrack,{backgroundColor:prefs.hardMode?COLOR_CORRECT:BORDER}]}>
+                      <View style={[styles.toggleThumb,{left:prefs.hardMode?18:2}]}/>
+                    </View>
+                  </Pressable>
                 </View>
 
                 <View style={{ height: 40 }} />

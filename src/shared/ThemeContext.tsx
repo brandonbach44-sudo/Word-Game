@@ -15,22 +15,20 @@ const STORAGE_KEYS = {
   BACKGROUND: 'wordgame_selected_background',
   DARK_MODE: 'wordgame_dark_mode',
   SOUND_ENABLED: 'wordgame_sound_enabled',
+  COLOR_BLIND: 'wordgame_color_blind',
 };
 
 interface ThemeContextType {
-  // Current effective background (respects dark mode override)
   background: BackgroundOption;
-  // The user's selected background (before dark mode override)
   selectedBackgroundId: string;
-  // Settings
   darkModeEnabled: boolean;
   soundEnabled: boolean;
-  // All available backgrounds
+  colorBlindMode: boolean;
   backgroundOptions: BackgroundOption[];
-  // Actions
   setBackgroundId: (id: string) => Promise<void>;
   setDarkMode: (enabled: boolean) => Promise<void>;
   setSoundEnabled: (enabled: boolean) => Promise<void>;
+  setColorBlindMode: (enabled: boolean) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -43,22 +41,25 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [selectedBackgroundId, setSelectedBackgroundId] = useState<string>(DEFAULT_BACKGROUND_ID);
   const [darkModeEnabled, setDarkModeEnabled] = useState<boolean>(DEFAULT_DARK_MODE);
   const [soundEnabled, setSoundEnabledState] = useState<boolean>(DEFAULT_SOUND_ENABLED);
+  const [colorBlindMode, setColorBlindModeState] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load saved settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const [savedBg, savedDarkMode, savedSound] = await Promise.all([
+        const [savedBg, savedDarkMode, savedSound, savedColorBlind] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.BACKGROUND),
           AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
           AsyncStorage.getItem(STORAGE_KEYS.SOUND_ENABLED),
+          AsyncStorage.getItem(STORAGE_KEYS.COLOR_BLIND),
         ]);
-        
+
         if (savedBg) setSelectedBackgroundId(savedBg);
         if (savedDarkMode !== null) setDarkModeEnabled(savedDarkMode === 'true');
         if (savedSound !== null) setSoundEnabledState(savedSound === 'true');
-        
+        if (savedColorBlind !== null) setColorBlindModeState(savedColorBlind === 'true');
+
         setIsLoaded(true);
       } catch (error) {
         console.error('Error loading theme settings:', error);
@@ -103,6 +104,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
+  // Set and save color blind mode
+  const setColorBlindMode = async (enabled: boolean) => {
+    try {
+      setColorBlindModeState(enabled);
+      await AsyncStorage.setItem(STORAGE_KEYS.COLOR_BLIND, enabled.toString());
+    } catch (error) {
+      console.error('Error saving color blind setting:', error);
+    }
+  };
+
   // Don't render until settings are loaded to prevent flash
   if (!isLoaded) {
     return null;
@@ -110,15 +121,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   return (
     <ThemeContext.Provider 
-      value={{ 
+      value={{
         background,
         selectedBackgroundId,
         darkModeEnabled,
         soundEnabled,
+        colorBlindMode,
         backgroundOptions: ALL_BACKGROUNDS,
         setBackgroundId,
         setDarkMode,
         setSoundEnabled,
+        setColorBlindMode,
       }}
     >
       {children}

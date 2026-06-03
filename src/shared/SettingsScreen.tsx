@@ -42,14 +42,16 @@ const WHATS_NEW = [
 ];
 
 export const SettingsScreen: React.FC = () => {
-  const { 
-    background, 
+  const {
+    background,
     selectedBackgroundId,
     darkModeEnabled,
     soundEnabled,
-    setBackgroundId, 
+    colorBlindMode,
+    setBackgroundId,
     setDarkMode,
     setSoundEnabled,
+    setColorBlindMode,
   } = useTheme();
 
   const [showWhatsNew, setShowWhatsNew] = React.useState(false);
@@ -248,6 +250,24 @@ export const SettingsScreen: React.FC = () => {
             />
           </View>
           
+          {/* Color Blind Mode Toggle */}
+          <View style={[styles.settingRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: background.textColor }]}>
+                Color Blind Mode
+              </Text>
+              <Text style={[styles.settingDescription, { color: background.secondaryText }]}>
+                Uses orange & blue instead of green & yellow in all games
+              </Text>
+            </View>
+            <Switch
+              value={colorBlindMode}
+              onValueChange={setColorBlindMode}
+              trackColor={{ false: '#d1d5db', true: COLORS.accent }}
+              thumbColor={colorBlindMode ? '#ffffff' : '#f4f3f4'}
+            />
+          </View>
+
           {/* Background Selection */}
           <Text style={[styles.subsectionTitle, { color: background.secondaryText }]}>
             Background {darkModeEnabled ? '(disabled in dark mode)' : ''}
