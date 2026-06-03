@@ -1802,4 +1802,219 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.accent,
   },
+
+  // Game Over Screen
+  gameOverContainer: {
+    flex: 1,
+  },
+  carousel: {
+    flex: 1,
+  },
+  carouselPage: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  resultsPageContent: {
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingBottom: 30,
+  },
+  pageIndicatorContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingBottom: 20,
+  },
+  pageIndicatorLabels: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+    marginBottom: 8,
+  },
+  pageIndicatorLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  pageIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  pageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  pageDotActive: {
+    backgroundColor: COLORS.accent,
+  },
+  swipeHintText: {
+    fontSize: 13,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  gameOverTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  dateText: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  streakBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 20,
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  finalScore: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: COLORS.accent,
+  },
+  finalScoreLabel: {
+    fontSize: 24,
+    marginBottom: 15,
+  },
+  shareButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 20,
+  },
+  shareButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  statsSummary: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 25,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    marginHorizontal: 15,
+  },
+  buttonContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  playAgainButton: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    marginBottom: 15,
+  },
+  playAgainText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  menuButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    borderWidth: 2,
+  },
+  menuButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  wordsPageTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  wordsPageSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  wordsList: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  wordsListContent: {
+    paddingBottom: 20,
+  },
+  wordItem: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    margin: 4,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  wordText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  wordTextFound: {
+    textDecorationLine: 'line-through',
+    opacity: 0.5,
+  },
+  wordScore: {
+    fontSize: 12,
+  },
+  wordsPageButton: {
+    alignSelf: 'center',
+    marginVertical: 15,
+  },
+  tooltipOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tooltip: {
+    marginHorizontal: 40,
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  tooltipText: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  tooltipDismiss: {
+    fontSize: 14,
+  },
 });
