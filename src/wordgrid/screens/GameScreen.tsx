@@ -1,30 +1,167 @@
 // src/wordgrid/screens/GameScreen.tsx
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Modal,
+  PanResponder,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Trophy } from 'lucide-react-native';
+
 import { useTheme } from '../../shared/ThemeContext';
+import { AchievementPopup } from '../../wordbuilder/components/AchievementPopup';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { generateGrid } from '../utils/gridGenerator';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore } from '../utils/scoring';
+import {
+  loadWordGridStats,
+  updateStatsAfterGame,
+  type WordGridStats,
+} from '../utils/storage';
+import {
+  checkAchievements,
+  getUnlockedAchievements,
+  ACHIEVEMENTS,
+  type Achievement,
+} from '../utils/achievements';
 
-const ROUND_DURATION = 90; // seconds per round
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Screen = 'menu' | 'game';
+type MenuTab = 'play' | 'stats';
+
+const MENU_TABS: MenuTab[] = ['play', 'stats'];
+const ROUND_DURATION = 90;
 
 type Feedback = { points: number; success: boolean; key: number };
 
+// ─── Shared stat box ──────────────────────────────────────────────────────────
+
+function StatBox({
+  label,
+  value,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+  wide = false,
+}: {
+  label: string;
+  value: string | number;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+  wide?: boolean;
+}) {
+  return (
+    <View
+      style={[
+        styles.statBox,
+        wide && styles.statBoxWide,
+        { backgroundColor: cardColor, borderColor },
+      ]}
+    >
+      <Text style={[styles.statBoxValue, { color: textColor }]}>{value}</Text>
+      <Text style={[styles.statBoxLabel, { color: secondaryText }]}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function GameScreen() {
   const { background } = useTheme();
+  const bg = background;
 
+  // ── Screen / tab state ────────────────────────────────────────────────────
+  const [screen, setScreen] = useState<Screen>('menu');
+  const [menuTab, setMenuTab] = useState<MenuTab>('play');
+  const tabAnim = useRef(new Animated.Value(0)).current;
+  const currentTabIdxRef = useRef(0);
+
+  // ── Stats & achievements ──────────────────────────────────────────────────
+  const [stats, setStats] = useState<WordGridStats | null>(null);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<
+    (Achievement & { unlockedAt: string })[]
+  >([]);
+  const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
+  const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null);
+
+  useEffect(() => {
+    loadWordGridStats().then(setStats);
+    getUnlockedAchievements().then(setUnlockedAchievements);
+  }, []);
+
+  // Pop achievement queue one at a time
+  useEffect(() => {
+    if (!currentAchievement && pendingAchievements.length > 0) {
+      const [next, ...rest] = pendingAchievements;
+      setCurrentAchievement(next);
+      setPendingAchievements(rest);
+    }
+  }, [currentAchievement, pendingAchievements]);
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    currentTabIdxRef.current = MENU_TABS.indexOf(menuTab);
+  }, [menuTab]);
+
+  const switchToTab = useCallback(
+    (tab: MenuTab) => {
+      setMenuTab(tab);
+      Animated.spring(tabAnim, {
+        toValue: MENU_TABS.indexOf(tab),
+        useNativeDriver: true,
+        tension: 60,
+        friction: 12,
+      }).start();
+    },
+    [tabAnim]
+  );
+
+  const menuPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 10 && Math.abs(gs.dy) < Math.abs(gs.dx),
+      onPanResponderGrant: () => {
+        tabAnim.stopAnimation();
+      },
+      onPanResponderMove: (_, gs) => {
+        const raw = currentTabIdxRef.current - gs.dx / 300;
+        tabAnim.setValue(Math.max(0, Math.min(MENU_TABS.length - 1, raw)));
+      },
+      onPanResponderRelease: (_, gs) => {
+        const velocity = gs.vx;
+        let newIdx = currentTabIdxRef.current;
+        if (velocity < -0.3) newIdx = Math.min(MENU_TABS.length - 1, newIdx + 1);
+        else if (velocity > 0.3) newIdx = Math.max(0, newIdx - 1);
+        else newIdx = Math.round(currentTabIdxRef.current - gs.dx / 300);
+        newIdx = Math.max(0, Math.min(MENU_TABS.length - 1, newIdx));
+        const tab = MENU_TABS[newIdx];
+        setMenuTab(tab);
+        Animated.spring(tabAnim, {
+          toValue: newIdx,
+          useNativeDriver: true,
+          tension: 60,
+          friction: 12,
+        }).start();
+      },
+    })
+  ).current;
+
+  // ── Game state ────────────────────────────────────────────────────────────
   const [grid, setGrid] = useState<string[][]>(() => generateGrid(4));
   const [score, setScore] = useState(0);
   const [foundWords, setFoundWords] = useState<{ word: string; points: number }[]>([]);
@@ -35,7 +172,6 @@ export default function GameScreen() {
   const feedbackKeyRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Start/restart timer
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -52,11 +188,10 @@ export default function GameScreen() {
   }, []);
 
   useEffect(() => {
-    startTimer();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [startTimer]);
+  }, []);
 
   const handlePathComplete = useCallback(
     (path: Position[]) => {
@@ -70,7 +205,6 @@ export default function GameScreen() {
             : 0;
         const isLongestWord = word.length > longestSoFar;
         const isAllTile = path.length === 16;
-
         const points = calculateWordScore(word, { isLongestWord, isAllTile });
 
         setScore((prev) => prev + points);
@@ -88,7 +222,31 @@ export default function GameScreen() {
     setFeedbacks((prev) => prev.filter((f) => f.key !== key));
   }, []);
 
-  const handlePlayAgain = useCallback(() => {
+  // Save stats + check achievements when game ends
+  useEffect(() => {
+    if (!gameOver) return;
+    (async () => {
+      const newStats = await updateStatsAfterGame({ score, words: foundWords });
+      setStats(newStats);
+
+      const newly = await checkAchievements({
+        score,
+        words: foundWords,
+        gamesPlayed: newStats.gamesPlayed,
+        totalWordsFound: newStats.totalWordsFound,
+        totalScore: newStats.totalScore,
+      });
+
+      if (newly.length > 0) {
+        setPendingAchievements((prev) => [...prev, ...newly]);
+        getUnlockedAchievements().then(setUnlockedAchievements);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameOver]);
+
+  const startGame = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     setGrid(generateGrid(4));
     setScore(0);
     setFoundWords([]);
@@ -96,143 +254,329 @@ export default function GameScreen() {
     setTimeLeft(ROUND_DURATION);
     setGameOver(false);
     setFeedbacks([]);
-    startTimer();
+    setScreen('game');
+    setTimeout(startTimer, 100);
   }, [startTimer]);
 
-  // Timer color: green → yellow → red
-  const timerColor =
-    timeLeft > 30
-      ? '#4ecca3'
-      : timeLeft > 10
-      ? '#f59e0b'
-      : '#e94560';
+  const handlePlayAgain = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setGrid(generateGrid(4));
+    setScore(0);
+    setFoundWords([]);
+    setFoundWordSet(new Set());
+    setTimeLeft(ROUND_DURATION);
+    setGameOver(false);
+    setFeedbacks([]);
+    setTimeout(startTimer, 100);
+  }, [startTimer]);
 
+  const handleBackToMenu = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setGameOver(false);
+    setScreen('menu');
+    switchToTab('play');
+  }, [switchToTab]);
+
+  const timerColor =
+    timeLeft > 30 ? '#4ecca3' : timeLeft > 10 ? '#f59e0b' : '#e94560';
+
+  // Achievements split for display
+  const { unlockedSet, lockedAchievements } = useMemo(() => {
+    const unlockedSet = new Set(unlockedAchievements.map((a) => a.id));
+    const lockedAchievements = ACHIEVEMENTS.filter((a) => !unlockedSet.has(a.id));
+    return { unlockedSet, lockedAchievements };
+  }, [unlockedAchievements]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GAME SCREEN
+  // ─────────────────────────────────────────────────────────────────────────
+  if (screen === 'game') {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
+        <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
+
+        <AchievementPopup
+          achievement={currentAchievement}
+          onDismiss={() => setCurrentAchievement(null)}
+          backgroundColor={bg.cardColor}
+          textColor={bg.textColor}
+        />
+
+        <View style={styles.header}>
+          <Pressable onPress={handleBackToMenu} style={styles.backBtn}>
+            <Text style={[styles.backText, { color: bg.textColor }]}>← Back</Text>
+          </Pressable>
+          <Text style={[styles.title, { color: bg.textColor }]}>Word Grid</Text>
+          <View style={styles.headerRight} />
+        </View>
+
+        <View style={styles.inGameStatsRow}>
+          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Score</Text>
+            <Text style={[styles.inGameStatValue, { color: bg.textColor }]}>{score}</Text>
+          </View>
+          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Time</Text>
+            <Text style={[styles.inGameStatValue, { color: timerColor }]}>{timeLeft}s</Text>
+          </View>
+          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Words</Text>
+            <Text style={[styles.inGameStatValue, { color: bg.textColor }]}>{foundWords.length}</Text>
+          </View>
+        </View>
+
+        <View style={styles.gridWrapper}>
+          <GridWithGesture
+            grid={grid}
+            onPathComplete={handlePathComplete}
+            disabled={gameOver}
+          />
+          {feedbacks.map((f) => (
+            <FeedbackOverlay
+              key={f.key}
+              points={f.points}
+              success={f.success}
+              onComplete={() => removeFeedback(f.key)}
+            />
+          ))}
+        </View>
+
+        <View style={[styles.wordListContainer, { borderColor: bg.borderColor }]}>
+          <Text style={[styles.wordListTitle, { color: bg.secondaryText }]}>Words Found</Text>
+          <FlatList
+            data={foundWords}
+            keyExtractor={(item, index) => `${item.word}-${index}`}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={[styles.wordChip, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+                <Text style={[styles.wordChipText, { color: bg.textColor }]}>{item.word}</Text>
+                <Text style={[styles.wordChipPoints, { color: '#4ecca3' }]}>+{item.points}</Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={[styles.emptyWords, { color: bg.secondaryText }]}>
+                Swipe to connect letters!
+              </Text>
+            }
+          />
+        </View>
+
+        <Modal visible={gameOver} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { backgroundColor: bg.cardColor }]}>
+              <Text style={[styles.modalTitle, { color: bg.textColor }]}>Time's Up!</Text>
+              <Text style={[styles.modalScore, { color: '#4ecca3' }]}>{score} pts</Text>
+              <Text style={[styles.modalSub, { color: bg.secondaryText }]}>
+                {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} found
+              </Text>
+              {stats && score > 0 && score >= stats.highScore && (
+                <Text style={styles.newHighScore}>🏆 New High Score!</Text>
+              )}
+              {foundWords.length > 0 && (
+                <View style={styles.modalWordList}>
+                  {foundWords.slice(0, 8).map((w, i) => (
+                    <Text key={i} style={[styles.modalWord, { color: bg.textColor }]}>
+                      {w.word} (+{w.points})
+                    </Text>
+                  ))}
+                  {foundWords.length > 8 && (
+                    <Text style={[styles.modalMore, { color: bg.secondaryText }]}>
+                      +{foundWords.length - 8} more
+                    </Text>
+                  )}
+                </View>
+              )}
+              <Pressable style={styles.playAgainBtn} onPress={handlePlayAgain}>
+                <Text style={styles.playAgainText}>Play Again</Text>
+              </Pressable>
+              <Pressable onPress={handleBackToMenu} style={styles.homeBtn}>
+                <Text style={[styles.homeBtnText, { color: bg.secondaryText }]}>Back to Menu</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MENU SCREEN
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: background.backgroundColor }]}
-    >
-      <StatusBar
-        barStyle={background.statusBar === 'dark' ? 'dark-content' : 'light-content'}
+    <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
+      <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
+
+      <AchievementPopup
+        achievement={currentAchievement}
+        onDismiss={() => setCurrentAchievement(null)}
+        backgroundColor={bg.cardColor}
+        textColor={bg.textColor}
       />
 
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={[styles.backText, { color: background.textColor }]}>← Back</Text>
+          <Text style={[styles.backText, { color: bg.textColor }]}>← Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: background.textColor }]}>Word Grid</Text>
+        <Text style={[styles.title, { color: bg.textColor }]}>Word Grid</Text>
         <View style={styles.headerRight} />
       </View>
 
-      {/* Score + Timer row */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-          <Text style={[styles.statLabel, { color: background.secondaryText }]}>Score</Text>
-          <Text style={[styles.statValue, { color: background.textColor }]}>{score}</Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-          <Text style={[styles.statLabel, { color: background.secondaryText }]}>Time</Text>
-          <Text style={[styles.statValue, { color: timerColor }]}>{timeLeft}s</Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-          <Text style={[styles.statLabel, { color: background.secondaryText }]}>Words</Text>
-          <Text style={[styles.statValue, { color: background.textColor }]}>{foundWords.length}</Text>
-        </View>
-      </View>
-
-      {/* Grid */}
-      <View style={styles.gridWrapper}>
-        <GridWithGesture
-          grid={grid}
-          onPathComplete={handlePathComplete}
-          disabled={gameOver}
-        />
-        {/* Floating feedback overlays */}
-        {feedbacks.map((f) => (
-          <FeedbackOverlay
-            key={f.key}
-            points={f.points}
-            success={f.success}
-            onComplete={() => removeFeedback(f.key)}
-          />
-        ))}
-      </View>
-
-      {/* Found words list */}
-      <View style={[styles.wordListContainer, { borderColor: background.borderColor }]}>
-        <Text style={[styles.wordListTitle, { color: background.secondaryText }]}>
-          Words Found
-        </Text>
-        <FlatList
-          data={foundWords}
-          keyExtractor={(item, index) => `${item.word}-${index}`}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={[styles.wordChip, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-              <Text style={[styles.wordChipText, { color: background.textColor }]}>
-                {item.word}
+      {/* Tab bar */}
+      <View style={[styles.tabBar, { borderColor: bg.borderColor }]}>
+        {MENU_TABS.map((tab) => {
+          const isActive = menuTab === tab;
+          return (
+            <Pressable key={tab} style={styles.tabBtn} onPress={() => switchToTab(tab)}>
+              <Text style={[styles.tabLabel, { color: isActive ? '#4ecca3' : bg.secondaryText }]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
-              <Text style={[styles.wordChipPoints, { color: '#4ecca3' }]}>
-                +{item.points}
+            </Pressable>
+          );
+        })}
+        <Animated.View
+          style={[
+            styles.tabIndicator,
+            {
+              transform: [
+                {
+                  translateX: tabAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      </View>
+
+      {/* Swipeable tab content */}
+      <View style={styles.tabContent} {...menuPanResponder.panHandlers}>
+        {menuTab === 'play' ? (
+          /* ─── PLAY TAB ─── */
+          <ScrollView
+            contentContainerStyle={styles.playContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[styles.heroCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+              <Text style={styles.heroEmoji}>🔤</Text>
+              <Text style={[styles.heroTitle, { color: bg.textColor }]}>Word Grid</Text>
+              <Text style={[styles.heroDesc, { color: bg.secondaryText }]}>
+                Swipe through the 4×4 grid to connect adjacent letters into words. You have{' '}
+                <Text style={{ color: '#4ecca3', fontWeight: '700' }}>90 seconds</Text> — find as
+                many words as you can!
               </Text>
             </View>
-          )}
-          ListEmptyComponent={
-            <Text style={[styles.emptyWords, { color: background.secondaryText }]}>
-              Swipe to connect letters!
-            </Text>
-          }
-        />
-      </View>
 
-      {/* Game Over Modal */}
-      <Modal visible={gameOver} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: background.cardColor }]}>
-            <Text style={[styles.modalTitle, { color: background.textColor }]}>
-              Time's Up!
-            </Text>
-            <Text style={[styles.modalScore, { color: '#4ecca3' }]}>{score} pts</Text>
-            <Text style={[styles.modalWordsLabel, { color: background.secondaryText }]}>
-              {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} found
-            </Text>
-
-            {foundWords.length > 0 && (
-              <View style={styles.modalWordList}>
-                {foundWords.slice(0, 8).map((w, i) => (
-                  <Text key={i} style={[styles.modalWord, { color: background.textColor }]}>
-                    {w.word} (+{w.points})
-                  </Text>
-                ))}
-                {foundWords.length > 8 && (
-                  <Text style={[styles.modalMoreWords, { color: background.secondaryText }]}>
-                    +{foundWords.length - 8} more
-                  </Text>
-                )}
+            {stats && (
+              <View style={styles.quickStats}>
+                <StatBox label="Best Score" value={stats.highScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatBox label="Games" value={stats.gamesPlayed} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatBox label="Best Words" value={stats.bestWordsInGame} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
               </View>
             )}
 
-            <Pressable
-              style={styles.playAgainBtn}
-              onPress={handlePlayAgain}
-            >
-              <Text style={styles.playAgainText}>Play Again</Text>
+            <View style={[styles.rulesCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+              <Text style={[styles.rulesTitle, { color: bg.textColor }]}>Scoring</Text>
+              {[
+                ['3–4 letters', '50 pts'],
+                ['5–6 letters', '100 pts'],
+                ['7–8 letters', '200 pts'],
+                ['9+ letters', '400 pts'],
+                ['Longest word bonus', '+500 pts'],
+                ['All 16 tiles', '+1,000 pts'],
+                ['Rare letter (Q Z J X)', '+100 pts each'],
+              ].map(([desc, pts]) => (
+                <View key={desc} style={styles.ruleRow}>
+                  <Text style={[styles.ruleDesc, { color: bg.secondaryText }]}>{desc}</Text>
+                  <Text style={[styles.rulePts, { color: '#4ecca3' }]}>{pts}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Pressable style={styles.bigPlayBtn} onPress={startGame}>
+              <Text style={styles.bigPlayText}>Play</Text>
             </Pressable>
-            <Pressable onPress={() => router.back()} style={styles.homeBtn}>
-              <Text style={[styles.homeBtnText, { color: background.secondaryText }]}>
-                Back to Home
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+          </ScrollView>
+        ) : (
+          /* ─── STATS TAB ─── */
+          <ScrollView
+            contentContainerStyle={styles.statsContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {stats ? (
+              <>
+                <Text style={[styles.sectionTitle, { color: bg.textColor }]}>Statistics</Text>
+                <View style={styles.statsGrid}>
+                  <StatBox label="Games Played" value={stats.gamesPlayed} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                  <StatBox label="High Score" value={stats.highScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                  <StatBox label="Total Words" value={stats.totalWordsFound.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                  <StatBox label="Best Words/Game" value={stats.bestWordsInGame} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                  <StatBox label="Lifetime Score" value={stats.totalScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
+                  {stats.longestWord ? (
+                    <StatBox label="Longest Word" value={stats.longestWord.toUpperCase()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
+                  ) : null}
+                </View>
+
+                <View style={styles.achievementsHeader}>
+                  <Trophy size={18} color="#4ecca3" />
+                  <Text style={[styles.sectionTitle, { color: bg.textColor, marginBottom: 0, marginLeft: 8 }]}>
+                    Achievements
+                  </Text>
+                  <Text style={[styles.achievementCount, { color: bg.secondaryText }]}>
+                    {unlockedAchievements.length}/{ACHIEVEMENTS.length}
+                  </Text>
+                </View>
+
+                {unlockedAchievements.map((a) => (
+                  <View
+                    key={a.id}
+                    style={[styles.achievementRow, { backgroundColor: bg.cardColor, borderColor: '#4ecca3' }]}
+                  >
+                    <Text style={styles.achievementEmoji}>{a.emoji}</Text>
+                    <View style={styles.achievementText}>
+                      <Text style={[styles.achievementName, { color: bg.textColor }]}>{a.name}</Text>
+                      <Text style={[styles.achievementDesc, { color: bg.secondaryText }]}>{a.description}</Text>
+                    </View>
+                    <Text style={styles.achievementCheck}>✓</Text>
+                  </View>
+                ))}
+
+                {lockedAchievements.length > 0 && (
+                  <Text style={[styles.lockedDivider, { color: bg.secondaryText }]}>── Locked ──</Text>
+                )}
+
+                {lockedAchievements.map((a) => (
+                  <View
+                    key={a.id}
+                    style={[styles.achievementRow, styles.achievementRowLocked, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
+                  >
+                    <Text style={[styles.achievementEmoji, { opacity: 0.4 }]}>{a.emoji}</Text>
+                    <View style={styles.achievementText}>
+                      <Text style={[styles.achievementName, { color: bg.secondaryText }]}>{a.name}</Text>
+                      <Text style={[styles.achievementDesc, { color: bg.secondaryText, opacity: 0.6 }]}>{a.description}</Text>
+                    </View>
+                  </View>
+                ))}
+
+                <View style={{ height: 24 }} />
+              </>
+            ) : (
+              <Text style={[styles.noStats, { color: bg.secondaryText }]}>Loading stats…</Text>
+            )}
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,25 +588,121 @@ const styles = StyleSheet.create({
   backText: { fontSize: 16 },
   title: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: 'bold' },
   headerRight: { width: 70 },
-  statsRow: {
+
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    borderBottomWidth: 1,
+    position: 'relative',
+  },
+  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+  tabLabel: { fontSize: 15, fontWeight: '600' },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    left: 0,
+    width: '50%',
+    height: 2,
+    backgroundColor: '#4ecca3',
+    borderRadius: 2,
+  },
+  tabContent: { flex: 1 },
+
+  // Play tab
+  playContainer: { padding: 16, gap: 16 },
+  heroCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroEmoji: { fontSize: 48 },
+  heroTitle: { fontSize: 26, fontWeight: 'bold' },
+  heroDesc: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  quickStats: { flexDirection: 'row', gap: 10 },
+  rulesCard: { borderRadius: 14, borderWidth: 1.5, padding: 16, gap: 6 },
+  rulesTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  ruleRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  ruleDesc: { fontSize: 13 },
+  rulePts: { fontSize: 13, fontWeight: '700' },
+  bigPlayBtn: {
+    backgroundColor: '#4ecca3',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  bigPlayText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+
+  // Shared stat box
+  statBox: {
+    flex: 1,
+    minWidth: '45%',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  statBoxWide: { flex: 2, minWidth: '95%' },
+  statBoxValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 2 },
+  statBoxLabel: { fontSize: 11, textAlign: 'center' },
+
+  // Stats tab
+  statsContainer: { padding: 16, gap: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  achievementsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  achievementCount: { marginLeft: 'auto', fontSize: 13 },
+  achievementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  achievementRowLocked: { opacity: 0.5 },
+  achievementEmoji: { fontSize: 28 },
+  achievementText: { flex: 1 },
+  achievementName: { fontSize: 15, fontWeight: '700' },
+  achievementDesc: { fontSize: 12, marginTop: 2 },
+  achievementCheck: { color: '#4ecca3', fontSize: 18, fontWeight: 'bold' },
+  lockedDivider: {
+    textAlign: 'center',
+    fontSize: 12,
+    marginVertical: 10,
+    letterSpacing: 1,
+  },
+  noStats: { textAlign: 'center', marginTop: 40, fontSize: 16 },
+
+  // In-game stats
+  inGameStatsRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 10,
     marginBottom: 4,
   },
-  statBox: {
+  inGameStat: {
     flex: 1,
     borderRadius: 10,
     borderWidth: 1.5,
     paddingVertical: 8,
     alignItems: 'center',
   },
-  statLabel: { fontSize: 11, marginBottom: 2 },
-  statValue: { fontSize: 20, fontWeight: 'bold' },
-  gridWrapper: {
-    alignItems: 'center',
-    position: 'relative',
-  },
+  inGameStatLabel: { fontSize: 11, marginBottom: 2 },
+  inGameStatValue: { fontSize: 20, fontWeight: 'bold' },
+
+  gridWrapper: { alignItems: 'center', position: 'relative' },
+
   wordListContainer: {
     flex: 1,
     marginHorizontal: 16,
@@ -289,7 +729,8 @@ const styles = StyleSheet.create({
   wordChipText: { fontSize: 14, fontWeight: '600' },
   wordChipPoints: { fontSize: 12 },
   emptyWords: { fontSize: 14, paddingVertical: 4 },
-  // Modal
+
+  // Game over modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -305,10 +746,11 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
   modalScore: { fontSize: 48, fontWeight: 'bold', marginBottom: 4 },
-  modalWordsLabel: { fontSize: 16, marginBottom: 16 },
+  modalSub: { fontSize: 16, marginBottom: 8 },
+  newHighScore: { color: '#f59e0b', fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
   modalWordList: { alignItems: 'center', marginBottom: 20, gap: 4 },
   modalWord: { fontSize: 15 },
-  modalMoreWords: { fontSize: 13, marginTop: 4 },
+  modalMore: { fontSize: 13, marginTop: 4 },
   playAgainBtn: {
     backgroundColor: '#4ecca3',
     borderRadius: 12,
