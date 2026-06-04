@@ -1482,18 +1482,28 @@ export default function WordleGame() {
                   const days=Array.from({length:7},(_,i)=>{
                     const d=new Date(); d.setDate(d.getDate()-(6-i));
                     const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-                    return {iso, result:(stats.dailyHistory??{})[iso], label:d.toLocaleDateString("en-US",{weekday:"narrow"})};
+                    return {iso, result:(stats.dailyHistory??{})[iso], label:d.toLocaleDateString("en-US",{weekday:"narrow"}), dateNum:d.getDate()};
                   });
                   return (
                     <View style={[styles.calendarCard,{backgroundColor:CARD,borderColor:BORDER}]}>
                       <Text style={[styles.calendarTitle,{color:TEXT}]}>Last 7 Days</Text>
                       <View style={styles.calendarRow}>
-                        {days.map(({iso,result,label})=>(
-                          <View key={iso} style={styles.calendarCell}>
-                            <View style={[styles.calendarDot,result==="won"?{backgroundColor:COLOR_CORRECT}:result==="lost"?{backgroundColor:"#ef4444"}:{backgroundColor:BORDER}]}/>
-                            <Text style={[styles.calendarLabel,{color:SUBTEXT}]}>{label}</Text>
-                          </View>
-                        ))}
+                        {days.map(({iso,result,label,dateNum})=>{
+                          const won=result==="won";
+                          const lost=result==="lost";
+                          const attempted=won||lost;
+                          const tileBg=won?COLOR_CORRECT:lost?"#ef4444":"transparent";
+                          const tileTextColor=attempted?"#fff":SUBTEXT;
+                          const borderCol=won?COLOR_CORRECT:lost?"#ef4444":BORDER;
+                          return (
+                            <View key={iso} style={styles.calendarCell}>
+                              <Text style={[styles.calendarDayLabel,{color:SUBTEXT}]}>{label}</Text>
+                              <View style={[styles.calendarTile,{backgroundColor:tileBg,borderColor:borderCol}]}>
+                                <Text style={[styles.calendarDateNum,{color:tileTextColor}]}>{dateNum}</Text>
+                              </View>
+                            </View>
+                          );
+                        })}
                       </View>
                     </View>
                   );
@@ -1937,6 +1947,49 @@ const styles = StyleSheet.create({
   streakLbl: {
     fontSize: 11,
     textAlign: "center",
+  },
+
+  // 7-day calendar
+  calendarCard: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 14,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  calendarTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 10,
+    textAlign: "center",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  calendarRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  calendarCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  calendarDayLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  calendarTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendarDateNum: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   // Guess distribution chart
