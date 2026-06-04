@@ -1,6 +1,3 @@
-// app/wordgrid/_layout.tsx
-import { Stack } from 'expo-router';
-
-export default function WordGridLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
-}
+// This file is intentionally left as a redirect — the real layout is _layout.tsx
+// Expo Router uses _layout.tsx for segment layouts; this file is unused.
+export { def

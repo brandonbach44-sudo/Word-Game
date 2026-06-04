@@ -1,11 +1,21 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Svg, { Line } from 'react-native-svg';
 import type { Position } from '../utils/pathFinder';
 
 const GRID_SIZE = 4;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / GRID_SIZE);
+const GRID_DIM = GRID_SIZE * CELL_SIZE;
+
+// Center pixel of a cell
+function cellCenter(pos: Position) {
+  return {
+    x: pos.col * CELL_SIZE + CELL_SIZE / 2,
+    y: pos.row * CELL_SIZE + CELL_SIZE / 2,
+  };
+}
 
 interface Props {
   grid: string[][];
@@ -14,7 +24,9 @@ interface Props {
 }
 
 export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
+  // selectedCells drives render; pathRef is the source-of-truth for gesture callbacks
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
+  const pathRef = useRef<Position[]>([]);
 
   const getCellFromCoords = useCallback((x: number, y: number): Position | null => {
     const col = Math.floor(x / CELL_SIZE);
@@ -25,35 +37,58 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
 
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
+    .runOnJS(true)
     .onStart((e) => {
       const cell = getCellFromCoords(e.x, e.y);
-      if (cell) setSelectedCells([cell]);
+      const next = cell ? [cell] : [];
+      pathRef.current = next;
+      setSelectedCells(next);
     })
     .onUpdate((e) => {
       const cell = getCellFromCoords(e.x, e.y);
       if (!cell) return;
-      setSelectedCells((prev) => {
-        const exists = prev.some((c) => c.row === cell.row && c.col === cell.col);
-        if (exists) return prev;
-        return [...prev, cell];
-      });
+
+      const path = pathRef.current;
+
+      // Check if we're backtracking (cell is already in path, not the last one)
+      const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
+
+      if (existingIdx !== -1 && existingIdx !== path.length - 1) {
+        // Backtrack: trim path back to this cell
+        const trimmed = path.slice(0, existingIdx + 1);
+        pathRef.current = trimmed;
+        setSelectedCells(trimmed);
+        return;
+      }
+
+      // Skip if it's already the last cell
+      if (existingIdx === path.length - 1) return;
+
+      // Otherwise append
+      const next = [...path, cell];
+      pathRef.current = next;
+      setSelectedCells(next);
     })
     .onEnd(() => {
-      const path = selectedCells;
+      const path = pathRef.current;
+      pathRef.current = [];
       setSelectedCells([]);
       if (path.length >= 3) {
         onPathComplete(path);
+      }
+    })
+    .onFinalize(() => {
+      // Safety reset if gesture is cancelled
+      if (pathRef.current.length > 0) {
+        pathRef.current = [];
+        setSelectedCells([]);
       }
     });
 
   return (
     <GestureDetector gesture={panGesture}>
-      <View
-        style={[
-          styles.gridContainer,
-          { width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE },
-        ]}
-      >
+      <View style={[styles.gridContainer, { width: GRID_DIM, height: GRID_DIM }]}>
+        {/* Letter cells */}
         {grid.map((row, r) => (
           <View key={r} style={styles.row}>
             {row.map((letter, c) => {
@@ -70,60 +105,4 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                     isSelected && styles.selectedCell,
                   ]}
                 >
-                  {isSelected && (
-                    <View style={styles.indexBadge}>
-                      <Text style={styles.indexText}>{selIndex + 1}</Text>
-                    </View>
-                  )}
-                  <Text style={[styles.letter, isSelected && styles.selectedLetter]}>
-                    {letter}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-    </GestureDetector>
-  );
-}
-
-const styles = StyleSheet.create({
-  gridContainer: {
-    alignSelf: 'center',
-    marginVertical: 12,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  cell: {
-    borderWidth: 2,
-    borderColor: '#c8b89a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f0e6',
-    borderRadius: 8,
-  },
-  selectedCell: {
-    backgroundColor: '#4ecca3',
-    borderColor: '#3db892',
-  },
-  letter: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#3d2e1c',
-  },
-  selectedLetter: {
-    color: '#fff',
-  },
-  indexBadge: {
-    position: 'absolute',
-    top: 3,
-    right: 5,
-  },
-  indexText: {
-    fontSize: 9,
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-});
+                  {isSele
