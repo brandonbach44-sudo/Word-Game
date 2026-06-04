@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
+  PanResponder,
   Pressable,
   ScrollView,
   StatusBar,
@@ -169,7 +170,23 @@ export default function WordBuilder() {
   
   // Segment State
   const [segment, setSegment] = useState<SegmentKey>('play');
-  
+  const SEGMENT_KEYS: SegmentKey[] = ['play', 'customize', 'stats'];
+
+  const menuPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderRelease: (_, gs) => {
+        if (Math.abs(gs.dx) < 40) return;
+        setSegment((prev) => {
+          const idx = SEGMENT_KEYS.indexOf(prev);
+          if (gs.dx < 0) return SEGMENT_KEYS[Math.min(idx + 1, SEGMENT_KEYS.length - 1)];
+          return SEGMENT_KEYS[Math.max(idx - 1, 0)];
+        });
+      },
+    })
+  ).current;
+
   // Mode Selection State (for two-step selection)
   const [modeSelection, setModeSelection] = useState<'none' | 'blitz' | 'standard'>('none');
   
@@ -908,7 +925,7 @@ export default function WordBuilder() {
 
       {/* ===== PLAY SEGMENT ===== */}
       {segment === 'play' && (
-        <ScrollView style={styles.playContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.playContainer} showsVerticalScrollIndicator={false} {...menuPanResponder.panHandlers}>
           {/* Daily Challenge Card */}
           <View style={[
             styles.dailyCard,
@@ -1053,7 +1070,7 @@ export default function WordBuilder() {
 
       {/* ===== CUSTOMIZE SEGMENT ===== */}
       {segment === 'customize' && (
-        <View style={styles.customizeContainer}>
+        <View style={styles.customizeContainer} {...menuPanResponder.panHandlers}>
           <CustomizeScreen 
             onBack={() => setSegment('play')} 
             embedded 
@@ -1064,7 +1081,7 @@ export default function WordBuilder() {
 
       {/* ===== STATS SEGMENT ===== */}
       {segment === 'stats' && (
-        <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false} {...menuPanResponder.panHandlers}>
           
           {/* Daily Challenge Stats Section */}
           {dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && (

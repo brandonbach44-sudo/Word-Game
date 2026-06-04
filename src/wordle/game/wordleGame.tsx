@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   Dimensions,
+  PanResponder,
   Pressable,
   ScrollView,
   Share,
@@ -683,6 +684,22 @@ export default function WordleGame() {
     setScreen("menu");
   }, []);
 
+  const MENU_TABS: MenuTab[] = ["play", "stats"];
+  const menuPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onPanResponderRelease: (_, gs) => {
+        if (Math.abs(gs.dx) < 40) return;
+        setMenuTab((prev) => {
+          const idx = MENU_TABS.indexOf(prev);
+          if (gs.dx < 0) return MENU_TABS[Math.min(idx + 1, MENU_TABS.length - 1)];
+          return MENU_TABS[Math.max(idx - 1, 0)];
+        });
+      },
+    })
+  ).current;
+
   const resetGameState = useCallback(
     (targetMode: GameMode) => {
       setGameMode(targetMode);
@@ -1310,6 +1327,7 @@ export default function WordleGame() {
                 style={styles.menuScroll}
                 contentContainerStyle={styles.menuScrollContent}
                 showsVerticalScrollIndicator={false}
+                {...menuPanResponder.panHandlers}
               >
                 {/* Daily Challenge Card — Word Builder style */}
                 <View style={[
@@ -1445,6 +1463,7 @@ export default function WordleGame() {
                 style={styles.statsContainer}
                 contentContainerStyle={styles.statsContent}
                 showsVerticalScrollIndicator={false}
+                {...menuPanResponder.panHandlers}
               >
                 {/* ── DAILY CHALLENGE (primary) ── */}
                 <Text style={[styles.sectionTitle, { color: TEXT }]}>Daily Challenge</Text>
