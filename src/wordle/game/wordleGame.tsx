@@ -1260,21 +1260,21 @@ export default function WordleGame() {
         textColor={TEXT}
       />
       <View style={[styles.container, { backgroundColor: BG }]}>
-        {/* Header (matches other games) */}
-        <View style={styles.appHeader}>
-          <Pressable style={styles.backToGamesButton} onPress={backToGames} hitSlop={8}>
-            <Text style={[styles.backToGamesText, { color: SUBTEXT }]}>← Games</Text>
-          </Pressable>
-
-          <Text style={[styles.appTitle, { color: TEXT }]}>Wordle</Text>
-
-          {/* Spacer keeps title centered */}
-          <View style={styles.headerSpacer} />
-        </View>
-
         {/* MENU (Play / Stats) */}
         {screen === "menu" ? (
           <>
+            {/* Header (matches other games) */}
+            <View style={styles.appHeader}>
+              <Pressable style={styles.backToGamesButton} onPress={backToGames} hitSlop={8}>
+                <Text style={[styles.backToGamesText, { color: SUBTEXT }]}>← Games</Text>
+              </Pressable>
+
+              <Text style={[styles.appTitle, { color: TEXT }]}>Wordle</Text>
+
+              {/* Spacer keeps title centered */}
+              <View style={styles.headerSpacer} />
+            </View>
+
             {/* Segment pill slider */}
             <View style={styles.segmentWrapper}>
               <View style={[styles.segmentSwitcher, { backgroundColor: CARD }]}>
