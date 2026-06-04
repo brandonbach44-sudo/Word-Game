@@ -8,17 +8,17 @@ import {
   StatusBar,
   Switch,
   ImageBackground,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTheme } from './ThemeContext';
 import { BackgroundOption, COLORS, getLightBackgrounds } from './theme';
-import { 
-  Newspaper, 
-  Palette, 
-  Volume2, 
-  Mail, 
+import FeedbackForm from '../../FeedbackForm';
+import {
+  Newspaper,
+  Palette,
+  Volume2,
+  Mail,
   Info,
   ChevronRight,
 } from 'lucide-react-native';
@@ -55,15 +55,13 @@ export const SettingsScreen: React.FC = () => {
   } = useTheme();
 
   const [showWhatsNew, setShowWhatsNew] = React.useState(false);
+  const [showFeedback, setShowFeedback] = React.useState(false);
 
   // Only show light backgrounds in picker (dark mode is separate toggle)
   const lightBackgrounds = getLightBackgrounds();
 
-  const handleContactDeveloper = () => {
-    const subject = encodeURIComponent('Word Games - Feedback');
-    const mailtoUrl = `mailto:${DEVELOPER_EMAIL}?subject=${subject}`;
-    Linking.openURL(mailtoUrl);
-  };
+  // Update this URL to your backend server address (localhost:3000 for development, your production URL for production)
+  const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
   const renderBackgroundOption = (option: BackgroundOption) => {
     const isSelected = option.id === selectedBackgroundId && !darkModeEnabled;
@@ -316,9 +314,9 @@ export const SettingsScreen: React.FC = () => {
             </Text>
           </View>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.linkRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
-            onPress={handleContactDeveloper}
+            onPress={() => setShowFeedback(true)}
             activeOpacity={0.7}
           >
             <View style={styles.linkInfo}>
@@ -358,6 +356,12 @@ export const SettingsScreen: React.FC = () => {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <FeedbackForm
+        visible={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        backendUrl={BACKEND_URL}
+      />
     </SafeAreaView>
   );
 };

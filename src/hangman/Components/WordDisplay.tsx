@@ -1,48 +1,81 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 type WordDisplayProps = {
-  displayWord: string[]; // Array of letters or '_' for unguessed
+  displayWord: string[]; // Array of letters, '_' for unguessed, or punctuation
   isWon?: boolean;
   isLost?: boolean;
   actualWord?: string; // Show the actual word when game is lost
 };
 
-// Smart word wrapper: will not break words in the middle, wraps only between words.
-function smartWrapLetters(letters: string[]): (string[])[] {
-  const WORD_SPACE = ' ';
-  // Gather words as arrays of letters, separated by spaces
-  let lines: string[][] = [];
+// Check if character is a letter
+const isLetter = (char: string) => /[a-zA-Z]/.test(char);
+
+// Check if character is punctuation (not letter, not space)
+const isPunctuation = (char: string) => char !== ' ' && !isLetter(char);
+
+// Smart word wrapper: breaks at word boundaries, handles long phrases
+function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[])[] {
+  if (letters.length === 0) return [];
+  
+  const lines: string[][] = [];
   let currentLine: string[] = [];
   let currentWord: string[] = [];
-  let maxLettersPerLine = 12; // Adjust for mobile view (can tweak)
-
+  
   for (let i = 0; i < letters.length; i++) {
     const char = letters[i];
-    if (char === WORD_SPACE) {
-      if (currentWord.length) {
-        if (currentLine.join('').length + currentWord.length > maxLettersPerLine && currentLine.length) {
+    
+    if (char === ' ') {
+      // End of word - check if we should wrap
+      if (currentWord.length > 0) {
+        // Count only letters for line length calculation
+        const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
+        const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
+        
+        if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
+          // Wrap to new line
           lines.push(currentLine);
-          currentLine = [];
+          currentLine = [...currentWord];
+        } else {
+          currentLine.push(...currentWord);
         }
-        currentLine.push(...currentWord);
         currentWord = [];
       }
-      currentLine.push(WORD_SPACE);
+      // Add space after word (if line has content)
+      if (currentLine.length > 0) {
+        currentLine.push(' ');
+      }
     } else {
       currentWord.push(char);
     }
   }
-  if (currentWord.length) {
-    if (currentLine.join('').length + currentWord.length > maxLettersPerLine && currentLine.length) {
+  
+  // Handle remaining word
+  if (currentWord.length > 0) {
+    const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
+    const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
+    
+    if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
       lines.push(currentLine);
-      currentLine = [];
+      currentLine = [...currentWord];
+    } else {
+      currentLine.push(...currentWord);
     }
-    currentLine.push(...currentWord);
   }
-  if (currentLine.length) lines.push(currentLine);
+  
+  // Add final line
+  if (currentLine.length > 0) {
+    // Remove trailing space
+    if (currentLine[currentLine.length - 1] === ' ') {
+      currentLine.pop();
+    }
+    lines.push(currentLine);
+  }
+  
   return lines;
 }
 
@@ -54,14 +87,18 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
 }) => {
   const { background } = useTheme();
 
+  // Calculate max letters per line based on screen width
+  // Each letter takes about 36px (28 min-width + 8 margin)
+  const maxLettersPerLine = Math.max(6, Math.floor((SCREEN_WIDTH - 30) / 40));
+
   // When lost, show the actual word with missed letters highlighted
-  const getLetterStyle = (letter: string, index: number) => {
+  const getLetterStyle = (letter: string, originalIndex: number) => {
     if (isWon) {
       return { color: COLORS.accent };
     }
     if (isLost) {
       // If the letter was not guessed (was a blank), show in red
-      if (displayWord[index] === '_') {
+      if (displayWord[originalIndex] === '_') {
         return { color: COLORS.danger };
       }
       return { color: background.textColor };
@@ -74,23 +111,43 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
     ? actualWord.split('')
     : displayWord;
 
-  // Smart wrapping: returns array-of-arrays, each inner array is a whole line (no word is ever split)
-  const lines = smartWrapLetters(lettersToShow);
+  // Smart wrapping
+  const lines = smartWrapLetters(lettersToShow, maxLettersPerLine);
+
+  // Track original index for proper styling on game loss
+  let globalIndex = 0;
 
   return (
     <View style={styles.container}>
       {lines.map((line, lineIdx) => (
         <View
           key={lineIdx}
-          style={[styles.wordContainer, { marginBottom: lineIdx < lines.length - 1 ? 2 : 0 }]}
+          style={styles.wordContainer}
         >
-          {line.map((letter, index) =>
-            letter === ' ' ? (
-              <View key={index} style={styles.spaceGap} />
-            ) : (
-              <View key={index} style={styles.letterContainer}>
-                <Text style={[styles.letter, getLetterStyle(letter, index)]}>
-                  {letter !== '_' ? letter : ' '}
+          {line.map((char, charIdx) => {
+            const originalIndex = globalIndex++;
+            
+            // Space between words
+            if (char === ' ') {
+              return <View key={`${lineIdx}-${charIdx}`} style={styles.spaceGap} />;
+            }
+            
+            // Punctuation (apostrophe, hyphen, etc.) - show without underline
+            if (isPunctuation(char)) {
+              return (
+                <View key={`${lineIdx}-${charIdx}`} style={styles.punctuationContainer}>
+                  <Text style={[styles.punctuation, { color: background.textColor }]}>
+                    {char}
+                  </Text>
+                </View>
+              );
+            }
+            
+            // Regular letter or blank
+            return (
+              <View key={`${lineIdx}-${charIdx}`} style={styles.letterContainer}>
+                <Text style={[styles.letter, getLetterStyle(char, originalIndex)]}>
+                  {char !== '_' ? char : ''}
                 </Text>
                 <View
                   style={[
@@ -98,16 +155,15 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
                     {
                       backgroundColor: isWon
                         ? COLORS.accent
-                        : isLost && displayWord[index] === '_'
+                        : isLost && displayWord[originalIndex] === '_'
                         ? COLORS.danger
                         : background.borderColor,
-                      opacity: 1,
                     },
                   ]}
                 />
               </View>
-            )
-          )}
+            );
+          })}
         </View>
       ))}
     </View>
@@ -117,37 +173,48 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   wordContainer: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'center',
-    gap: 8,
+    alignItems: 'flex-end',
+    marginBottom: 12,
   },
   letterContainer: {
     alignItems: 'center',
     marginHorizontal: 4,
-    marginVertical: 6,
   },
   letter: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    minWidth: 24,
+    minWidth: 28,
+    height: 44,
     textAlign: 'center',
-    marginBottom: 0,
   },
   underline: {
-    height: 3,
-    width: 24,
+    height: 4,
+    width: 28,
     borderRadius: 2,
-    marginTop: 4,
+    marginTop: 6,
+  },
+  punctuationContainer: {
+    alignItems: 'center',
+    marginHorizontal: 2,
+    paddingBottom: 10, // Align with letters that have underlines
+  },
+  punctuation: {
+    fontSize: 36,
+    fontWeight: 'bold',
   },
   spaceGap: {
-    width: 28,
-    marginHorizontal: 8,
+    width: 20,
+    marginHorizontal: 6,
   },
 });
 

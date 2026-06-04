@@ -1,0 +1,77 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
+interface Tile {
+  id: number
+  letter: string
+  startX: number
+  delay: number
+  duration: number
+  size: number
+}
+
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
+
+export function ScrabbleFalling() {
+  const [tiles, setTiles] = useState<Tile[]>([])
+
+  useEffect(() => {
+    const generated: Tile[] = []
+    for (let i = 0; i < 25; i++) {
+      const letter = letters[Math.floor(Math.random() * letters.length)]
+      generated.push({
+        id: i,
+        letter,
+        startX: Math.random() * 100,
+        delay: Math.random() * -15,
+        duration: 12 + Math.random() * 8,
+        size: 40 + Math.random() * 20,
+      })
+    }
+    setTiles(generated)
+  }, [])
+
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-gradient-to-b from-[#E8F5E9] via-[#FFF8E1] to-[#FCE4EC]">
+      {tiles.map((tile) => (
+        <div
+          key={tile.id}
+          className="absolute"
+          style={{
+            left: `${tile.startX}%`,
+            top: "-80px",
+            animation: `fall-down ${tile.duration}s linear ${tile.delay}s infinite`,
+          }}
+        >
+          <div 
+            className="bg-[#FFECB3] rounded-lg shadow-md flex items-center justify-center border-2 border-[#FFD54F]"
+            style={{ width: tile.size, height: tile.size }}
+          >
+            <span className="font-bold text-[#5D4037]" style={{ fontSize: tile.size * 0.5 }}>
+              {tile.letter}
+            </span>
+          </div>
+        </div>
+      ))}
+      <style jsx>{`
+        @keyframes fall-down {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0;
+          }
+          5% {
+            opacity: 0.9;
+          }
+          95% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translateY(calc(100vh + 100px)) rotate(360deg);
+            opacity: 0;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}

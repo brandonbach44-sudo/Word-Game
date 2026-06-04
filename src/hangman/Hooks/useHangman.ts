@@ -8,6 +8,12 @@ import {
 
 type GameStatus = 'idle' | 'playing' | 'won' | 'lost';
 
+// Characters that should be shown but not guessed (punctuation)
+const REVEALED_CHARS = /[^a-zA-Z\s]/; // Anything that's not a letter or space
+
+// Check if a character is a letter
+const isLetter = (char: string) => /[a-zA-Z]/.test(char);
+
 export const useHangman = () => {
   const [word, setWord] = useState<string>('');
   const [category, setCategory] = useState<string>('');
@@ -56,6 +62,28 @@ export const useHangman = () => {
     setStatus('playing');
   }, []);
 
+  // NEW: Start game with a specific word (for Daily Challenge)
+  const startGameWithWord = useCallback((specificWord: string, categoryName: string = 'Daily Challenge') => {
+    setWord(specificWord);
+    setCategory(categoryName);
+    setGuessedLetters([]);
+    setIncorrectGuesses([]);
+    setCorrectGuesses([]);
+    setStatus('playing');
+    setIsPhrase(specificWord.includes(' ')); // Auto-detect if it's a phrase
+  }, []);
+
+  // Reset game to idle state
+  const resetGame = useCallback(() => {
+    setWord('');
+    setCategory('');
+    setGuessedLetters([]);
+    setIncorrectGuesses([]);
+    setCorrectGuesses([]);
+    setStatus('idle');
+    setIsPhrase(false);
+  }, []);
+
   // Guess a letter (case-insensitive, whitespace-safe)
   const guessLetter = useCallback(
     (letter: string) => {
@@ -69,15 +97,15 @@ export const useHangman = () => {
       const newGuessedLetters = [...guessedLetters, letter]; // Store as user input for UI
       setGuessedLetters(newGuessedLetters);
 
-      // Normalize word (remove spaces & toLowerCase for comparison)
-      const wordLetters = word.replace(/\s/g, '').toLowerCase();
+      // Get only the letters from the word (no spaces, no punctuation)
+      const wordLettersOnly = word.split('').filter(isLetter).join('').toLowerCase();
 
-      if (wordLetters.includes(normalizedLetter)) {
+      if (wordLettersOnly.includes(normalizedLetter)) {
         const newCorrectGuesses = [...correctGuesses, letter];
         setCorrectGuesses(newCorrectGuesses);
 
-        // Win check - all unique letters (lower) in word are in guessedLetters (lower)
-        const uniqueLetters = [...new Set(wordLetters.split(''))];
+        // Win check - all unique LETTERS in word are guessed (ignore punctuation)
+        const uniqueLetters = [...new Set(wordLettersOnly.split(''))];
         const guessedNormalized = newGuessedLetters.map(l => l.toLowerCase());
         const allGuessed = uniqueLetters.every((l) => guessedNormalized.includes(l));
         if (allGuessed) {
@@ -96,14 +124,17 @@ export const useHangman = () => {
     [status, word, guessedLetters, correctGuesses, incorrectGuesses, maxAttempts]
   );
 
-  // Get display word (with blanks for unguessed letters, spaces shown as gaps)
+  // Get display word (with blanks for unguessed letters, spaces and punctuation shown)
   const getDisplayWord = useCallback(() => {
+    if (!word) return []; // Return empty array if no word set
+    
     const guessedNormalized = guessedLetters.map(l => l.toLowerCase());
     return word
       .split('')
-      .map((letter) => {
-        if (letter === ' ') return ' '; // Space for gap
-        return guessedNormalized.includes(letter.toLowerCase()) ? letter : '_';
+      .map((char) => {
+        if (char === ' ') return ' '; // Space for gap
+        if (!isLetter(char)) return char; // Show punctuation (apostrophes, hyphens, etc.)
+        return guessedNormalized.includes(char.toLowerCase()) ? char : '_';
       });
   }, [word, guessedLetters]);
 
@@ -156,6 +187,8 @@ export const useHangman = () => {
     // Actions
     startGame,
     startGameWithCategory,
+    startGameWithWord,  // NEW
+    resetGame,          // NEW
     guessLetter,
 
     // Helpers

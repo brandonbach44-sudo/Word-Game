@@ -21,13 +21,12 @@ import { HangmanFigure } from './Components/HangmanFigure';
 import { Keyboard } from './Components/Keyboard';
 import { WordDisplay } from './Components/WordDisplay';
 
-import { DAILY_WORDS } from './data/dailyWords';
 import {
   DailyChallengeStats,
-  getDailyWordIndex,
   getTodayDateString,
   loadDailyStats,
   saveDailyResult,
+  dateToSeed,
 } from './utils/dailyChallenge';
 
 import { useHangman } from './Hooks/useHangman';
@@ -184,8 +183,8 @@ export default function HangmanScreen() {
   const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
   const [showDailyPopup, setShowDailyPopup] = useState(false);
   const [playingDaily, setPlayingDaily] = useState(false);
-  const [dailyGameInitialized, setDailyGameInitialized] = useState(false);
   const [dailyWord, setDailyWord] = useState<string>('');
+  const [dailyGameEnded, setDailyGameEnded] = useState(false);
 
   const {
     word,
@@ -201,6 +200,8 @@ export default function HangmanScreen() {
     isIdle,
     startGame,
     startGameWithCategory,
+    startGameWithWord,
+    resetGame,
     guessLetter,
     getDisplayWord,
     isLetterGuessed,
@@ -212,6 +213,7 @@ export default function HangmanScreen() {
   const stats = getGameStats();
   const displayWord = getDisplayWord();
 
+  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       const [stats, unlocked, locked] = await Promise.all([
@@ -227,6 +229,7 @@ export default function HangmanScreen() {
     loadDailyStats().then(setDailyStats);
   }, []);
 
+  // Achievement popup queue
   useEffect(() => {
     if (pendingAchievements.length > 0 && !currentPopupAchievement) {
       setCurrentPopupAchievement(pendingAchievements[0]);
@@ -236,6 +239,7 @@ export default function HangmanScreen() {
 
   const handleAchievementDismiss = () => setCurrentPopupAchievement(null);
 
+  // Save stats after regular (non-daily) game ends
   useEffect(() => {
     if ((isWon || isLost) && !playingDaily) {
       const saveGameStats = async () => {
@@ -269,79 +273,134 @@ export default function HangmanScreen() {
     }
   }, [isWon, isLost, playingDaily]);
 
+  // Handle daily challenge game end
+  useEffect(() => {
+    if (playingDaily && (isWon || isLost) && !dailyGameEnded) {
+      setDailyGameEnded(true);
+      
+      const handleDailyEnd = async () => {
+        const result = isWon ? 'won' : 'lost';
+        await saveDailyResult(result, dailyWord);
+        const updatedDailyStats = await loadDailyStats();
+        setDailyStats(updatedDailyStats);
+        setShowDailyPopup(true);
+      };
+      
+      handleDailyEnd();
+    }
+  }, [isWon, isLost, playingDaily, dailyGameEnded, dailyWord]);
+
+  // Clear selected letter when game ends
   useEffect(() => {
     if (!isPlaying) setSelectedLetter(null);
   }, [isPlaying]);
 
+  // Set game mode to playing when game starts
   useEffect(() => {
-    if ((isPlaying || isWon || isLost) && !playingDaily) setGameMode('playing');
-  }, [isPlaying, isWon, isLost, playingDaily]);
-
-  // Daily Challenge Game Logic
-  useEffect(() => {
-    if (playingDaily && !dailyGameInitialized) {
-      const idx = getDailyWordIndex(DAILY_WORDS, new Date());
-      const todayWord = DAILY_WORDS[idx];
-      setDailyWord(todayWord);
-      startGameWithCategory('Daily Challenge', false);
+    if ((isPlaying || isWon || isLost) && gameMode !== 'playing') {
       setGameMode('playing');
-      setDailyGameInitialized(true);
     }
-  }, [playingDaily, dailyGameInitialized, startGameWithCategory]);
+  }, [isPlaying, isWon, isLost]);
 
-  useEffect(() => {
-    if (
-      playingDaily &&
-      dailyGameInitialized &&
-      (status === 'won' || status === 'lost')
-    ) {
-      saveDailyResult(status === 'won' ? 'won' : 'lost', dailyWord).then(() => {
-        setShowDailyPopup(true);
-        setPlayingDaily(false);
-        setDailyGameInitialized(false);
-        setGameMode('menu');
-        loadDailyStats().then(setDailyStats);
+  // Start daily challenge - picks word from main word list based on date
+  const startDailyChallenge = () => {
+    // Flatten all words from all categories into one list
+    const allWords: { word: string; category: string }[] = [];
+    Object.entries(WORD_CATEGORIES).forEach(([category, words]) => {
+      words.forEach((word: string) => {
+        allWords.push({ word, category });
       });
+    });
+    
+    // Use date as seed to pick the same word for everyone
+    const seed = dateToSeed(new Date());
+    const index = seed % allWords.length;
+    const dailyEntry = allWords[index];
+    
+    if (!dailyEntry) {
+      console.error('No daily word found!');
+      return;
     }
-  }, [status, playingDaily, dailyGameInitialized, dailyWord]);
+    
+    setDailyWord(dailyEntry.word);
+    setPlayingDaily(true);
+    setDailyGameEnded(false);
+    setShowDailyPopup(false);
+    setSelectedCategory('Daily Challenge');
+    startGameWithWord(dailyEntry.word, dailyEntry.category);
+    setGameMode('playing');
+  };
 
   const handleBackToMenu = () => router.back();
-  const handleBackToModeSelect = () => { setGameMode('menu'); setSelectedCategory(null); };
+  
+  const handleBackToModeSelect = () => {
+    // Reset all game state
+    resetGame();
+    setGameMode('menu');
+    setSelectedCategory(null);
+    setPlayingDaily(false);
+    setDailyGameEnded(false);
+    setShowDailyPopup(false);
+    setSelectedLetter(null);
+  };
+  
   const handleBackToCategorySelect = () => setGameMode('category-select');
+  
   const handlePlayAgain = () => {
     setSelectedLetter(null);
+    if (playingDaily) {
+      // Can't play daily again - go back to menu
+      handleBackToModeSelect();
+      return;
+    }
     if (selectedCategory && selectedCategory !== 'Daily Challenge') {
       startGameWithCategory(selectedCategory, gameType === 'phrases');
     } else {
       startGame();
     }
   };
+  
   const handleSelectGameType = (type: GameType) => {
     setGameType(type);
     if (type === 'daily') {
       if (dailyStats?.lastPlayedDate === getTodayDateString()) {
         setShowDailyPopup(true);
       } else {
-        setPlayingDaily(true);
-        setDailyGameInitialized(false);
-        setDailyWord('');
-        setSelectedCategory('Daily Challenge');
+        startDailyChallenge();
       }
     } else {
       setGameMode('category-select');
     }
   };
+  
   const handleSelectCategory = (categoryName: string) => {
     setSelectedCategory(categoryName);
     startGameWithCategory(categoryName, gameType === 'phrases');
     setGameMode('playing');
   };
+  
   const handleKeyPress = (letter: string) => setSelectedLetter(letter);
-  const handleEnter = () => { if (selectedLetter) { guessLetter(selectedLetter); setSelectedLetter(null); } };
+  const handleEnter = () => { 
+    if (selectedLetter) { 
+      guessLetter(selectedLetter); 
+      setSelectedLetter(null); 
+    } 
+  };
   const handleBack = () => setSelectedLetter(null);
+  
   const getCategories = () => (
     gameType === 'phrases' ? Object.keys(PHRASE_CATEGORIES) : Object.keys(WORD_CATEGORIES)
   );
+
+  // Handle closing daily popup
+  const handleCloseDailyPopup = () => {
+    setShowDailyPopup(false);
+    setPlayingDaily(false);
+    setDailyGameEnded(false);
+    resetGame();
+    setGameMode('menu');
+    setSelectedCategory(null);
+  };
 
   // --- GAME MODES ---
   if (gameMode === 'playing' && (isPlaying || isWon || isLost)) {
@@ -368,9 +427,11 @@ export default function HangmanScreen() {
           { backgroundColor: background.cardColor, borderColor: background.borderColor },
         ]}>
           <View style={styles.infoItem}>
-            <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Category</Text>
+            <Text style={[styles.infoLabel, { color: background.secondaryText }]}>
+              {playingDaily ? 'Daily Challenge' : 'Category'}
+            </Text>
             <Text style={[styles.infoValue, { color: COLORS.accent }]}>
-              {playingDaily ? "Random Category" : category}
+              {category}
             </Text>
           </View>
           <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
@@ -412,34 +473,30 @@ export default function HangmanScreen() {
             disabled={!isPlaying}
           />
         </View>
-        <GameStatus
-          isVisible={isWon || isLost}
-          isWon={isWon}
-          word={word}
-          category={playingDaily ? 'Random Category' : category}
-          incorrectGuesses={incorrectGuesses.length}
-          totalGuesses={stats.totalGuesses}
-          onPlayAgain={handlePlayAgain}
-          onBackToMenu={() => {
-            setShowDailyPopup(false);
-            setPlayingDaily(false);
-            setGameMode('menu');
-            setSelectedCategory(null);
-          }}
-        />
+        
+        {/* Regular Game End Popup (non-daily) */}
+        {!playingDaily && (
+          <GameStatus
+            isVisible={isWon || isLost}
+            isWon={isWon}
+            word={word}
+            category={category}
+            incorrectGuesses={incorrectGuesses.length}
+            totalGuesses={stats.totalGuesses}
+            onPlayAgain={handlePlayAgain}
+            onBackToMenu={handleBackToModeSelect}
+          />
+        )}
+        
+        {/* Daily Challenge End Popup */}
         {playingDaily && showDailyPopup && dailyStats && (
           <DailyChallengePopup
-            visible={showDailyPopup}
-            won={dailyStats.lastDailyResult === 'won'}
-            word={dailyStats.lastDailyWord || ''}
+            visible={true}
+            won={isWon}
+            word={dailyWord}
             streak={dailyStats.streak || 0}
             bestStreak={dailyStats.bestStreak || 0}
-            onBackToMenu={() => {
-              setShowDailyPopup(false);
-              setGameMode('menu');
-              setPlayingDaily(false);
-              setSelectedCategory(null);
-            }}
+            onBackToMenu={handleCloseDailyPopup}
           />
         )}
       </SafeAreaView>
@@ -492,6 +549,7 @@ export default function HangmanScreen() {
     );
   }
 
+  // Main Menu
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
@@ -513,7 +571,7 @@ export default function HangmanScreen() {
       <View style={[styles.segmentSwitcher, { backgroundColor: background.cardColor }]}>
         {(['play', 'stats'] as SegmentKey[]).map((key) => {
           const isActive = key === segment;
-          const label = key === 'play' ?  'Play' : 'Stats';
+          const label = key === 'play' ? 'Play' : 'Stats';
           return (
             <Pressable
               key={key}
@@ -548,15 +606,12 @@ export default function HangmanScreen() {
               if (dailyStats?.lastPlayedDate === getTodayDateString()) {
                 setShowDailyPopup(true);
               } else {
-                setPlayingDaily(true);
-                setDailyGameInitialized(false);
-                setDailyWord('');
-                setSelectedCategory('Daily Challenge');
+                startDailyChallenge();
               }
             }}
           />
           <Text style={[styles.startTitle, { color: background.textColor }]}>
-            Ready to Play? 
+            Ready to Play?
           </Text>
           <Text style={[styles.startDescription, { color: background.secondaryText }]}>
             Choose a game mode to begin
@@ -599,25 +654,31 @@ export default function HangmanScreen() {
             <View style={styles.ruleItem}>
               <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>1</Text>
               <Text style={[styles.ruleText, { color: background.secondaryText }]}>
-                Choose a game mode and category
+                Select a letter from the keyboard
               </Text>
             </View>
             <View style={styles.ruleItem}>
               <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>2</Text>
               <Text style={[styles.ruleText, { color: background.secondaryText }]}>
-                Tap a letter, then tap ENTER to guess
+                Press ENTER to submit your guess
               </Text>
             </View>
             <View style={styles.ruleItem}>
               <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>3</Text>
               <Text style={[styles.ruleText, { color: background.secondaryText }]}>
-                Wrong guesses add parts to the hangman
+                Correct letters appear in the word
               </Text>
             </View>
             <View style={styles.ruleItem}>
               <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>4</Text>
               <Text style={[styles.ruleText, { color: background.secondaryText }]}>
-                Guess the word before 6 wrong attempts! 
+                Wrong guesses add parts to the hangman
+              </Text>
+            </View>
+            <View style={styles.ruleItem}>
+              <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>5</Text>
+              <Text style={[styles.ruleText, { color: background.secondaryText }]}>
+                Guess the word before 6 wrong guesses!
               </Text>
             </View>
           </View>
@@ -628,7 +689,7 @@ export default function HangmanScreen() {
         <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
           {playerStats ? (
             <>
-              <Text style={[styles.statsSectionTitle, { color: background.textColor }]}>Overall Stats</Text>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor }]}>Overview</Text>
               <View style={styles.statsGrid}>
                 <StatsCard
                   label="Games Played"
@@ -709,7 +770,7 @@ export default function HangmanScreen() {
                   borderColor={background.borderColor}
                 />
                 <StatsCard
-                  label="Avg.  Wrong Guesses"
+                  label="Avg. Wrong Guesses"
                   value={getAverageIncorrectGuesses(playerStats).toString()}
                   textColor={background.textColor}
                   secondaryText={background.secondaryText}
@@ -837,19 +898,16 @@ export default function HangmanScreen() {
           )}
         </ScrollView>
       )}
-      {dailyStats && (
+      
+      {/* Daily Results Popup (when viewing from menu after already played) */}
+      {showDailyPopup && dailyStats && !playingDaily && (
         <DailyChallengePopup
-          visible={showDailyPopup}
+          visible={true}
           won={dailyStats.lastDailyResult === 'won'}
           word={dailyStats.lastDailyWord || ''}
           streak={dailyStats.streak || 0}
           bestStreak={dailyStats.bestStreak || 0}
-          onBackToMenu={() => {
-            setShowDailyPopup(false);
-            setGameMode('menu');
-            setPlayingDaily(false);
-            setSelectedCategory(null);
-          }}
+          onBackToMenu={() => setShowDailyPopup(false)}
         />
       )}
     </SafeAreaView>

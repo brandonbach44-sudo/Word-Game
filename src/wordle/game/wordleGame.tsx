@@ -1562,7 +1562,7 @@ export default function WordleGame() {
             <View style={styles.gameTopArea}>
               <View style={styles.gameHeader}>
                 <Pressable onPress={() => goToMenu("play")} hitSlop={8}>
-                  <Text style={[styles.gameBackText, { color: SUBTEXT }]}>← Menu</Text>
+                  <Text style={[styles.gameBackText, { color: SUBTEXT }]}>← Back</Text>
                 </Pressable>
                 <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
                   {gameMode === "daily" ? "Daily Challenge" : "Practice"}

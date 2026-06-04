@@ -79,14 +79,14 @@ const RAINBOW_COLORS = ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#0080ff', '
 // Iridescent colors (pastel rainbow)
 const IRIDESCENT_COLORS = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e0b3ff'];
 
-// Default tier style colors (6 options)
+// Default tier style colors (6 options) - Softer, lighter colors
 const DEFAULT_STYLES: Record<number, { background: string; border: string; text: string }> = {
-  1: { background: '#0f3460', border: '#1a1a2e', text: '#ffffff' },  // Navy Blue (original)
-  2: { background: '#4a5568', border: '#2d3748', text: '#ffffff' },  // Slate Gray
-  3: { background: '#276749', border: '#1a4731', text: '#ffffff' },  // Forest Green
-  4: { background: '#553c9a', border: '#3c2a6e', text: '#ffffff' },  // Deep Purple
-  5: { background: '#2d2d2d', border: '#1a1a1a', text: '#ffffff' },  // Charcoal Black
-  6: { background: '#0d4f4f', border: '#0a3939', text: '#ffffff' },  // Midnight Teal
+  1: { background: '#5B8FB9', border: '#4A7A9E', text: '#ffffff' },  // Soft Blue
+  2: { background: '#7D9D9C', border: '#6B8A89', text: '#ffffff' },  // Sage Green
+  3: { background: '#9B7EBD', border: '#8569A6', text: '#ffffff' },  // Soft Purple
+  4: { background: '#D4A574', border: '#C19460', text: '#ffffff' },  // Warm Tan
+  5: { background: '#E8A0A0', border: '#D68F8F', text: '#ffffff' },  // Dusty Rose
+  6: { background: '#6AACB8', border: '#5899A5', text: '#ffffff' },  // Soft Teal
 };
 
 interface GameTileProps {
