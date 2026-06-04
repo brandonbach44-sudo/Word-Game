@@ -972,7 +972,11 @@ export default function WordBuilder() {
       >
 
       {/* ===== PLAY TAB ===== */}
-      <ScrollView style={[styles.playContainer, { width }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={styles.playContainer}
+        showsVerticalScrollIndicator={false}
+      >
           {/* Daily Challenge Card */}
           <View style={[
             styles.dailyCard,
@@ -1124,7 +1128,11 @@ export default function WordBuilder() {
       </View>
 
       {/* ===== STATS TAB ===== */}
-      <ScrollView style={[styles.statsContainer, { width }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={styles.statsContainer}
+        showsVerticalScrollIndicator={false}
+      >
           
           {/* Daily Challenge Stats Section */}
           {dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && (
@@ -1419,18 +1427,19 @@ const styles = StyleSheet.create({
   tabStripWrapper: {
     flex: 1,
     overflow: 'hidden',
+    alignItems: 'flex-start',
   },
   tabStrip: {
-    flex: 1,
     width: width * 3,
     flexDirection: 'row',
+    alignSelf: 'flex-start',
   },
 
   // Play Segment
   playContainer: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 15,
+    paddingBottom: 40,
   },
   dailyCard: {
     borderRadius: 16,
@@ -1673,13 +1682,14 @@ const styles = StyleSheet.create({
   // Customize Segment
   customizeContainer: {
     flex: 1,
+    overflow: 'hidden',
   },
   
   // Stats Segment
   statsContainer: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 15,
+    paddingBottom: 40,
   },
   statsTitle: {
     fontSize: 20,

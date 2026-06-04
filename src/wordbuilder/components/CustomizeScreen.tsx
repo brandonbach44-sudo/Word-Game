@@ -406,7 +406,6 @@ const styles = StyleSheet.create({
   },
   embeddedContainer: {
     flex: 1,
-    backgroundColor: '#f5f0e6',
   },
   header: {
     flexDirection: 'row',

@@ -1794,16 +1794,18 @@ const styles = StyleSheet.create({
   tabStripWrapper: {
     flex: 1,
     overflow: "hidden",
+    alignItems: "flex-start",
   },
   tabStrip: {
-    flex: 1,
     width: SCREEN_WIDTH * 2,
     flexDirection: "row",
+    alignSelf: "flex-start",
   },
 
   // Menu scroll
   menuScroll: {
     flex: 1,
+    alignSelf: 'stretch',
   },
   menuScrollContent: {
     paddingHorizontal: 20,
