@@ -685,17 +685,53 @@ export default function WordleGame() {
   }, []);
 
   const MENU_TABS: MenuTab[] = ["play", "stats"];
+
+  // Tab slide animation
+  const tabAnim = useRef(new Animated.Value(0)).current;
+  const currentTabIdxRef = useRef(0);
+  const dragBase = useRef(0);
+
+  useEffect(() => {
+    currentTabIdxRef.current = MENU_TABS.indexOf(menuTab);
+  }, [menuTab]);
+
+  const handleTabPress = (key: MenuTab) => {
+    const newIdx = MENU_TABS.indexOf(key);
+    setMenuTab(key);
+    Animated.spring(tabAnim, {
+      toValue: newIdx,
+      useNativeDriver: true,
+      tension: 70,
+      friction: 12,
+    }).start();
+  };
+
   const menuPanResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+      onPanResponderGrant: () => {
+        tabAnim.stopAnimation();
+        dragBase.current = currentTabIdxRef.current;
+      },
+      onPanResponderMove: (_, gs) => {
+        const raw = dragBase.current - gs.dx / SCREEN_WIDTH;
+        tabAnim.setValue(Math.max(0, Math.min(MENU_TABS.length - 1, raw)));
+      },
       onPanResponderRelease: (_, gs) => {
-        if (Math.abs(gs.dx) < 40) return;
-        setMenuTab((prev) => {
-          const idx = MENU_TABS.indexOf(prev);
-          if (gs.dx < 0) return MENU_TABS[Math.min(idx + 1, MENU_TABS.length - 1)];
-          return MENU_TABS[Math.max(idx - 1, 0)];
-        });
+        const base = dragBase.current;
+        let newIdx = Math.round(base);
+        if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, MENU_TABS.length - 1);
+        else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
+        currentTabIdxRef.current = newIdx;
+        setMenuTab(MENU_TABS[newIdx]);
+        Animated.spring(tabAnim, {
+          toValue: newIdx,
+          useNativeDriver: true,
+          tension: 70,
+          friction: 12,
+        }).start();
       },
     })
   ).current;
@@ -1304,7 +1340,7 @@ export default function WordleGame() {
                     <Pressable
                       key={key}
                       style={[styles.segmentButton, isActive && { backgroundColor: BG }]}
-                      onPress={() => setMenuTab(key)}
+                      onPress={() => handleTabPress(key)}
                     >
                       <Text
                         style={[
@@ -1321,13 +1357,21 @@ export default function WordleGame() {
               </View>
             </View>
 
-            {/* Content */}
-            {menuTab === "play" ? (
-              <ScrollView
-                style={styles.menuScroll}
+            {/* Content — animated horizontal tab strip */}
+            <Animated.View
+              style={[
+                styles.tabStrip,
+                { transform: [{ translateX: tabAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -SCREEN_WIDTH],
+                }) }] }
+              ]}
+              {...menuPanResponder.panHandlers}
+            >
+            <ScrollView
+                style={[styles.menuScroll, { width: SCREEN_WIDTH }]}
                 contentContainerStyle={styles.menuScrollContent}
                 showsVerticalScrollIndicator={false}
-                {...menuPanResponder.panHandlers}
               >
                 {/* Daily Challenge Card — Word Builder style */}
                 <View style={[
@@ -1458,12 +1502,10 @@ export default function WordleGame() {
 
                 <View style={{ height: 40 }} />
               </ScrollView>
-            ) : (
-              <ScrollView
-                style={styles.statsContainer}
+            <ScrollView
+                style={[styles.statsContainer, { width: SCREEN_WIDTH }]}
                 contentContainerStyle={styles.statsContent}
                 showsVerticalScrollIndicator={false}
-                {...menuPanResponder.panHandlers}
               >
                 {/* ── DAILY CHALLENGE (primary) ── */}
                 <Text style={[styles.sectionTitle, { color: TEXT }]}>Daily Challenge</Text>
@@ -1583,7 +1625,7 @@ export default function WordleGame() {
 
                 <View style={{ height: 40 }} />
               </ScrollView>
-            )}
+            </Animated.View>
           </>
         ) : (
           // GAME SCREEN
@@ -1745,6 +1787,12 @@ const styles = StyleSheet.create({
   segmentButtonText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+
+  // Tab strip (horizontal swipe pager)
+  tabStrip: {
+    flex: 1,
+    flexDirection: "row",
   },
 
   // Menu scroll

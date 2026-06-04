@@ -172,17 +172,53 @@ export default function WordBuilder() {
   const [segment, setSegment] = useState<SegmentKey>('play');
   const SEGMENT_KEYS: SegmentKey[] = ['play', 'customize', 'stats'];
 
+  // Tab slide animation
+  const tabAnim = useRef(new Animated.Value(0)).current;
+  const currentTabIdxRef = useRef(0);
+  const dragBase = useRef(0);
+
+  // Keep currentTabIdxRef in sync with segment state
+  useEffect(() => {
+    currentTabIdxRef.current = SEGMENT_KEYS.indexOf(segment);
+  }, [segment]);
+
+  const handleSegmentPress = (key: SegmentKey) => {
+    const newIdx = SEGMENT_KEYS.indexOf(key);
+    setSegment(key);
+    Animated.spring(tabAnim, {
+      toValue: newIdx,
+      useNativeDriver: true,
+      tension: 70,
+      friction: 12,
+    }).start();
+  };
+
   const menuPanResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+      onPanResponderGrant: () => {
+        tabAnim.stopAnimation();
+        dragBase.current = currentTabIdxRef.current;
+      },
+      onPanResponderMove: (_, gs) => {
+        const raw = dragBase.current - gs.dx / width;
+        tabAnim.setValue(Math.max(0, Math.min(SEGMENT_KEYS.length - 1, raw)));
+      },
       onPanResponderRelease: (_, gs) => {
-        if (Math.abs(gs.dx) < 40) return;
-        setSegment((prev) => {
-          const idx = SEGMENT_KEYS.indexOf(prev);
-          if (gs.dx < 0) return SEGMENT_KEYS[Math.min(idx + 1, SEGMENT_KEYS.length - 1)];
-          return SEGMENT_KEYS[Math.max(idx - 1, 0)];
-        });
+        const base = dragBase.current;
+        let newIdx = Math.round(base);
+        if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, SEGMENT_KEYS.length - 1);
+        else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
+        currentTabIdxRef.current = newIdx;
+        setSegment(SEGMENT_KEYS[newIdx]);
+        Animated.spring(tabAnim, {
+          toValue: newIdx,
+          useNativeDriver: true,
+          tension: 70,
+          friction: 12,
+        }).start();
       },
     })
   ).current;
@@ -907,7 +943,7 @@ export default function WordBuilder() {
                 styles.segmentButton,
                 isActive && { backgroundColor: background.backgroundColor },
               ]}
-              onPress={() => setSegment(key)}
+              onPress={() => handleSegmentPress(key)}
             >
               <Text
                 style={[
@@ -923,9 +959,20 @@ export default function WordBuilder() {
         })}
       </View>
 
-      {/* ===== PLAY SEGMENT ===== */}
-      {segment === 'play' && (
-        <ScrollView style={styles.playContainer} showsVerticalScrollIndicator={false} {...menuPanResponder.panHandlers}>
+      {/* ===== TAB STRIP (horizontal swipe pager) ===== */}
+      <Animated.View
+        style={[
+          styles.tabStrip,
+          { transform: [{ translateX: tabAnim.interpolate({
+            inputRange: [0, 1, 2],
+            outputRange: [0, -width, -width * 2],
+          }) }] }
+        ]}
+        {...menuPanResponder.panHandlers}
+      >
+
+      {/* ===== PLAY TAB ===== */}
+      <ScrollView style={[styles.playContainer, { width }]} showsVerticalScrollIndicator={false}>
           {/* Daily Challenge Card */}
           <View style={[
             styles.dailyCard,
@@ -1066,22 +1113,18 @@ export default function WordBuilder() {
           
           <View style={{ height: 40 }} />
         </ScrollView>
-      )}
 
-      {/* ===== CUSTOMIZE SEGMENT ===== */}
-      {segment === 'customize' && (
-        <View style={styles.customizeContainer} {...menuPanResponder.panHandlers}>
-          <CustomizeScreen 
-            onBack={() => setSegment('play')} 
-            embedded 
-            onTileChange={refreshPlayerData}
-          />
-        </View>
-      )}
+      {/* ===== CUSTOMIZE TAB ===== */}
+      <View style={[styles.customizeContainer, { width }]}>
+        <CustomizeScreen
+          onBack={() => handleSegmentPress('play')}
+          embedded
+          onTileChange={refreshPlayerData}
+        />
+      </View>
 
-      {/* ===== STATS SEGMENT ===== */}
-      {segment === 'stats' && (
-        <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false} {...menuPanResponder.panHandlers}>
+      {/* ===== STATS TAB ===== */}
+      <ScrollView style={[styles.statsContainer, { width }]} showsVerticalScrollIndicator={false}>
           
           {/* Daily Challenge Stats Section */}
           {dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && (
@@ -1289,7 +1332,8 @@ export default function WordBuilder() {
           
           <View style={{ height: 40 }} />
         </ScrollView>
-      )}
+
+      </Animated.View>
 
       {/* Daily Result Modal */}
       {showDailyResultModal && dailyResult && (
@@ -1370,6 +1414,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
+  // Tab Strip
+  tabStrip: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+
   // Play Segment
   playContainer: {
     flex: 1,
