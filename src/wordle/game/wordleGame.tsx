@@ -2146,3 +2146,70 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  toggleSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  toggleTrack: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+  },
+  toggleThumb: {
+    position: "absolute",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    top: 2,
+  },
+});
+
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  toggleSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  toggleTrack: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+  },
+  toggleThumb: {
+    position: "absolute",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    top: 2,
+  },
+});
