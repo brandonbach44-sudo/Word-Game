@@ -960,6 +960,7 @@ export default function WordBuilder() {
       </View>
 
       {/* ===== TAB STRIP (horizontal swipe pager) ===== */}
+      <View style={styles.tabStripWrapper} {...menuPanResponder.panHandlers}>
       <Animated.View
         style={[
           styles.tabStrip,
@@ -968,7 +969,6 @@ export default function WordBuilder() {
             outputRange: [0, -width, -width * 2],
           }) }] }
         ]}
-        {...menuPanResponder.panHandlers}
       >
 
       {/* ===== PLAY TAB ===== */}
@@ -1334,6 +1334,7 @@ export default function WordBuilder() {
         </ScrollView>
 
       </Animated.View>
+      </View>
 
       {/* Daily Result Modal */}
       {showDailyResultModal && dailyResult && (
@@ -1415,8 +1416,13 @@ const styles = StyleSheet.create({
   },
   
   // Tab Strip
+  tabStripWrapper: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   tabStrip: {
     flex: 1,
+    width: width * 3,
     flexDirection: 'row',
   },
 

@@ -1358,6 +1358,7 @@ export default function WordleGame() {
             </View>
 
             {/* Content — animated horizontal tab strip */}
+            <View style={styles.tabStripWrapper} {...menuPanResponder.panHandlers}>
             <Animated.View
               style={[
                 styles.tabStrip,
@@ -1366,7 +1367,6 @@ export default function WordleGame() {
                   outputRange: [0, -SCREEN_WIDTH],
                 }) }] }
               ]}
-              {...menuPanResponder.panHandlers}
             >
             <ScrollView
                 style={[styles.menuScroll, { width: SCREEN_WIDTH }]}
@@ -1626,6 +1626,7 @@ export default function WordleGame() {
                 <View style={{ height: 40 }} />
               </ScrollView>
             </Animated.View>
+            </View>
           </>
         ) : (
           // GAME SCREEN
@@ -1790,8 +1791,13 @@ const styles = StyleSheet.create({
   },
 
   // Tab strip (horizontal swipe pager)
+  tabStripWrapper: {
+    flex: 1,
+    overflow: "hidden",
+  },
   tabStrip: {
     flex: 1,
+    width: SCREEN_WIDTH * 2,
     flexDirection: "row",
   },
 
