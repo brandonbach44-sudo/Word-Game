@@ -1,20 +1,22 @@
 // src/wordgrid/utils/gridGenerator.ts
 //
-// Approach:
-//   1. Build a trie from commonWords (~4,700 everyday words) once at module load.
-//      Using commonWords instead of the full 80k dictionary means the MIN_WORDS
-//      threshold is met by words players will actually recognise, not obscure ones.
-//   2. Generate a candidate grid with hard constraints:
-//        - Exactly one vowel placed in each 2x2 quadrant (spread guarantee).
-//        - 1-2 extra vowels added at random, for 5-6 total.
-//        - No letter appears more than twice (kills "4 I in a row" bug).
-//        - Q, X, Z, J are banned (near-impossible to use in a 4x4 grid).
-//   3. Count recognisable findable words via DFS + trie on the candidate grid.
-//   4. If count < MIN_WORDS, retry up to MAX_RETRIES, keeping the best grid found.
+// Generation strategy:
+//   1. Seed the grid with 2 common words placed along valid adjacency paths.
+//      - Word 1 is placed on any valid path.
+//      - Word 2 tries to share at least one cell with Word 1 (interconnected).
+//   2. Fill remaining cells with constrained random letters:
+//      - Vowel spread: at least one vowel per 2x2 quadrant.
+//      - No letter appears more than twice.
+//      - Q, X, Z, J banned.
+//   3. Count recognisable findable words via DFS + trie (common word list).
+//   4. If count < MIN_WORDS, retry up to MAX_RETRIES keeping the best grid.
+//
+// Result: every grid is guaranteed to contain real recognisable words,
+// with two known words baked in before any random filling occurs.
 
 import commonWords from '../data/commonWords';
 
-// --- Trie -------------------------------------------------------------------
+// Trie
 
 interface TrieNode {
   children: { [letter: string]: TrieNode };
@@ -41,18 +43,17 @@ function buildTrie(): TrieNode {
   return root;
 }
 
-// Built once when the module is first imported.
 const TRIE = buildTrie();
 
-// --- Letter weights ---------------------------------------------------------
-// Q, X, Z, J excluded — they are dead weight in a small grid.
+// Seed pool: 4-5 letter common words with no repeated letters (easiest to place)
+const SEED_POOL: string[] = commonWords
+  .filter(w => w.length >= 4 && w.length <= 5 && new Set(w).size === w.length)
+  .map(w => w.toUpperCase());
+
+// Letter weights
 
 const VOWEL_WEIGHTS: Record<string, number> = {
-  A: 10,
-  E: 14,
-  I: 9,
-  O: 9,
-  U: 4,
+  A: 10, E: 14, I: 9, O: 9, U: 4,
 };
 
 const CONSONANT_WEIGHTS: Record<string, number> = {
@@ -86,7 +87,132 @@ function pickWeightedAvailable(
   return pickWeighted(filtered);
 }
 
-// --- Word counter -----------------------------------------------------------
+// Helpers
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function neighbors(r: number, c: number, size: number): [number, number][] {
+  const result: [number, number][] = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+        result.push([nr, nc]);
+      }
+    }
+  }
+  return result;
+}
+
+// Word placement
+
+// Recursively find a valid adjacency path for `word` starting at (r, c).
+// A cell is compatible if it is empty OR already holds the matching letter.
+function findPath(
+  word: string,
+  idx: number,
+  r: number,
+  c: number,
+  grid: string[][],
+  visited: Set<string>
+): [number, number][] | null {
+  const key = `${r},${c}`;
+  if (visited.has(key)) return null;
+
+  const letter = word[idx];
+  const existing = grid[r][c];
+  if (existing !== '' && existing !== letter) return null;
+
+  if (idx === word.length - 1) return [[r, c]];
+
+  visited.add(key);
+  const size = grid.length;
+  for (const [nr, nc] of shuffle(neighbors(r, c, size))) {
+    const rest = findPath(word, idx + 1, nr, nc, grid, visited);
+    if (rest) {
+      visited.delete(key);
+      return [[r, c], ...rest];
+    }
+  }
+  visited.delete(key);
+  return null;
+}
+
+// Try to place `word` anywhere on the grid. Returns the path used, or null.
+function placeWord(
+  word: string,
+  grid: string[][]
+): [number, number][] | null {
+  const size = grid.length;
+  const starts = shuffle(
+    Array.from({ length: size }, (_, r) =>
+      Array.from({ length: size }, (_, c) => [r, c] as [number, number])
+    ).flat()
+  );
+  for (const [r, c] of starts) {
+    const path = findPath(word, 0, r, c, grid, new Set());
+    if (path) return path;
+  }
+  return null;
+}
+
+// Try to place `word` so that it shares at least one cell with `anchorCells`.
+function placeWordNearAnchor(
+  word: string,
+  grid: string[][],
+  anchorCells: Set<string>
+): [number, number][] | null {
+  const size = grid.length;
+
+  const candidates = new Set<string>();
+  for (const key of anchorCells) {
+    const [r, c] = key.split(',').map(Number);
+    candidates.add(key);
+    for (const [nr, nc] of neighbors(r, c, size)) {
+      candidates.add(`${nr},${nc}`);
+    }
+  }
+
+  const starts = shuffle([...candidates].map(k => k.split(',').map(Number) as [number, number]));
+
+  for (const [r, c] of starts) {
+    const path = findPath(word, 0, r, c, grid, new Set());
+    if (path) {
+      const overlaps = path.some(([pr, pc]) => anchorCells.has(`${pr},${pc}`));
+      if (overlaps) return path;
+    }
+  }
+
+  // Fallback: place anywhere
+  return placeWord(word, grid);
+}
+
+// Write a word along its path into the grid and update letterCount.
+function commitPath(
+  word: string,
+  path: [number, number][],
+  grid: string[][],
+  letterCount: Record<string, number>
+): void {
+  for (let i = 0; i < path.length; i++) {
+    const [r, c] = path[i];
+    const letter = word[i];
+    if (grid[r][c] === '') {
+      grid[r][c] = letter;
+      letterCount[letter] = (letterCount[letter] || 0) + 1;
+    }
+  }
+}
+
+// Word counter
 
 function countValidWords(grid: string[][]): number {
   const size = grid.length;
@@ -108,8 +234,7 @@ function countValidWords(grid: string[][]): number {
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         if (dr === 0 && dc === 0) continue;
-        const nr = r + dr;
-        const nc = c + dc;
+        const nr = r + dr, nc = c + dc;
         if (nr >= 0 && nr < size && nc >= 0 && nc < size && !visited[nr][nc]) {
           dfs(nr, nc, next, newWord);
         }
@@ -126,9 +251,8 @@ function countValidWords(grid: string[][]): number {
   return found.size;
 }
 
-// --- Constrained candidate grid ---------------------------------------------
+// Fill remaining cells
 
-// The four 2x2 quadrants of a 4x4 grid.
 const QUADRANTS: [number, number][][] = [
   [[0, 0], [0, 1], [1, 0], [1, 1]],
   [[0, 2], [0, 3], [1, 2], [1, 3]],
@@ -136,71 +260,79 @@ const QUADRANTS: [number, number][][] = [
   [[2, 2], [2, 3], [3, 2], [3, 3]],
 ];
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
+
+function fillGrid(
+  grid: string[][],
+  letterCount: Record<string, number>,
+  size: number
+): void {
+  const canPlace = (l: string) => (letterCount[l] || 0) < 2;
+
+  // Ensure each quadrant has at least one vowel
+  for (const quad of QUADRANTS) {
+    const hasVowel = quad.some(([r, c]) => VOWELS.has(grid[r][c]));
+    if (!hasVowel) {
+      const emptyCells = shuffle(quad.filter(([r, c]) => grid[r][c] === ''));
+      if (emptyCells.length > 0) {
+        const vowel = pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
+        if (vowel) {
+          const [r, c] = emptyCells[0];
+          grid[r][c] = vowel;
+          letterCount[vowel] = (letterCount[vowel] || 0) + 1;
+        }
+      }
+    }
   }
-  return a;
+
+  // Fill all remaining empty cells
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (grid[r][c] !== '') continue;
+
+      const totalPlaced = grid.flat().filter(l => l !== '').length;
+      const vowelCount = grid.flat().filter(l => VOWELS.has(l)).length;
+      const vowelRatio = totalPlaced > 0 ? vowelCount / totalPlaced : 0;
+
+      let letter: string | null;
+      if (vowelRatio < 0.3) {
+        letter = pickWeightedAvailable(VOWEL_WEIGHTS, canPlace)
+          ?? pickWeightedAvailable(CONSONANT_WEIGHTS, canPlace);
+      } else {
+        letter = pickWeightedAvailable(CONSONANT_WEIGHTS, canPlace)
+          ?? pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
+      }
+
+      const placed = letter ?? 'E';
+      grid[r][c] = placed;
+      letterCount[placed] = (letterCount[placed] || 0) + 1;
+    }
+  }
 }
+
+// Build one candidate grid
 
 function buildCandidateGrid(size: number): string[][] {
   const grid: string[][] = Array.from({ length: size }, () =>
     Array(size).fill('')
   );
   const letterCount: Record<string, number> = {};
-  const placed = new Set<string>();
 
-  const inc = (l: string) => {
-    letterCount[l] = (letterCount[l] || 0) + 1;
-  };
-  const canPlace = (l: string) => (letterCount[l] || 0) < 2;
+  const [seed1, seed2] = shuffle(SEED_POOL).slice(0, 2);
 
-  // Step 1: one vowel per quadrant
-  for (const quad of QUADRANTS) {
-    const cells = shuffle(quad);
-    let vowel = pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
-    if (!vowel) vowel = 'E';
-    const [r, c] = cells[0];
-    grid[r][c] = vowel;
-    inc(vowel);
-    placed.add(`${r},${c}`);
+  const path1 = placeWord(seed1, grid);
+  if (path1) {
+    commitPath(seed1, path1, grid, letterCount);
+    const anchor = new Set(path1.map(([r, c]) => `${r},${c}`));
+    const path2 = placeWordNearAnchor(seed2, grid, anchor);
+    if (path2) commitPath(seed2, path2, grid, letterCount);
   }
 
-  // Step 2: 1-2 extra vowels scattered in remaining cells
-  const extraCount = Math.random() < 0.5 ? 1 : 2;
-  const emptyCells = shuffle(
-    Array.from({ length: size }, (_, r) =>
-      Array.from({ length: size }, (_, c) => [r, c] as [number, number])
-    ).flat().filter(([r, c]) => !placed.has(`${r},${c}`))
-  );
-
-  let added = 0;
-  for (const [r, c] of emptyCells) {
-    if (added >= extraCount) break;
-    const vowel = pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
-    if (!vowel) break;
-    grid[r][c] = vowel;
-    inc(vowel);
-    placed.add(`${r},${c}`);
-    added++;
-  }
-
-  // Step 3: fill remaining with consonants (cap at 2 each)
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (grid[r][c]) continue;
-      const letter = pickWeightedAvailable(CONSONANT_WEIGHTS, canPlace) ?? 'R';
-      grid[r][c] = letter;
-      inc(letter);
-    }
-  }
-
+  fillGrid(grid, letterCount, size);
   return grid;
 }
 
-// --- Public API -------------------------------------------------------------
+// Public API
 
 const MIN_WORDS = 10;
 const MAX_RETRIES = 30;
