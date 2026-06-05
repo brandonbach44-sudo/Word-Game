@@ -1,20 +1,20 @@
 // src/wordgrid/utils/gridGenerator.ts
 //
 // Approach:
-//   1. Build a trie from the wordlist once at module load (fast prefix pruning).
+//   1. Build a trie from commonWords (~4,700 everyday words) once at module load.
+//      Using commonWords instead of the full 80k dictionary means the MIN_WORDS
+//      threshold is met by words players will actually recognise, not obscure ones.
 //   2. Generate a candidate grid with hard constraints:
-//        - Exactly one vowel placed in each 2×2 quadrant (spread guarantee).
-//        - 1–2 extra vowels added at random, for 5–6 total.
+//        - Exactly one vowel placed in each 2x2 quadrant (spread guarantee).
+//        - 1-2 extra vowels added at random, for 5-6 total.
 //        - No letter appears more than twice (kills "4 I in a row" bug).
-//        - Q, X, Z, J are banned (near-impossible to use in a 4×4 grid).
-//   3. Count valid findable words via DFS + trie on the candidate grid.
+//        - Q, X, Z, J are banned (near-impossible to use in a 4x4 grid).
+//   3. Count recognisable findable words via DFS + trie on the candidate grid.
 //   4. If count < MIN_WORDS, retry up to MAX_RETRIES, keeping the best grid found.
-//
-// Result: every grid is guaranteed to be playable with at least MIN_WORDS words.
 
-import wordList from '../data/wordlist';
+import commonWords from '../data/commonWords';
 
-// ─── Trie ─────────────────────────────────────────────────────────────────────
+// --- Trie -------------------------------------------------------------------
 
 interface TrieNode {
   children: { [letter: string]: TrieNode };
@@ -27,9 +27,9 @@ function newNode(): TrieNode {
 
 function buildTrie(): TrieNode {
   const root = newNode();
-  for (const word of wordList) {
+  for (const word of commonWords) {
     const len = word.length;
-    if (len < 3 || len > 8) continue;
+    if (len < 3 || len > 7) continue;
     let node = root;
     for (let i = 0; i < len; i++) {
       const ch = word[i].toUpperCase();
@@ -41,10 +41,10 @@ function buildTrie(): TrieNode {
   return root;
 }
 
-// Built once when the module is first imported — not per game.
+// Built once when the module is first imported.
 const TRIE = buildTrie();
 
-// ─── Letter weights ───────────────────────────────────────────────────────────
+// --- Letter weights ---------------------------------------------------------
 // Q, X, Z, J excluded — they are dead weight in a small grid.
 
 const VOWEL_WEIGHTS: Record<string, number> = {
@@ -76,9 +76,8 @@ function pickWeighted(weights: Record<string, number>): string {
 
 function pickWeightedAvailable(
   weights: Record<string, number>,
-  canPlace: (l: string) => boolean,
+  canPlace: (l: string) => boolean
 ): string | null {
-  // Build a filtered weight table and pick from it.
   const filtered: Record<string, number> = {};
   for (const [k, v] of Object.entries(weights)) {
     if (canPlace(k)) filtered[k] = v;
@@ -87,7 +86,7 @@ function pickWeightedAvailable(
   return pickWeighted(filtered);
 }
 
-// ─── Word counter ─────────────────────────────────────────────────────────────
+// --- Word counter -----------------------------------------------------------
 
 function countValidWords(grid: string[][]): number {
   const size = grid.length;
@@ -103,7 +102,7 @@ function countValidWords(grid: string[][]): number {
 
     const newWord = word + letter;
     if (next.isEnd && newWord.length >= 3) found.add(newWord);
-    if (newWord.length >= 8) return;
+    if (newWord.length >= 7) return;
 
     visited[r][c] = true;
     for (let dr = -1; dr <= 1; dr++) {
@@ -127,9 +126,9 @@ function countValidWords(grid: string[][]): number {
   return found.size;
 }
 
-// ─── Constrained candidate grid ───────────────────────────────────────────────
+// --- Constrained candidate grid ---------------------------------------------
 
-// The four 2×2 quadrants of a 4×4 grid.
+// The four 2x2 quadrants of a 4x4 grid.
 const QUADRANTS: [number, number][][] = [
   [[0, 0], [0, 1], [1, 0], [1, 1]],
   [[0, 2], [0, 3], [1, 2], [1, 3]],
@@ -158,18 +157,18 @@ function buildCandidateGrid(size: number): string[][] {
   };
   const canPlace = (l: string) => (letterCount[l] || 0) < 2;
 
-  // ── Step 1: one vowel per quadrant ──────────────────────────────────────────
+  // Step 1: one vowel per quadrant
   for (const quad of QUADRANTS) {
     const cells = shuffle(quad);
     let vowel = pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
-    if (!vowel) vowel = 'E'; // absolute fallback
+    if (!vowel) vowel = 'E';
     const [r, c] = cells[0];
     grid[r][c] = vowel;
     inc(vowel);
     placed.add(`${r},${c}`);
   }
 
-  // ── Step 2: 1–2 extra vowels scattered in remaining cells ──────────────────
+  // Step 2: 1-2 extra vowels scattered in remaining cells
   const extraCount = Math.random() < 0.5 ? 1 : 2;
   const emptyCells = shuffle(
     Array.from({ length: size }, (_, r) =>
@@ -188,7 +187,7 @@ function buildCandidateGrid(size: number): string[][] {
     added++;
   }
 
-  // ── Step 3: fill remaining with consonants ──────────────────────────────────
+  // Step 3: fill remaining with consonants (cap at 2 each)
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
       if (grid[r][c]) continue;
@@ -201,7 +200,7 @@ function buildCandidateGrid(size: number): string[][] {
   return grid;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// --- Public API -------------------------------------------------------------
 
 const MIN_WORDS = 10;
 const MAX_RETRIES = 30;
