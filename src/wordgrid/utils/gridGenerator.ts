@@ -8,11 +8,10 @@
 //      - Vowel spread: at least one vowel per 2x2 quadrant.
 //      - No letter appears more than twice.
 //      - Q, X, Z, J banned.
-//   3. Count recognisable findable words via DFS + trie (common word list).
-//   4. If count < MIN_WORDS, retry up to MAX_RETRIES keeping the best grid.
+//   3. Score the grid by word diversity: short (3-4), medium (5), long (6-7).
+//   4. Retry up to MAX_RETRIES keeping the highest-scoring candidate.
 //
-// Result: every grid is guaranteed to contain real recognisable words,
-// with two known words baked in before any random filling occurs.
+// Every grid is guaranteed to contain real recognisable words across all lengths.
 
 import commonWords from '../data/commonWords';
 
@@ -114,8 +113,6 @@ function neighbors(r: number, c: number, size: number): [number, number][] {
 
 // Word placement
 
-// Recursively find a valid adjacency path for `word` starting at (r, c).
-// A cell is compatible if it is empty OR already holds the matching letter.
 function findPath(
   word: string,
   idx: number,
@@ -146,11 +143,7 @@ function findPath(
   return null;
 }
 
-// Try to place `word` anywhere on the grid. Returns the path used, or null.
-function placeWord(
-  word: string,
-  grid: string[][]
-): [number, number][] | null {
+function placeWord(word: string, grid: string[][]): [number, number][] | null {
   const size = grid.length;
   const starts = shuffle(
     Array.from({ length: size }, (_, r) =>
@@ -164,7 +157,6 @@ function placeWord(
   return null;
 }
 
-// Try to place `word` so that it shares at least one cell with `anchorCells`.
 function placeWordNearAnchor(
   word: string,
   grid: string[][],
@@ -191,11 +183,9 @@ function placeWordNearAnchor(
     }
   }
 
-  // Fallback: place anywhere
   return placeWord(word, grid);
 }
 
-// Write a word along its path into the grid and update letterCount.
 function commitPath(
   word: string,
   path: [number, number][],
@@ -212,9 +202,21 @@ function commitPath(
   }
 }
 
-// Word counter
+// Word counter + diversity scorer
 
-function countValidWords(grid: string[][]): number {
+interface GridScore {
+  total: number;   // total recognisable words found
+  short: number;   // 3-4 letter words (easy wins)
+  medium: number;  // 5 letter words (satisfying finds)
+  long: number;    // 6-7 letter words (big payoff moments)
+  score: number;   // composite score used for ranking candidates
+}
+
+const MIN_TOTAL  = 10;
+const MIN_SHORT  = 3;
+const MIN_MEDIUM = 2;
+
+function scoreGrid(grid: string[][]): GridScore {
   const size = grid.length;
   const found = new Set<string>();
   const visited: boolean[][] = Array.from({ length: size }, () =>
@@ -248,7 +250,26 @@ function countValidWords(grid: string[][]): number {
       dfs(r, c, TRIE, '');
     }
   }
-  return found.size;
+
+  const words = [...found];
+  const short  = words.filter(w => w.length <= 4).length;
+  const medium = words.filter(w => w.length === 5).length;
+  const long   = words.filter(w => w.length >= 6).length;
+  const total  = words.length;
+
+  // Composite score: weight each tier, cap contributions to avoid outliers.
+  // A grid with variety scores higher than one with 20 short words and nothing longer.
+  const score =
+    Math.min(short,  8) * 2 +   // short:  easy to find, cap at 8
+    Math.min(medium, 6) * 4 +   // medium: more satisfying
+    Math.min(long,   3) * 8 +   // long:   most rewarding, cap at 3
+    total;                       // raw count as tiebreaker
+
+  return { total, short, medium, long, score };
+}
+
+function meetsMinimums(s: GridScore): boolean {
+  return s.total >= MIN_TOTAL && s.short >= MIN_SHORT && s.medium >= MIN_MEDIUM;
 }
 
 // Fill remaining cells
@@ -334,19 +355,21 @@ function buildCandidateGrid(size: number): string[][] {
 
 // Public API
 
-const MIN_WORDS = 10;
 const MAX_RETRIES = 30;
 
 export function generateGrid(size: number = 4): string[][] {
   let bestGrid = buildCandidateGrid(size);
-  let bestCount = countValidWords(bestGrid);
+  let bestScore = scoreGrid(bestGrid);
 
-  for (let attempt = 0; attempt < MAX_RETRIES && bestCount < MIN_WORDS; attempt++) {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Stop early once we have a genuinely diverse, playable grid
+    if (meetsMinimums(bestScore)) break;
+
     const candidate = buildCandidateGrid(size);
-    const count = countValidWords(candidate);
-    if (count > bestCount) {
+    const s = scoreGrid(candidate);
+    if (s.score > bestScore.score) {
       bestGrid = candidate;
-      bestCount = count;
+      bestScore = s;
     }
   }
 
