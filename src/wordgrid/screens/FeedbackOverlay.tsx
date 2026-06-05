@@ -1,7 +1,7 @@
 // src/wordgrid/screens/FeedbackOverlay.tsx
 import React, { useEffect } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 type FeedbackProps = {
   points: number;
@@ -17,7 +17,9 @@ export function FeedbackOverlay({ points, success, onComplete }: FeedbackProps) 
     // Animate popup
     opacity.value = withSequence(
       withTiming(1, { duration: 200 }),
-      withTiming(0, { duration: 800 }, () => onComplete())
+      withTiming(0, { duration: 800 }, (finished) => {
+        if (finished) runOnJS(onComplete)();
+      })
     );
     translateY.value = withTiming(-40, { duration: 1000 });
   }, []);

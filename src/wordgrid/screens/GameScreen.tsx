@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   inGameStatLabel: { fontSize: 11, marginBottom: 2 },
   inGameStatValue: { fontSize: 20, fontWeight: 'bold' },
 
-  gridWrapper: { alignItems: 'center', position: 'relative', flex: 1, justifyContent: 'flex-end' },
+  gridWrapper: { alignItems: 'center', position: 'relative', flex: 1, justifyContent: 'center' },
 
   wordListContainer: {
     height: 90,
