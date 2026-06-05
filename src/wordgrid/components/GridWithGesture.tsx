@@ -11,6 +11,21 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48 - GRID_PADDING * 2 - CELL_GAP * (GRID_SIZE - 1)) / GRID_SIZE);
 const GRID_DIM = GRID_SIZE * CELL_SIZE + CELL_GAP * (GRID_SIZE - 1);
 
+// Serif "I" — renders with top and bottom horizontal bars so it's
+// clearly distinguishable from lowercase "l"
+function SerifI({ color }: { color: string }) {
+  const barW = 18;
+  const stemW = 4;
+  const stemH = 16;
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: barW, height: stemW, backgroundColor: color, borderRadius: 1 }} />
+      <View style={{ width: stemW, height: stemH, backgroundColor: color }} />
+      <View style={{ width: barW, height: stemW, backgroundColor: color, borderRadius: 1 }} />
+    </View>
+  );
+}
+
 // Center pixel of a cell (relative to the inner gesture area, offset by padding)
 function cellCenter(pos: Position) {
   return {
@@ -137,9 +152,13 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                           <Text style={styles.indexText}>{selIndex + 1}</Text>
                         </View>
                       )}
-                      <Text style={[styles.letter, isSelected && styles.selectedLetter]}>
-                        {letter}
-                      </Text>
+                      {letter === 'I' ? (
+                        <SerifI color={isSelected ? '#fff' : '#3d2e1c'} />
+                      ) : (
+                        <Text style={[styles.letter, isSelected && styles.selectedLetter]}>
+                          {letter}
+                        </Text>
+                      )}
                     </View>
                   );
                 })}
