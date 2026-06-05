@@ -68,7 +68,7 @@ export function FallingLetters() {
     id: i,
     letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
     startX: Math.random() * (SCREEN_WIDTH - 60),
-    delay: Math.random() * 12000,
+    delay: Math.random() * 2000,
     duration: 12000 + Math.random() * 8000,
     size: 40 + Math.random() * 20,
   }));
