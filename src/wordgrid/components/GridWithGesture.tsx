@@ -30,17 +30,32 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const pathRef = useRef<Position[]>([]);
 
+  // Nearest-cell-center approach: snaps to whichever cell center is closest,
+  // as long as the finger is within a reasonable radius. This fixes:
+  //  • First-letter misses (strict boundary rejection no longer blocks onStart)
+  //  • Diagonal tracking (no gap-zone null returns mid-swipe)
+  //  • Side-letter false positives (threshold prevents jumping to far cells)
   const getCellFromCoords = useCallback((x: number, y: number): Position | null => {
-    // Account for grid padding offset
-    const lx = x - GRID_PADDING;
-    const ly = y - GRID_PADDING;
     const cellStep = CELL_SIZE + CELL_GAP;
-    const col = Math.floor(lx / cellStep);
-    const row = Math.floor(ly / cellStep);
-    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null;
-    // Check we're not in the gap zone
-    if (lx % cellStep > CELL_SIZE || ly % cellStep > CELL_SIZE) return null;
-    return { row, col };
+    let bestDist = Infinity;
+    let bestCell: Position | null = null;
+
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const cx = GRID_PADDING + col * cellStep + CELL_SIZE / 2;
+        const cy = GRID_PADDING + row * cellStep + CELL_SIZE / 2;
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestCell = { row, col };
+        }
+      }
+    }
+
+    // Only snap if within ~60% of half-cell-step — tight enough to avoid
+    // accidentally grabbing adjacent cells, loose enough for natural diagonals
+    const threshold = cellStep * 0.6;
+    return bestDist <= threshold ? bestCell : null;
   }, []);
 
   const panGesture = Gesture.Pan()
@@ -191,13 +206,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f0e6',
     borderRadius: 10,
+    // Subtle 3D shadow (bottom-weighted)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.13,
+    shadowRadius: 4,
+    elevation: 4,
   },
   selectedCell: {
     backgroundColor: '#4ecca3',
     borderColor: '#3db892',
   },
   letter: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#3d2e1c',
   },
