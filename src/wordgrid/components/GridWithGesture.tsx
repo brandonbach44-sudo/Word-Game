@@ -76,6 +76,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
+    .minDistance(0)
     .onStart((e) => {
       const cell = getCellFromCoords(e.x, e.y);
       const next = cell ? [cell] : [];

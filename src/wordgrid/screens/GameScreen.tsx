@@ -2,19 +2,22 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Dimensions,
   FlatList,
-  Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Trophy } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../wordbuilder/components/AchievementPopup';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
@@ -33,47 +36,44 @@ import {
   type Achievement,
 } from '../utils/achievements';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const { width } = Dimensions.get('window');
 
-type Screen = 'menu' | 'game';
+type Screen = 'menu' | 'game' | 'results';
 type MenuTab = 'play' | 'stats';
+type ResultsPage = 'results' | 'words';
 
-const ROUND_DURATION = 90;
+const ROUND_DURATION = 60;
 
 type Feedback = { points: number; success: boolean; key: number };
 
-// ─── Shared stat box ──────────────────────────────────────────────────────────
+// ─── Stats Card (matches WordBuilder) ────────────────────────────────────────
 
-function StatBox({
+const StatsCard = ({
   label,
   value,
+  wide = false,
   textColor,
   secondaryText,
   cardColor,
   borderColor,
-  wide = false,
 }: {
   label: string;
-  value: string | number;
+  value: string;
+  wide?: boolean;
   textColor: string;
   secondaryText: string;
   cardColor: string;
   borderColor: string;
-  wide?: boolean;
-}) {
-  return (
-    <View
-      style={[
-        styles.statBox,
-        wide && styles.statBoxWide,
-        { backgroundColor: cardColor, borderColor },
-      ]}
-    >
-      <Text style={[styles.statBoxValue, { color: textColor }]}>{value}</Text>
-      <Text style={[styles.statBoxLabel, { color: secondaryText }]}>{label}</Text>
-    </View>
-  );
-}
+}) => (
+  <View style={[
+    styles.statsCard,
+    wide && styles.statsCardWide,
+    { backgroundColor: cardColor, borderColor },
+  ]}>
+    <Text style={[styles.statsValue, { color: textColor }]}>{value}</Text>
+    <Text style={[styles.statsLabel, { color: secondaryText }]}>{label}</Text>
+  </View>
+);
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -84,6 +84,59 @@ export default function GameScreen() {
   // ── Screen / tab state ────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('menu');
   const [menuTab, setMenuTab] = useState<MenuTab>('play');
+  const [resultsPage, setResultsPage] = useState<ResultsPage>('results');
+  const resultsScrollRef = useRef<ScrollView>(null);
+
+  // Tab swipe animation (2 tabs: play, stats)
+  const TABS: MenuTab[] = ['play', 'stats'];
+  const tabAnim = useRef(new Animated.Value(0)).current;
+  const currentTabIdxRef = useRef(0);
+  const dragBase = useRef(0);
+
+  useEffect(() => {
+    currentTabIdxRef.current = TABS.indexOf(menuTab);
+  }, [menuTab]);
+
+  const switchToTab = useCallback((tab: MenuTab) => {
+    const newIdx = TABS.indexOf(tab);
+    setMenuTab(tab);
+    Animated.spring(tabAnim, {
+      toValue: newIdx,
+      useNativeDriver: true,
+      tension: 70,
+      friction: 12,
+    }).start();
+  }, []);
+
+  const menuPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+      onPanResponderGrant: () => {
+        tabAnim.stopAnimation();
+        dragBase.current = currentTabIdxRef.current;
+      },
+      onPanResponderMove: (_, gs) => {
+        const raw = dragBase.current - gs.dx / width;
+        tabAnim.setValue(Math.max(0, Math.min(TABS.length - 1, raw)));
+      },
+      onPanResponderRelease: (_, gs) => {
+        const base = dragBase.current;
+        let newIdx = Math.round(base);
+        if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, TABS.length - 1);
+        else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
+        currentTabIdxRef.current = newIdx;
+        setMenuTab(TABS[newIdx]);
+        Animated.spring(tabAnim, {
+          toValue: newIdx,
+          useNativeDriver: true,
+          tension: 70,
+          friction: 12,
+        }).start();
+      },
+    })
+  ).current;
 
   // ── Stats & achievements ──────────────────────────────────────────────────
   const [stats, setStats] = useState<WordGridStats | null>(null);
@@ -98,7 +151,6 @@ export default function GameScreen() {
     getUnlockedAchievements().then(setUnlockedAchievements);
   }, []);
 
-  // Pop achievement queue one at a time
   useEffect(() => {
     if (!currentAchievement && pendingAchievements.length > 0) {
       const [next, ...rest] = pendingAchievements;
@@ -106,11 +158,6 @@ export default function GameScreen() {
       setPendingAchievements(rest);
     }
   }, [currentAchievement, pendingAchievements]);
-
-  // ── Tab switching ─────────────────────────────────────────────────────────
-  const switchToTab = useCallback((tab: MenuTab) => {
-    setMenuTab(tab);
-  }, []);
 
   // ── Game state ────────────────────────────────────────────────────────────
   const [grid, setGrid] = useState<string[][]>(() => generateGrid(4));
@@ -173,7 +220,7 @@ export default function GameScreen() {
     setFeedbacks((prev) => prev.filter((f) => f.key !== key));
   }, []);
 
-  // Save stats + check achievements when game ends
+  // Save stats + check achievements when game ends, then go to results screen
   useEffect(() => {
     if (!gameOver) return;
     (async () => {
@@ -192,6 +239,9 @@ export default function GameScreen() {
         setPendingAchievements((prev) => [...prev, ...newly]);
         getUnlockedAchievements().then(setUnlockedAchievements);
       }
+
+      setResultsPage('results');
+      setScreen('results');
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameOver]);
@@ -218,28 +268,170 @@ export default function GameScreen() {
     setTimeLeft(ROUND_DURATION);
     setGameOver(false);
     setFeedbacks([]);
+    setResultsPage('results');
+    setScreen('game');
     setTimeout(startTimer, 100);
   }, [startTimer]);
 
   const handleBackToMenu = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setGameOver(false);
+    setResultsPage('results');
     setScreen('menu');
     switchToTab('play');
   }, [switchToTab]);
 
-  const timerColor =
-    timeLeft > 30 ? '#4ecca3' : timeLeft > 10 ? '#f59e0b' : '#e94560';
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
-  // Achievements split for display
-  const { unlockedSet, lockedAchievements } = useMemo(() => {
+  const timerColor =
+    timeLeft > 30 ? bg.textColor : timeLeft > 10 ? '#f59e0b' : COLORS.danger;
+
+  const { lockedAchievements } = useMemo(() => {
     const unlockedSet = new Set(unlockedAchievements.map((a) => a.id));
     const lockedAchievements = ACHIEVEMENTS.filter((a) => !unlockedSet.has(a.id));
     return { unlockedSet, lockedAchievements };
   }, [unlockedAchievements]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // GAME SCREEN
+  // RESULTS SCREEN — swipeable carousel like WordBuilder
+  // ─────────────────────────────────────────────────────────────────────────
+  if (screen === 'results') {
+    const bestLen = foundWords.length > 0
+      ? foundWords.reduce((max, w) => w.word.length > max ? w.word.length : max, 0)
+      : 0;
+    const bestPts = foundWords.length > 0
+      ? foundWords.reduce((max, w) => w.points > max ? w.points : max, 0)
+      : 0;
+
+    const handleResultsScroll = (event: any) => {
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const page = Math.round(offsetX / width);
+      setResultsPage(page === 0 ? 'results' : 'words');
+    };
+
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
+        <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
+
+        <AchievementPopup
+          achievement={currentAchievement}
+          onDismiss={() => setCurrentAchievement(null)}
+          backgroundColor={bg.cardColor}
+          textColor={bg.textColor}
+        />
+
+        {/* Horizontal swipe carousel */}
+        <ScrollView
+          ref={resultsScrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleResultsScroll}
+          style={{ flex: 1 }}
+        >
+          {/* ── PAGE 1: RESULTS ── */}
+          <View style={[styles.carouselPage, { width }]}>
+            <ScrollView
+              contentContainerStyle={styles.resultsPageContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
+
+              <Text style={[styles.finalScore, { color: COLORS.accent }]}>{score}</Text>
+              <Text style={[styles.finalScoreLabel, { color: bg.secondaryText }]}>points</Text>
+
+              <View style={[styles.statsSummary, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{foundWords.length}</Text>
+                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Words</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: bg.borderColor }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{bestLen}</Text>
+                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Best Length</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: bg.borderColor }]} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{bestPts}</Text>
+                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Best Word</Text>
+                </View>
+              </View>
+
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.playAgainButton} onPress={handlePlayAgain}>
+                  <Text style={styles.playAgainText}>Play Again</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuButton, { backgroundColor: bg.backgroundColor, borderColor: bg.borderColor }]}
+                  onPress={handleBackToMenu}
+                >
+                  <Text style={[styles.menuButtonText, { color: bg.textColor }]}>Back to Menu</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* ── PAGE 2: WORDS FOUND ── */}
+          <View style={[styles.carouselPage, { width }]}>
+            <Text style={[styles.wordsPageTitle, { color: bg.textColor }]}>Words Found</Text>
+            <Text style={[styles.wordsPageSubtitle, { color: bg.secondaryText }]}>
+              {foundWords.length} word{foundWords.length !== 1 ? 's' : ''}
+            </Text>
+
+            <FlatList
+              data={[...foundWords].sort((a, b) => b.points - a.points)}
+              keyExtractor={(item, i) => `${item.word}-${i}`}
+              style={styles.wordsList}
+              contentContainerStyle={styles.wordsListContent}
+              numColumns={2}
+              renderItem={({ item }) => (
+                <View style={[styles.wordItem, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+                  <Text style={[styles.wordText, { color: bg.textColor }]}>{item.word}</Text>
+                  <Text style={[styles.wordScore, { color: bg.secondaryText }]}>{item.points} pts</Text>
+                </View>
+              )}
+              ListEmptyComponent={
+                <Text style={[styles.noWordsText, { color: bg.secondaryText }]}>No words found this round</Text>
+              }
+            />
+
+            <TouchableOpacity
+              style={[styles.menuButton, styles.wordsPageButton, { backgroundColor: bg.backgroundColor, borderColor: bg.borderColor }]}
+              onPress={handleBackToMenu}
+            >
+              <Text style={[styles.menuButtonText, { color: bg.textColor }]}>Back to Menu</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        {/* Page indicator */}
+        <View style={styles.pageIndicatorContainer}>
+          <View style={styles.pageIndicatorLabels}>
+            <Text style={[styles.pageIndicatorLabel, { color: resultsPage === 'results' ? bg.textColor : bg.secondaryText }]}>
+              Results
+            </Text>
+            <Text style={[styles.pageIndicatorLabel, { color: resultsPage === 'words' ? bg.textColor : bg.secondaryText }]}>
+              Words Found
+            </Text>
+          </View>
+          <View style={styles.pageIndicator}>
+            <View style={[styles.pageDot, resultsPage === 'results' && styles.pageDotActive]} />
+            <View style={[styles.pageDot, resultsPage === 'words' && styles.pageDotActive]} />
+          </View>
+          {resultsPage === 'results' && (
+            <Text style={[styles.swipeHintText, { color: bg.secondaryText }]}>Swipe to see words →</Text>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GAME SCREEN — matches WordBuilder layout
   // ─────────────────────────────────────────────────────────────────────────
   if (screen === 'game') {
     return (
@@ -253,29 +445,21 @@ export default function GameScreen() {
           textColor={bg.textColor}
         />
 
-        <View style={styles.header}>
-          <Pressable onPress={handleBackToMenu} style={styles.backBtn}>
-            <Text style={[styles.backText, { color: bg.textColor }]}>← Back</Text>
-          </Pressable>
-          <Text style={[styles.title, { color: bg.textColor }]}>Word Grid</Text>
-          <View style={styles.headerRight} />
+        {/* Header: Back | Timer | Score */}
+        <View style={styles.gameHeader}>
+          <TouchableOpacity onPress={handleBackToMenu}>
+            <Text style={[styles.backText, { color: bg.secondaryText }]}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.timerText, { color: timerColor }, timeLeft <= 10 && styles.timerWarning]}>
+            {formatTime(timeLeft)}
+          </Text>
+          <Text style={[styles.scoreText, { color: COLORS.accent }]}>{score} pts</Text>
         </View>
 
-        <View style={styles.inGameStatsRow}>
-          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Score</Text>
-            <Text style={[styles.inGameStatValue, { color: bg.textColor }]}>{score}</Text>
-          </View>
-          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Time</Text>
-            <Text style={[styles.inGameStatValue, { color: timerColor }]}>{timeLeft}s</Text>
-          </View>
-          <View style={[styles.inGameStat, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-            <Text style={[styles.inGameStatLabel, { color: bg.secondaryText }]}>Words</Text>
-            <Text style={[styles.inGameStatValue, { color: bg.textColor }]}>{foundWords.length}</Text>
-          </View>
-        </View>
+        {/* Spacer pushes grid toward middle/bottom for thumb reach */}
+        <View style={{ flex: 1 }} />
 
+        {/* Grid */}
         <View style={styles.gridWrapper}>
           <GridWithGesture
             grid={grid}
@@ -292,61 +476,21 @@ export default function GameScreen() {
           ))}
         </View>
 
-        <View style={[styles.wordListContainer, { borderColor: bg.borderColor }]}>
-          <Text style={[styles.wordListTitle, { color: bg.secondaryText }]}>Words Found</Text>
-          <FlatList
-            data={foundWords}
-            keyExtractor={(item, index) => `${item.word}-${index}`}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <View style={[styles.wordChip, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-                <Text style={[styles.wordChipText, { color: bg.textColor }]}>{item.word}</Text>
-                <Text style={[styles.wordChipPoints, { color: '#4ecca3' }]}>+{item.points}</Text>
-              </View>
-            )}
-            ListEmptyComponent={
-              <Text style={[styles.emptyWords, { color: bg.secondaryText }]}>
-                Swipe to connect letters!
-              </Text>
-            }
-          />
-        </View>
+        <View style={{ flex: 1 }} />
 
-        <Modal visible={gameOver} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalCard, { backgroundColor: bg.cardColor }]}>
-              <Text style={[styles.modalTitle, { color: bg.textColor }]}>Time's Up!</Text>
-              <Text style={[styles.modalScore, { color: '#4ecca3' }]}>{score} pts</Text>
-              <Text style={[styles.modalSub, { color: bg.secondaryText }]}>
-                {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} found
-              </Text>
-              {stats && score > 0 && score >= stats.highScore && (
-                <Text style={styles.newHighScore}>🏆 New High Score!</Text>
-              )}
-              {foundWords.length > 0 && (
-                <View style={styles.modalWordList}>
-                  {foundWords.slice(0, 8).map((w, i) => (
-                    <Text key={i} style={[styles.modalWord, { color: bg.textColor }]}>
-                      {w.word} (+{w.points})
-                    </Text>
-                  ))}
-                  {foundWords.length > 8 && (
-                    <Text style={[styles.modalMore, { color: bg.secondaryText }]}>
-                      +{foundWords.length - 8} more
-                    </Text>
-                  )}
-                </View>
-              )}
-              <Pressable style={styles.playAgainBtn} onPress={handlePlayAgain}>
-                <Text style={styles.playAgainText}>Play Again</Text>
-              </Pressable>
-              <Pressable onPress={handleBackToMenu} style={styles.homeBtn}>
-                <Text style={[styles.homeBtnText, { color: bg.secondaryText }]}>Back to Menu</Text>
-              </Pressable>
-            </View>
+        {/* Found words — same badge style as WordBuilder */}
+        <View style={styles.foundWordsSection}>
+          <Text style={[styles.foundWordsTitle, { color: bg.secondaryText }]}>
+            Found: {foundWords.length}
+          </Text>
+          <View style={styles.foundWordsWrap}>
+            {foundWords.slice(0, 24).map((item, index) => (
+              <View key={index} style={styles.foundWordBadge}>
+                <Text style={styles.foundWordText}>{item.word.toUpperCase()}</Text>
+              </View>
+            ))}
           </View>
-        </Modal>
+        </View>
       </SafeAreaView>
     );
   }
@@ -365,18 +509,19 @@ export default function GameScreen() {
         textColor={bg.textColor}
       />
 
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={[styles.backText, { color: bg.textColor }]}>← Back</Text>
-        </Pressable>
-        <Text style={[styles.title, { color: bg.textColor }]}>Word Grid</Text>
-        <View style={styles.headerRight} />
+      {/* Header */}
+      <View style={styles.appHeader}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={[styles.backText, { color: bg.secondaryText }]}>← Games</Text>
+        </TouchableOpacity>
+        <Text style={[styles.appTitle, { color: bg.textColor }]}>Word Grid</Text>
+        <View style={{ width: 70 }} />
       </View>
 
-      {/* Pill segment switcher */}
+      {/* Segment Switcher pill (matches WordBuilder) */}
       <View style={[styles.segmentSwitcher, { backgroundColor: bg.cardColor }]}>
-        {(['play', 'stats'] as MenuTab[]).map((tab) => {
-          const isActive = menuTab === tab;
+        {TABS.map((tab) => {
+          const isActive = tab === menuTab;
           return (
             <Pressable
               key={tab}
@@ -395,124 +540,130 @@ export default function GameScreen() {
         })}
       </View>
 
-      {menuTab === 'play' ? (
-        /* ─── PLAY TAB ─── */
-        <ScrollView
-          style={styles.playScrollView}
-          contentContainerStyle={styles.playContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Daily Challenge card */}
-          <View style={[styles.dailyCard, { backgroundColor: bg.cardColor, borderColor: '#4ecca3' }]}>
-            <View style={styles.dailyCardLeft}>
-              <Text style={[styles.dailyCardTitle, { color: bg.textColor }]}>📅 Daily Challenge</Text>
-              <Text style={[styles.dailyCardDesc, { color: bg.secondaryText }]}>
-                A new grid every day — same puzzle for everyone!
-              </Text>
-            </View>
-            <Pressable style={styles.dailyPlayBtn} onPress={startGame}>
-              <Text style={styles.dailyPlayBtnText}>Play</Text>
-            </Pressable>
-          </View>
+      {/* Swipeable tab strip */}
+      <View style={styles.tabStripWrapper} {...menuPanResponder.panHandlers}>
+        <Animated.View style={[
+          styles.tabStrip,
+          {
+            transform: [{
+              translateX: tabAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -width],
+              }),
+            }],
+          },
+        ]}>
 
-          {/* Play card */}
-          <Pressable
-            style={[styles.gameModeCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
-            onPress={startGame}
+          {/* ── PLAY TAB ── */}
+          <ScrollView
+            style={{ width, flex: 1 }}
+            contentContainerStyle={styles.playContainer}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.gameModeTitle, { color: bg.textColor }]}>Quick Play</Text>
-            <Text style={[styles.gameModeDesc, { color: bg.secondaryText }]}>
-              90 seconds — find as many words as you can in the 4×4 grid
-            </Text>
-          </Pressable>
+            {/* Quick Play card — styled exactly like WB mode cards */}
+            <TouchableOpacity
+              style={[styles.modeCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor, borderWidth: 2 }]}
+              onPress={startGame}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.modeCardTitle, { color: bg.textColor }]}>Quick Play</Text>
+              <Text style={[styles.modeCardSubtitle, { color: bg.secondaryText }]}>1 minute · 4×4 letter grid</Text>
+            </TouchableOpacity>
 
-          {/* How to Play */}
-          <View style={[styles.rulesCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-            <Text style={[styles.rulesTitle, { color: bg.textColor }]}>How to Play</Text>
-            {[
-              'Swipe across adjacent letters to form a word',
-              'Letters must connect — horizontally, vertically, or diagonally',
-              'Each letter can only be used once per word',
-              'Words must be 3 or more letters long',
-              'Score big with long words and rare letters (Q, Z, J, X)',
-            ].map((rule, i) => (
-              <View key={i} style={styles.ruleItem}>
-                <Text style={[styles.ruleNumber, { color: '#4ecca3' }]}>{i + 1}</Text>
-                <Text style={[styles.ruleText, { color: bg.secondaryText }]}>{rule}</Text>
-              </View>
-            ))}
-          </View>
+            {/* How to Play */}
+            <View style={[styles.rulesCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+              <Text style={[styles.rulesTitle, { color: bg.textColor }]}>How to Play</Text>
+              {[
+                'Swipe across adjacent letters to form a word',
+                'Letters must connect — horizontally, vertically, or diagonally',
+                'Each letter can only be used once per word',
+                'Words must be 3 or more letters long',
+                'Score big with long words and rare letters (Q, Z, J, X)',
+              ].map((rule, i) => (
+                <View key={i} style={styles.ruleItem}>
+                  <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>{i + 1}</Text>
+                  <Text style={[styles.ruleText, { color: bg.secondaryText }]}>{rule}</Text>
+                </View>
+              ))}
+            </View>
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      ) : (
-        /* ─── STATS TAB ─── */
-        <ScrollView
-          contentContainerStyle={styles.statsContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {stats ? (
-            <>
-              <Text style={[styles.sectionTitle, { color: bg.textColor }]}>Statistics</Text>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          {/* ── STATS TAB ── */}
+          <ScrollView
+            style={{ width, flex: 1 }}
+            contentContainerStyle={styles.statsContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={[styles.statsTitle, { color: bg.textColor }]}>Statistics</Text>
+
+            {stats ? (
               <View style={styles.statsGrid}>
-                <StatBox label="Games Played" value={stats.gamesPlayed} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
-                <StatBox label="High Score" value={stats.highScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
-                <StatBox label="Total Words" value={stats.totalWordsFound.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
-                <StatBox label="Best Words/Game" value={stats.bestWordsInGame} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
-                <StatBox label="Lifetime Score" value={stats.totalScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
+                <StatsCard label="Games Played" value={stats.gamesPlayed.toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="High Score" value={stats.highScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Total Words" value={stats.totalWordsFound.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Best Words/Game" value={stats.bestWordsInGame.toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Lifetime Score" value={stats.totalScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
                 {stats.longestWord ? (
-                  <StatBox label="Longest Word" value={stats.longestWord.toUpperCase()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
+                  <StatsCard label="Longest Word" value={stats.longestWord.toUpperCase()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} wide />
                 ) : null}
               </View>
+            ) : (
+              <Text style={[styles.loadingText, { color: bg.secondaryText }]}>Loading stats...</Text>
+            )}
 
-              <View style={styles.achievementsHeader}>
-                <Trophy size={18} color="#4ecca3" />
-                <Text style={[styles.sectionTitle, { color: bg.textColor, marginBottom: 0, marginLeft: 8 }]}>
-                  Achievements
-                </Text>
-                <Text style={[styles.achievementCount, { color: bg.secondaryText }]}>
-                  {unlockedAchievements.length}/{ACHIEVEMENTS.length}
-                </Text>
+            {/* Achievements — same grid layout as WordBuilder */}
+            <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>
+              Achievements ({unlockedAchievements.length}/{ACHIEVEMENTS.length})
+            </Text>
+
+            {/* Unlocked */}
+            {unlockedAchievements.length > 0 && (
+              <View style={styles.achievementsGrid}>
+                {ACHIEVEMENTS.filter(a => unlockedAchievements.some(u => u.id === a.id)).map((achievement) => (
+                  <View
+                    key={achievement.id}
+                    style={[styles.achievementCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
+                  >
+                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, { color: bg.textColor }]}>{achievement.name}</Text>
+                    <Text style={[styles.achievementDesc, { color: bg.secondaryText }]}>{achievement.description}</Text>
+                  </View>
+                ))}
               </View>
+            )}
 
-              {unlockedAchievements.map((a) => (
-                <View
-                  key={a.id}
-                  style={[styles.achievementRow, { backgroundColor: bg.cardColor, borderColor: '#4ecca3' }]}
-                >
-                  <Text style={styles.achievementEmoji}>{a.emoji}</Text>
-                  <View style={styles.achievementText}>
-                    <Text style={[styles.achievementName, { color: bg.textColor }]}>{a.name}</Text>
-                    <Text style={[styles.achievementDesc, { color: bg.secondaryText }]}>{a.description}</Text>
+            {/* Locked divider */}
+            {unlockedAchievements.length > 0 && lockedAchievements.length > 0 && (
+              <View style={styles.lockedDivider}>
+                <View style={[styles.dividerLine, { backgroundColor: bg.borderColor }]} />
+                <Text style={[styles.dividerText, { color: bg.secondaryText }]}>Locked</Text>
+                <View style={[styles.dividerLine, { backgroundColor: bg.borderColor }]} />
+              </View>
+            )}
+
+            {/* Locked */}
+            {lockedAchievements.length > 0 && (
+              <View style={styles.achievementsGrid}>
+                {lockedAchievements.map((achievement) => (
+                  <View
+                    key={achievement.id}
+                    style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
+                  >
+                    <Text style={[styles.achievementEmoji, { opacity: 0.5 }]}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, { color: bg.textColor, opacity: 0.5 }]}>{achievement.name}</Text>
+                    <Text style={[styles.achievementDesc, { color: bg.secondaryText, opacity: 0.5 }]}>{achievement.description}</Text>
                   </View>
-                  <Text style={styles.achievementCheck}>✓</Text>
-                </View>
-              ))}
+                ))}
+              </View>
+            )}
 
-              {lockedAchievements.length > 0 && (
-                <Text style={[styles.lockedDivider, { color: bg.secondaryText }]}>── Locked ──</Text>
-              )}
+            <View style={{ height: 40 }} />
+          </ScrollView>
 
-              {lockedAchievements.map((a) => (
-                <View
-                  key={a.id}
-                  style={[styles.achievementRow, styles.achievementRowLocked, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
-                >
-                  <Text style={[styles.achievementEmoji, { opacity: 0.4 }]}>{a.emoji}</Text>
-                  <View style={styles.achievementText}>
-                    <Text style={[styles.achievementName, { color: bg.secondaryText }]}>{a.name}</Text>
-                    <Text style={[styles.achievementDesc, { color: bg.secondaryText, opacity: 0.6 }]}>{a.description}</Text>
-                  </View>
-                </View>
-              ))}
-
-              <View style={{ height: 24 }} />
-            </>
-          ) : (
-            <Text style={[styles.noStats, { color: bg.secondaryText }]}>Loading stats…</Text>
-          )}
-        </ScrollView>
-      )}
+        </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -522,19 +673,23 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  header: {
+  // ── Menu header ──
+  appHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 5,
+  },
+  appTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
   },
   backBtn: { width: 70 },
-  backText: { fontSize: 16 },
-  title: { flex: 1, textAlign: 'center', fontSize: 22, fontWeight: 'bold' },
-  headerRight: { width: 70 },
+  backText: { fontSize: 16, fontWeight: '500' },
 
-  // Pill segment switcher (matches Hangman)
+  // ── Segment switcher ──
   segmentSwitcher: {
     flexDirection: 'row',
     alignSelf: 'center',
@@ -546,172 +701,221 @@ const styles = StyleSheet.create({
   segmentButton: { paddingVertical: 8, paddingHorizontal: 24, borderRadius: 999 },
   segmentButtonText: { fontSize: 14, fontWeight: '500' },
 
-  // Play tab
-  playScrollView: { flex: 1 },
-  playContainer: { alignItems: 'stretch', paddingHorizontal: 20, paddingTop: 16, gap: 14 },
+  // ── Tab strip ──
+  tabStripWrapper: { flex: 1, overflow: 'hidden', alignItems: 'flex-start' },
+  tabStrip: { width: width * 2, flexDirection: 'row', alignSelf: 'flex-start' },
 
-  // Daily Challenge card
-  dailyCard: {
-    borderRadius: 16,
-    borderWidth: 2,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  // ── Play tab ──
+  playContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 40,
   },
-  dailyCardLeft: { flex: 1, gap: 4 },
-  dailyCardTitle: { fontSize: 16, fontWeight: '700' },
-  dailyCardDesc: { fontSize: 13, lineHeight: 18 },
-  dailyPlayBtn: {
-    backgroundColor: '#4ecca3',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  dailyPlayBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-
-  // Game mode card
-  gameModeCard: {
+  modeCard: {
     borderRadius: 16,
-    borderWidth: 2,
     padding: 20,
+    marginBottom: 14,
     alignItems: 'center',
   },
-  gameModeTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  gameModeDesc: { fontSize: 14, textAlign: 'center' },
+  modeCardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  modeCardSubtitle: { fontSize: 14 },
 
-  // How to Play
   rulesCard: { borderRadius: 14, borderWidth: 1.5, padding: 16 },
   rulesTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   ruleItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   ruleNumber: { fontSize: 18, fontWeight: 'bold', width: 28 },
   ruleText: { fontSize: 14, flex: 1, lineHeight: 20 },
 
-  // Shared stat box
-  statBox: {
-    flex: 1,
-    minWidth: '45%',
+  // ── Stats tab ──
+  statsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 40,
+  },
+  statsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  statsCard: {
+    width: '48%',
+    padding: 15,
     borderRadius: 12,
-    borderWidth: 1.5,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    borderWidth: 1,
     alignItems: 'center',
   },
-  statBoxWide: { flex: 2, minWidth: '95%' },
-  statBoxValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 2 },
-  statBoxLabel: { fontSize: 11, textAlign: 'center' },
+  statsCardWide: { width: '100%' },
+  statsValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  statsLabel: { fontSize: 12, textAlign: 'center' },
+  loadingText: { fontSize: 16, textAlign: 'center', marginTop: 20 },
 
-  // Stats tab
-  statsContainer: { padding: 16, gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  achievementsHeader: {
+  // ── Achievements grid ──
+  achievementsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  achievementCard: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
-    marginTop: 8,
+  },
+  achievementCardLocked: { opacity: 0.5 },
+  achievementEmoji: { fontSize: 32, marginBottom: 6 },
+  achievementName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 2 },
+  achievementDesc: { fontSize: 11, textAlign: 'center' },
+  lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' },
+
+  // ── Game screen ──
+  gameHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingTop: 10,
     marginBottom: 10,
   },
-  achievementCount: { marginLeft: 'auto', fontSize: 13 },
-  achievementRow: {
-    flexDirection: 'row',
+  timerText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  timerWarning: {
+    color: COLORS.danger,
+  },
+  scoreText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  gridWrapper: {
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    padding: 12,
-    marginBottom: 8,
-    gap: 12,
+    position: 'relative',
   },
-  achievementRowLocked: { opacity: 0.5 },
-  achievementEmoji: { fontSize: 28 },
-  achievementText: { flex: 1 },
-  achievementName: { fontSize: 15, fontWeight: '700' },
-  achievementDesc: { fontSize: 12, marginTop: 2 },
-  achievementCheck: { color: '#4ecca3', fontSize: 18, fontWeight: 'bold' },
-  lockedDivider: {
-    textAlign: 'center',
-    fontSize: 12,
-    marginVertical: 10,
-    letterSpacing: 1,
-  },
-  noStats: { textAlign: 'center', marginTop: 40, fontSize: 16 },
-
-  // In-game stats
-  inGameStatsRow: {
-    flexDirection: 'row',
+  foundWordsSection: {
+    width: '100%',
     paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 4,
-  },
-  inGameStat: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  inGameStatLabel: { fontSize: 11, marginBottom: 2 },
-  inGameStatValue: { fontSize: 20, fontWeight: 'bold' },
-
-  gridWrapper: { alignItems: 'center', position: 'relative', flex: 1, justifyContent: 'center' },
-
-  wordListContainer: {
-    height: 90,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderTopWidth: 1,
     paddingTop: 8,
+    height: 180,
+    overflow: 'hidden',
   },
-  wordListTitle: {
+  foundWordsTitle: {
     fontSize: 12,
+    fontWeight: '500',
     marginBottom: 6,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  wordChip: {
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginRight: 8,
+  foundWordsWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  wordChipText: { fontSize: 14, fontWeight: '600' },
-  wordChipPoints: { fontSize: 12 },
-  emptyWords: { fontSize: 14, paddingVertical: 4 },
+  foundWordBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(78,204,163,0.15)',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  foundWordText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
 
-  // Game over modal
-  modalOverlay: {
+  // ── Results screen ──
+  carouselPage: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    paddingTop: 20,
   },
-  modalCard: {
+  resultsPageContent: {
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    paddingBottom: 30,
+  },
+  gameOverTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  finalScore: {
+    fontSize: 72,
+    fontWeight: 'bold',
+  },
+  finalScoreLabel: {
+    fontSize: 24,
+    marginBottom: 15,
+  },
+  statsSummary: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 25,
     width: '100%',
-    borderRadius: 20,
-    padding: 28,
-    alignItems: 'center',
   },
-  modalTitle: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
-  modalScore: { fontSize: 48, fontWeight: 'bold', marginBottom: 4 },
-  modalSub: { fontSize: 16, marginBottom: 8 },
-  newHighScore: { color: '#f59e0b', fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
-  modalWordList: { alignItems: 'center', marginBottom: 20, gap: 4 },
-  modalWord: { fontSize: 15 },
-  modalMore: { fontSize: 13, marginTop: 4 },
-  playAgainBtn: {
-    backgroundColor: '#4ecca3',
-    borderRadius: 12,
-    paddingVertical: 14,
+  statItem: { flex: 1, alignItems: 'center' },
+  statNumber: { fontSize: 24, fontWeight: 'bold' },
+  statLabel: { fontSize: 12, marginTop: 4, textAlign: 'center' },
+  statDivider: { width: 1, marginHorizontal: 15 },
+  buttonContainer: { width: '100%', alignItems: 'center' },
+  playAgainButton: {
+    backgroundColor: COLORS.accent,
     paddingHorizontal: 40,
-    marginBottom: 12,
+    paddingVertical: 15,
+    borderRadius: 25,
+    marginBottom: 15,
     width: '100%',
     alignItems: 'center',
   },
-  playAgainText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  homeBtn: { paddingVertical: 8 },
-  homeBtnText: { fontSize: 15 },
+  playAgainText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  menuButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 15,
+    borderRadius: 25,
+    borderWidth: 2,
+    width: '100%',
+    alignItems: 'center',
+  },
+  menuButtonText: { fontSize: 16, fontWeight: '600' },
+
+  // Words page
+  wordsPageTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 4 },
+  wordsPageSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 15 },
+  wordsList: { flex: 1, paddingHorizontal: 15 },
+  wordsListContent: { paddingBottom: 20 },
+  wordItem: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    margin: 4,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  wordText: { fontSize: 16, fontWeight: '600' },
+  wordScore: { fontSize: 12 },
+  wordsPageButton: { alignSelf: 'center', marginVertical: 15, width: 'auto' },
+  noWordsText: { fontSize: 15, textAlign: 'center', marginTop: 30 },
+
+  // Page indicator
+  pageIndicatorContainer: { alignItems: 'center', paddingVertical: 12, paddingBottom: 20 },
+  pageIndicatorLabels: { flexDirection: 'row', justifyContent: 'center', gap: 40, marginBottom: 8 },
+  pageIndicatorLabel: { fontSize: 12, fontWeight: '500' },
+  pageIndicator: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  pageDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.2)' },
+  pageDotActive: { backgroundColor: COLORS.accent },
+  swipeHintText: { fontSize: 13, marginTop: 10, fontStyle: 'italic' },
 });
