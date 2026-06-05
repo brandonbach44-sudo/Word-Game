@@ -201,7 +201,7 @@ export default function GameScreen() {
       if (valid && !foundWordSet.has(word)) {
         const longestSoFar =
           foundWords.length > 0
-            ? Math.max(...foundWords.map((w) => w.word.length))
+            ? foundWords.reduce((max, w) => (w.word.length > max ? w.word.length : max), 0)
             : 0;
         const isLongestWord = word.length > longestSoFar;
         const isAllTile = path.length === 16;
@@ -701,10 +701,10 @@ const styles = StyleSheet.create({
   inGameStatLabel: { fontSize: 11, marginBottom: 2 },
   inGameStatValue: { fontSize: 20, fontWeight: 'bold' },
 
-  gridWrapper: { alignItems: 'center', position: 'relative' },
+  gridWrapper: { alignItems: 'center', position: 'relative', flex: 1, justifyContent: 'flex-end' },
 
   wordListContainer: {
-    flex: 1,
+    height: 90,
     marginHorizontal: 16,
     marginTop: 8,
     borderTopWidth: 1,
