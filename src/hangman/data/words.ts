@@ -79,7 +79,7 @@ export const categories = {
     "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan",
     "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda",
     "Ukraine", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen",
-    "Zambia", "Zimbabwe"
+    "Zambia", "Zimbabwe", "Ivory Coast", "Congo", "Kyrgyzstan", "East Timor", "Kosovo", "Azerbaijan"
   ],
   "Foods": [
     "Apple", "Banana", "Orange", "Grapes", "Mango", "Papaya", "Pineapple", "Strawberry", "Blueberry", "Raspberry", "Blackberry", "Watermelon",
