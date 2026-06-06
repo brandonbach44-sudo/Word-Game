@@ -249,20 +249,17 @@ export const categories = {
     // ... your full tv show titles list here ...
   ],
   "Insects": [
-    "Butterfly", "Monarch Butterfly", "Swallowtail Butterfly", "Morpho Butterfly", "Dragonfly",
-    "Damselfly", "Grasshopper", "Locust", "Cricket", "Katydid", "Beetle", "Ladybug", "Firefly",
-    "Click Beetle", "Stag Beetle", "Dung Beetle", "Scarab Beetle", "Weevil", "Moth", "Silkworm",
-    "Glowworm", "Mosquito", "Housefly", "Fruitfly", "Horsefly", "Deerfly", "Blackfly", "Sandfly",
-    "Botfly", "Hoverfly", "Robberfly", "Bee", "Bumblebee", "Carpenter Bee", "Leafcutter Bee",
-    "Sweat Bee", "Honeybee", "Wasp", "Paper Wasp", "Potter Wasp", "Mud Dauber", "Hornet",
-    "Yellow Jacket", "Ant", "Army Ant", "Leafcutter Ant", "Bullet Ant", "Fire Ant", "Termite",
-    "Cockroach", "Earwig", "Silverfish", "Firebrat", "Springtail", "Mantis", "Walkingstick",
-    "Leaf Insect", "Cicada", "Leafhopper", "Planthopper", "Treehopper", "Froghopper", "Spittlebug",
-    "Shield Bug", "Stink Bug", "Bed Bug", "Assassin Bug", "Water Strider", "Backswimmer",
-    "Water Boatman", "Lacewing", "Antlion", "Snakefly", "Scorpionfly", "Alderfly", "Dobsonfly",
-    "Caddisfly", "Mayfly", "Stonefly", "Thrips", "Aphid", "Whitefly", "Mealybug", "Scale Insect",
-    "Ichneumon", "Braconid", "Tachinid",
-  
+    "Butterfly", "Monarch Butterfly", "Dragonfly", "Damselfly", "Grasshopper", "Locust",
+    "Cricket", "Katydid", "Beetle", "Ladybug", "Firefly", "Click Beetle",
+    "Stag Beetle", "Scarab Beetle", "Weevil", "Moth", "Silkworm", "Glowworm",
+    "Mosquito", "Housefly", "Fruitfly", "Horsefly", "Blackfly", "Hoverfly",
+    "Bee", "Bumblebee", "Carpenter Bee", "Leafcutter Bee", "Honeybee", "Wasp",
+    "Paper Wasp", "Mud Dauber", "Hornet", "Yellow Jacket", "Ant", "Army Ant",
+    "Leafcutter Ant", "Bullet Ant", "Fire Ant", "Termite", "Cockroach", "Earwig",
+    "Silverfish", "Mantis", "Walkingstick", "Leaf Insect", "Cicada", "Leafhopper",
+    "Shield Bug", "Stink Bug", "Bed Bug", "Assassin Bug", "Water Strider", "Lacewing",
+    "Antlion", "Caddisfly", "Mayfly", "Stonefly", "Thrips", "Aphid",
+    "Whitefly", "Mealybug", "Scale Insect",
   ],
 };
 
