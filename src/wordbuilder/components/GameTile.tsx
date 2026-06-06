@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Image,
+  ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TierName } from '../utils/tiers';
@@ -245,16 +245,14 @@ export const GameTile = ({
 
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
-        <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
-          <View style={[styles.tile, styles.gemTile, { width: tileSize, height: tileSize }]}>
-            <Image
-              source={imageSource}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
-            <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
-          </View>
-        </View>
+        <ImageBackground
+          source={imageSource}
+          style={[styles.tile, { width: tileSize, height: tileSize }]}
+          imageStyle={{ borderRadius: 12 }}
+          resizeMode="cover"
+        >
+          <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
+        </ImageBackground>
       </TouchableOpacity>
     );
   }
@@ -288,12 +286,12 @@ export const GameTile = ({
             },
           ]}
         >
-          <View style={[styles.tile, styles.gemTile, { width: tileSize, height: tileSize }]}>
-            <Image
-              source={imageSource}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+          <ImageBackground
+            source={imageSource}
+            style={[styles.tile, { width: tileSize, height: tileSize }]}
+            imageStyle={{ borderRadius: 12 }}
+            resizeMode="cover"
+          >
             <Animated.View
               style={[
                 styles.innerGlow,
@@ -305,7 +303,7 @@ export const GameTile = ({
               ]}
             />
             <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
-          </View>
+          </ImageBackground>
         </Animated.View>
       </TouchableOpacity>
     );
@@ -345,9 +343,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    overflow: 'hidden',
-  },
-  gemTile: {
     overflow: 'hidden',
   },
   metalTile: {
