@@ -161,6 +161,110 @@ const useCountdownToMidnight = () => {
   return timeLeft;
 };
 
+function getWordBuilderProgress(
+  id: string,
+  stats: PlayerStats | null,
+  daily: DailyChallenge | null
+): number {
+  if (!stats && !daily) return 0;
+  const clamp = (v: number, t: number) => Math.min(v / t, 1);
+  const gp   = stats?.gamesPlayed        ?? 0;
+  const ts   = stats?.totalScore         ?? 0;
+  const tw   = stats?.totalWordsFound    ?? 0;
+  const hs   = stats?.highScore          ?? 0;
+  const bz   = stats?.blitzGamesPlayed   ?? 0;
+  const bbs  = stats?.bestBlitzScore     ?? 0;
+  const sg   = stats?.standardGamesPlayed ?? 0;
+  const bss  = stats?.bestStandardScore  ?? 0;
+  const dgp  = daily?.dailyGamesPlayed   ?? 0;
+  const bds  = daily?.bestDailyScore     ?? 0;
+  const streak = Math.max(daily?.dailyStreak ?? 0, daily?.bestDailyStreak ?? 0);
+
+  switch (id) {
+    // Score milestones (single-game best)
+    case 'score_2000':  return clamp(hs, 2000);
+    case 'score_4000':  return clamp(hs, 4000);
+    case 'score_6000':  return clamp(hs, 6000);
+    case 'score_10000': return clamp(hs, 10000);
+    case 'score_15000': return clamp(hs, 15000);
+    case 'score_20000': return clamp(hs, 20000);
+    // Daily streak
+    case 'streak_1':   return clamp(streak, 1);
+    case 'streak_2':   return clamp(streak, 2);
+    case 'streak_5':   return clamp(streak, 5);
+    case 'streak_10':  return clamp(streak, 10);
+    case 'streak_15':  return clamp(streak, 15);
+    case 'streak_20':  return clamp(streak, 20);
+    case 'streak_30':  return clamp(streak, 30);
+    case 'streak_40':  return clamp(streak, 40);
+    case 'streak_50':  return clamp(streak, 50);
+    case 'streak_75':  return clamp(streak, 75);
+    case 'streak_100': return clamp(streak, 100);
+    case 'streak_125': return clamp(streak, 125);
+    case 'streak_150': return clamp(streak, 150);
+    case 'streak_175': return clamp(streak, 175);
+    case 'streak_200': return clamp(streak, 200);
+    case 'streak_250': return clamp(streak, 250);
+    case 'streak_300': return clamp(streak, 300);
+    case 'streak_365': return clamp(streak, 365);
+    case 'streak_500': return clamp(streak, 500);
+    case 'streak_730': return clamp(streak, 730);
+    // Words found (cumulative)
+    case 'words_10':   return clamp(tw, 10);
+    case 'words_100':  return clamp(tw, 100);
+    case 'words_500':  return clamp(tw, 500);
+    case 'words_1000': return clamp(tw, 1000);
+    case 'words_5000': return clamp(tw, 5000);
+    // Games played
+    case 'games_1':    return clamp(gp, 1);
+    case 'games_10':   return clamp(gp, 10);
+    case 'games_50':   return clamp(gp, 50);
+    case 'games_100':  return clamp(gp, 100);
+    case 'games_250':  return clamp(gp, 250);
+    case 'games_500':  return clamp(gp, 500);
+    // Lifetime score
+    case 'lifetime_5000':      return clamp(ts, 5000);
+    case 'lifetime_25000':     return clamp(ts, 25000);
+    case 'lifetime_100000':    return clamp(ts, 100000);
+    case 'lifetime_250000':    return clamp(ts, 250000);
+    case 'lifetime_500000':    return clamp(ts, 500000);
+    case 'lifetime_1000000':   return clamp(ts, 1000000);
+    case 'lifetime_2500000':   return clamp(ts, 2500000);
+    case 'lifetime_5000000':   return clamp(ts, 5000000);
+    case 'lifetime_10000000':  return clamp(ts, 10000000);
+    case 'lifetime_25000000':  return clamp(ts, 25000000);
+    case 'lifetime_30000000':  return clamp(ts, 30000000);
+    // Daily challenges
+    case 'daily_10':  return clamp(dgp, 10);
+    case 'daily_30':  return clamp(dgp, 30);
+    case 'daily_100': return clamp(dgp, 100);
+    case 'daily_250': return clamp(dgp, 250);
+    case 'daily_500': return clamp(dgp, 500);
+    // Daily score bests
+    case 'daily_score_3000': return clamp(bds, 3000);
+    case 'daily_score_5000': return clamp(bds, 5000);
+    case 'daily_score_8000': return clamp(bds, 8000);
+    // Blitz games
+    case 'blitz_25':  return clamp(bz, 25);
+    case 'blitz_50':  return clamp(bz, 50);
+    case 'blitz_100': return clamp(bz, 100);
+    case 'blitz_200': return clamp(bz, 200);
+    // Blitz score bests
+    case 'blitz_score_1000': return clamp(bbs, 1000);
+    case 'blitz_score_2000': return clamp(bbs, 2000);
+    case 'blitz_score_3000': return clamp(bbs, 3000);
+    // Standard games
+    case 'standard_10': return clamp(sg, 10);
+    case 'standard_25': return clamp(sg, 25);
+    case 'standard_50': return clamp(sg, 50);
+    // Standard score bests
+    case 'standard_score_3000': return clamp(bss, 3000);
+    case 'standard_score_5000': return clamp(bss, 5000);
+    case 'standard_score_8000': return clamp(bss, 8000);
+    default: return 0; // binary/single-event achievements — no bar
+  }
+}
+
 export default function WordBuilder() {
   // Theme
   const { background } = useTheme();
@@ -1329,16 +1433,24 @@ export default function WordBuilder() {
           {/* Locked */}
           {ACHIEVEMENTS.filter(a => !unlockedAchievements.some(u => u.id === a.id)).length > 0 && (
             <View style={styles.achievementsGrid}>
-              {ACHIEVEMENTS.filter(a => !unlockedAchievements.some(u => u.id === a.id)).map((achievement) => (
-                <View
-                  key={achievement.id}
-                  style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
-                >
-                  <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
-                  <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
-                  <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
-                </View>
-              ))}
+              {ACHIEVEMENTS.filter(a => !unlockedAchievements.some(u => u.id === a.id)).map((achievement) => {
+                const progress = getWordBuilderProgress(achievement.id, playerStats, dailyChallenge);
+                return (
+                  <View
+                    key={achievement.id}
+                    style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+                  >
+                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
+                    <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
+                    {progress > 0 && (
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           )}
           
@@ -1761,7 +1873,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
   },
-  
+  progressTrack: {
+    marginTop: 8,
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#22c55e',
+  },
+
   // Gameplay
   gameplayContainer: {
     flex: 1,

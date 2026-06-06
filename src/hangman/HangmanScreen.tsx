@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -80,6 +82,17 @@ const styles = StyleSheet.create({
   infoDivider: { width: 1, marginHorizontal: 12 },
   figureContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
   keyboardContainer: { marginTop: 'auto', paddingBottom: 16 },
+  guessWordButton: { marginHorizontal: 20, marginBottom: 10, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 2 },
+  guessWordButtonText: { fontSize: 16, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  modalCard: { width: '100%', borderRadius: 20, padding: 24, borderWidth: 1 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 6 },
+  modalSubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  modalInput: { borderWidth: 2, borderRadius: 12, padding: 14, fontSize: 18, fontWeight: '600', textAlign: 'center', marginBottom: 16 },
+  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2 },
+  modalConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  modalBtnText: { fontSize: 16, fontWeight: '700' },
   categoryContainer: { flex: 1 },
   categoryContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   categoryTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
@@ -103,6 +116,8 @@ const styles = StyleSheet.create({
   achievementName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 2 },
   achievementDesc: { fontSize: 11, textAlign: 'center' },
   achievementTextLocked: { opacity: 0.7 },
+  progressTrack: { marginTop: 8, width: '100%', height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.1)', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2, backgroundColor: '#22c55e' },
   lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' }
@@ -165,6 +180,39 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   </TouchableOpacity>
 );
 
+function getHangmanProgress(id: string, stats: import('./utils/storage').HangmanStats | null): number {
+  if (!stats) return 0;
+  const clamp = (v: number, t: number) => Math.min(v / t, 1);
+  const cw = (cat: string) => stats.categoryWins[cat] ?? 0;
+  switch (id) {
+    case 'dedicated_player':    return clamp(stats.gamesPlayed, 10);
+    case 'hangman_enthusiast':  return clamp(stats.gamesPlayed, 50);
+    case 'hangman_addict':      return clamp(stats.gamesPlayed, 100);
+    case 'on_a_roll':           return clamp(Math.max(stats.currentStreak, stats.bestStreak), 3);
+    case 'hot_streak':          return clamp(Math.max(stats.currentStreak, stats.bestStreak), 5);
+    case 'unstoppable':         return clamp(Math.max(stats.currentStreak, stats.bestStreak), 10);
+    case 'hangman_master':      return clamp(stats.gamesWon, 25);
+    case 'hangman_legend':      return clamp(stats.gamesWon, 50);
+    case 'hangman_champion':    return clamp(stats.gamesWon, 100);
+    case 'perfectionist':       return clamp(stats.perfectGames, 5);
+    case 'flawless':            return clamp(stats.perfectGames, 10);
+    case 'survivor':            return clamp(stats.closeGames, 5);
+    case 'clutch_player':       return clamp(stats.closeGames, 10);
+    case 'animal_expert':       return clamp(cw('Animals'), 10);
+    case 'world_traveler':      return clamp(cw('Countries'), 10);
+    case 'foodie':              return clamp(cw('Foods'), 10);
+    case 'sports_fan':          return clamp(cw('Sports'), 10);
+    case 'tech_guru':           return clamp(cw('Technology'), 10);
+    case 'film_buff':           return clamp(cw('Movies'), 10);
+    case 'nature_lover':        return clamp(cw('Nature'), 10);
+    case 'career_counselor':    return clamp(cw('Professions'), 10);
+    case 'vocabulary_builder':  return clamp(stats.wordsGuessed.length, 25);
+    case 'word_collector':      return clamp(stats.wordsGuessed.length, 50);
+    case 'lexicon_master':      return clamp(stats.wordsGuessed.length, 100);
+    default: return 0;
+  }
+}
+
 export default function HangmanScreen() {
   const { background } = useTheme();
 
@@ -185,6 +233,8 @@ export default function HangmanScreen() {
   const [playingDaily, setPlayingDaily] = useState(false);
   const [dailyWord, setDailyWord] = useState<string>('');
   const [dailyGameEnded, setDailyGameEnded] = useState(false);
+  const [showGuessModal, setShowGuessModal] = useState(false);
+  const [guessInput, setGuessInput] = useState('');
 
   const {
     word,
@@ -203,6 +253,7 @@ export default function HangmanScreen() {
     startGameWithWord,
     resetGame,
     guessLetter,
+    guessWord,
     getDisplayWord,
     isLetterGuessed,
     isLetterCorrect,
@@ -462,6 +513,17 @@ export default function HangmanScreen() {
           actualWord={word}
         />
         <View style={styles.keyboardContainer}>
+          {isPlaying && (
+            <TouchableOpacity
+              style={[styles.guessWordButton, { borderColor: COLORS.accent }]}
+              onPress={() => { setGuessInput(''); setShowGuessModal(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.guessWordButtonText, { color: COLORS.accent }]}>
+                Guess the Word
+              </Text>
+            </TouchableOpacity>
+          )}
           <Keyboard
             selectedLetter={selectedLetter}
             onKeyPress={handleKeyPress}
@@ -473,6 +535,59 @@ export default function HangmanScreen() {
             disabled={!isPlaying}
           />
         </View>
+
+        {/* Guess Word Modal */}
+        <Modal
+          visible={showGuessModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowGuessModal(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setShowGuessModal(false)}>
+            <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+              <Text style={[styles.modalTitle, { color: background.textColor }]}>Guess the Word</Text>
+              <Text style={[styles.modalSubtitle, { color: background.secondaryText }]}>
+                Wrong? You lose instantly!
+              </Text>
+              <TextInput
+                style={[styles.modalInput, { color: background.textColor, borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+                placeholder="Type your guess..."
+                placeholderTextColor={background.secondaryText}
+                value={guessInput}
+                onChangeText={setGuessInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                onSubmitEditing={() => {
+                  if (guessInput.trim()) {
+                    setShowGuessModal(false);
+                    guessWord(guessInput.trim());
+                  }
+                }}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalCancelBtn, { borderColor: background.borderColor }]}
+                  onPress={() => setShowGuessModal(false)}
+                >
+                  <Text style={[styles.modalBtnText, { color: background.secondaryText }]}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalConfirmBtn, { backgroundColor: guessInput.trim() ? COLORS.accent : background.borderColor }]}
+                  onPress={() => {
+                    if (guessInput.trim()) {
+                      setShowGuessModal(false);
+                      guessWord(guessInput.trim());
+                    }
+                  }}
+                  disabled={!guessInput.trim()}
+                >
+                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Guess!</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
         
         {/* Regular Game End Popup (non-daily) */}
         {!playingDaily && (
@@ -861,7 +976,9 @@ export default function HangmanScreen() {
               )}
               {lockedAchievements.length > 0 && (
                 <View style={styles.achievementsGrid}>
-                  {lockedAchievements.map((achievement) => (
+                  {lockedAchievements.map((achievement) => {
+                    const progress = getHangmanProgress(achievement.id, playerStats);
+                    return (
                     <View
                       key={achievement.id}
                       style={[
@@ -885,8 +1002,14 @@ export default function HangmanScreen() {
                       ]} numberOfLines={2}>
                         {achievement.description}
                       </Text>
+                      {progress > 0 && (
+                        <View style={styles.progressTrack}>
+                          <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+                        </View>
+                      )}
                     </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
               <View style={{ height: 40 }} />

@@ -292,9 +292,29 @@ export default function GameScreen() {
 
   const { lockedAchievements } = useMemo(() => {
     const unlockedSet = new Set(unlockedAchievements.map((a) => a.id));
-    const lockedAchievements = ACHIEVEMENTS.filter((a) => !unlockedSet.has(a.id));
+    const clamp = (v: number, t: number) => Math.min(v / t, 1);
+    const gp = stats?.gamesPlayed ?? 0;
+    const tw = stats?.totalWordsFound ?? 0;
+    const ls = stats?.totalScore ?? 0;
+    const progressMap: Record<string, number> = {
+      games_10:          clamp(gp, 10),
+      games_50:          clamp(gp, 50),
+      games_100:         clamp(gp, 100),
+      games_250:         clamp(gp, 250),
+      games_500:         clamp(gp, 500),
+      total_words_250:   clamp(tw, 250),
+      total_words_1000:  clamp(tw, 1000),
+      total_words_5000:  clamp(tw, 5000),
+      lifetime_50000:    clamp(ls, 50000),
+      lifetime_100000:   clamp(ls, 100000),
+      lifetime_500000:   clamp(ls, 500000),
+      lifetime_1000000:  clamp(ls, 1000000),
+    };
+    const lockedAchievements = ACHIEVEMENTS
+      .filter((a) => !unlockedSet.has(a.id))
+      .map((a) => ({ ...a, progress: progressMap[a.id] ?? 0 }));
     return { unlockedSet, lockedAchievements };
-  }, [unlockedAchievements]);
+  }, [unlockedAchievements, stats]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // RESULTS SCREEN — swipeable carousel like WordBuilder
@@ -560,14 +580,17 @@ export default function GameScreen() {
             contentContainerStyle={styles.playContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Quick Play card — styled exactly like WB mode cards */}
+            {/* Quick Play button — large, prominent CTA */}
             <TouchableOpacity
-              style={[styles.modeCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor, borderWidth: 2 }]}
+              style={styles.quickPlayButton}
               onPress={startGame}
-              activeOpacity={0.7}
+              activeOpacity={0.82}
             >
-              <Text style={[styles.modeCardTitle, { color: bg.textColor }]}>Quick Play</Text>
-              <Text style={[styles.modeCardSubtitle, { color: bg.secondaryText }]}>1 minute · 4×4 letter grid</Text>
+              <Text style={styles.quickPlayIcon}>▶</Text>
+              <View>
+                <Text style={styles.quickPlayTitle}>Quick Play</Text>
+                <Text style={styles.quickPlaySub}>1 minute · 4×4 letter grid</Text>
+              </View>
             </TouchableOpacity>
 
             {/* How to Play */}
@@ -654,6 +677,11 @@ export default function GameScreen() {
                     <Text style={[styles.achievementEmoji, { opacity: 0.5 }]}>{achievement.emoji}</Text>
                     <Text style={[styles.achievementName, { color: bg.textColor, opacity: 0.5 }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: bg.secondaryText, opacity: 0.5 }]}>{achievement.description}</Text>
+                    {achievement.progress > 0 && (
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${Math.round(achievement.progress * 100)}%` }]} />
+                      </View>
+                    )}
                   </View>
                 ))}
               </View>
@@ -686,7 +714,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
   },
-  backBtn: { width: 70 },
+  backBtn: { minWidth: 70 },
   backText: { fontSize: 16, fontWeight: '500' },
 
   // ── Segment switcher ──
@@ -711,14 +739,37 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     paddingBottom: 40,
   },
-  modeCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 14,
+  quickPlayButton: {
+    backgroundColor: '#4ecca3',
+    borderRadius: 18,
+    paddingVertical: 22,
+    paddingHorizontal: 28,
+    marginBottom: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
+    // shadow so it lifts off the page
+    shadowColor: '#4ecca3',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  modeCardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  modeCardSubtitle: { fontSize: 14 },
+  quickPlayIcon: {
+    fontSize: 32,
+    color: '#fff',
+  },
+  quickPlayTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  quickPlaySub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.82)',
+    marginTop: 2,
+  },
 
   rulesCard: { borderRadius: 14, borderWidth: 1.5, padding: 16 },
   rulesTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
@@ -772,6 +823,8 @@ const styles = StyleSheet.create({
   achievementEmoji: { fontSize: 32, marginBottom: 6 },
   achievementName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 2 },
   achievementDesc: { fontSize: 11, textAlign: 'center' },
+  progressTrack: { marginTop: 8, width: '100%', height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.1)', overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2, backgroundColor: '#22c55e' },
   lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' },
