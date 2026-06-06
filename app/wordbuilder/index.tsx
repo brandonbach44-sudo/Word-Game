@@ -1211,9 +1211,9 @@ export default function WordBuilder() {
             </>
           )}
           
-          {/* Practice Stats Section */}
+          {/* Standard & Blitz Stats Section */}
           <Text style={[styles.statsTitle, dynamicStyles.text, dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && { marginTop: 25 }]}>
-            Practice Stats
+            Standard & Blitz Stats
           </Text>
           
           {playerStats ? (
