@@ -259,7 +259,11 @@ export const categories = {
     "Silverfish", "Mantis", "Walkingstick", "Leaf Insect", "Cicada", "Leafhopper",
     "Shield Bug", "Stink Bug", "Bed Bug", "Assassin Bug", "Water Strider", "Lacewing",
     "Antlion", "Caddisfly", "Mayfly", "Stonefly", "Thrips", "Aphid",
-    "Whitefly", "Mealybug", "Scale Insect",
+    "Whitefly", "Mealybug", "Scale Insect", "Rhinoceros Beetle", "Hercules Beetle", "June Bug",
+    "Tiger Beetle", "Diving Beetle", "Whirligig Beetle", "Luna Moth", "Hawk Moth", "Tiger Moth",
+    "Atlas Moth", "Painted Lady", "Cabbage White", "Crane Fly", "Blowfly", "Tsetse Fly",
+    "Carpenter Ant", "Harvester Ant", "Weaver Ant", "Mason Bee", "Tarantula Hawk", "Velvet Ant",
+    "Caterpillar", "Inchworm", "Flea", "Lanternfly", "Giant Water Bug", "Praying Mantis",
   ],
 };
 
