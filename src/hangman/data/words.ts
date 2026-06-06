@@ -225,13 +225,8 @@ export const categories = {
   ],
 };
 
-// Export PHRASE_CATEGORIES and WORD_CATEGORIES for HangmanScreen compatibility
-export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
-  "Idioms": categories["Idioms"],
-  "Movie Titles": categories["Movie Titles"] ?? [],
-  "Song Titles": categories["Song Titles"] ?? [],
-  "TV Show Titles": categories["TV Show Titles"] ?? [],
-};
+// Export WORD_CATEGORIES for HangmanScreen compatibility
+// Note: PHRASE_CATEGORIES is exported at the bottom of the file after the data arrays are defined
 
 export const WORD_CATEGORIES = Object.fromEntries(
   Object.entries(categories).filter(
@@ -762,6 +757,14 @@ export const songTitles = [
   "Someday At Christmas",
   "The Christmas Song"
 ];
+
+// Exported after arrays are defined so they can be referenced correctly
+export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
+  "Idioms": categories["Idioms"],
+  "Movie Titles": movieTitles,
+  "Song Titles": songTitles,
+  "TV Show Titles": tvShowTitles,
+};
 export const movieTitles = [
   "The Godfather",
   "The Shawshank Redemption",

@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StatusBar,
@@ -443,6 +444,18 @@ export default function HangmanScreen() {
     gameType === 'phrases' ? Object.keys(PHRASE_CATEGORIES) : Object.keys(WORD_CATEGORIES)
   );
 
+  // Swipe to switch Play/Stats tabs
+  const swipePanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dx < -40) setSegment('stats');
+        else if (gs.dx > 40) setSegment('play');
+      },
+    })
+  ).current;
+
   // Handle closing daily popup
   const handleCloseDailyPopup = () => {
     setShowDailyPopup(false);
@@ -666,7 +679,7 @@ export default function HangmanScreen() {
 
   // Main Menu
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]} {...swipePanResponder.panHandlers}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
       <AchievementPopup
         achievement={currentPopupAchievement}
