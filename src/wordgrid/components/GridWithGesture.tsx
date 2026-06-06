@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Line } from 'react-native-svg';
 import type { Position } from '../utils/pathFinder';
@@ -132,10 +132,46 @@ interface Props {
   disabled?: boolean;
 }
 
+// One Animated.Value per cell for a scale-pop flash on enter
+function makeFlashGrid() {
+  return Array.from({ length: GRID_SIZE }, () =>
+    Array.from({ length: GRID_SIZE }, () => new Animated.Value(1))
+  );
+}
+
+function flashCell(scaleAnim: Animated.Value) {
+  Animated.sequence([
+    Animated.timing(scaleAnim, {
+      toValue: 1.22,
+      duration: 70,
+      useNativeDriver: true,
+    }),
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 110,
+      useNativeDriver: true,
+    }),
+  ]).start();
+}
+
 export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
   // selectedCells drives render; pathRef is the source-of-truth for gesture callbacks
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const pathRef = useRef<Position[]>([]);
+  const flashGrid = useRef<Animated.Value[][]>(makeFlashGrid());
+  const prevSelectedRef = useRef<Position[]>([]);
+
+  // Flash any cell that newly entered the selection
+  useEffect(() => {
+    const prev = prevSelectedRef.current;
+    for (const cell of selectedCells) {
+      const wasIn = prev.some((p) => p.row === cell.row && p.col === cell.col);
+      if (!wasIn) {
+        flashCell(flashGrid.current[cell.row][cell.col]);
+      }
+    }
+    prevSelectedRef.current = selectedCells;
+  }, [selectedCells]);
 
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
@@ -227,12 +263,13 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                   );
                   const isSelected = selIndex !== -1;
                   return (
-                    <View
+                    <Animated.View
                       key={c}
                       style={[
                         styles.cell,
                         { width: CELL_SIZE, height: CELL_SIZE },
                         isSelected && styles.selectedCell,
+                        { transform: [{ scale: flashGrid.current[r][c] }] },
                       ]}
                     >
                       {isSelected && (
@@ -247,7 +284,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                           {letter}
                         </Text>
                       )}
-                    </View>
+                    </Animated.View>
                   );
                 })}
               </View>
