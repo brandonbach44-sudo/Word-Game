@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
   Animated,
-  ImageBackground,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TierName } from '../utils/tiers';
@@ -240,18 +240,18 @@ export const GameTile = ({
   // ===== GEM TIER V1 (Static PNG) =====
   if (isGemTier && variant === 1) {
     const imageSource = GEM_IMAGES[tierName] || GEM_IMAGES['legendary'];
-    
+
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
-          <ImageBackground
-            source={imageSource}
-            style={[styles.tile, { width: tileSize, height: tileSize }]}
-            imageStyle={styles.tileImage}
-            resizeMode="cover"
-          >
+          <View style={[styles.tile, styles.gemTile, { width: tileSize, height: tileSize }]}>
+            <Image
+              source={imageSource}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
             <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
-          </ImageBackground>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -267,9 +267,9 @@ export const GameTile = ({
     } else {
       glowColor = GEM_GLOW_COLORS[tierName] || '#ffffff';
     }
-    
+
     const imageSource = GEM_IMAGES[tierName] || GEM_IMAGES['legendary'];
-    
+
     return (
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <Animated.View
@@ -286,24 +286,24 @@ export const GameTile = ({
             },
           ]}
         >
-          <ImageBackground
-            source={imageSource}
-            style={[styles.tile, { width: tileSize, height: tileSize }]}
-            imageStyle={styles.tileImage}
-            resizeMode="cover"
-          >
-            <Animated.View 
+          <View style={[styles.tile, styles.gemTile, { width: tileSize, height: tileSize }]}>
+            <Image
+              source={imageSource}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+            <Animated.View
               style={[
-                styles.innerGlow, 
-                { 
-                  opacity: innerGlowOpacity, 
-                  transform: [{ scale: innerGlowScale }], 
-                  backgroundColor: `${glowColor}33` 
-                }
-              ]} 
+                styles.innerGlow,
+                {
+                  opacity: innerGlowOpacity,
+                  transform: [{ scale: innerGlowScale }],
+                  backgroundColor: `${glowColor}33`,
+                },
+              ]}
             />
             <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
-          </ImageBackground>
+          </View>
         </Animated.View>
       </TouchableOpacity>
     );
@@ -345,8 +345,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  tileImage: {
-    borderRadius: 12,
+  gemTile: {
+    overflow: 'hidden',
   },
   metalTile: {
     borderWidth: 3,
