@@ -257,6 +257,58 @@ export const GameTile = ({
     );
   }
 
+  // ===== GEM TIER V3 (Same as V2 but more intense glow) =====
+  if (isGemTier && variant === 3) {
+    let glowColor: string;
+    if (isLegendary) {
+      glowColor = rainbowColor;
+    } else if (isIridescence) {
+      glowColor = iridescentColor;
+    } else {
+      glowColor = GEM_GLOW_COLORS[tierName] || '#ffffff';
+    }
+
+    const imageSource = GEM_IMAGES[tierName] || GEM_IMAGES['legendary'];
+
+    return (
+      <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
+        <Animated.View
+          style={[
+            styles.tileContainer,
+            {
+              width: tileSize,
+              height: tileSize,
+              shadowColor: glowColor,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: outerGlowOpacity,
+              shadowRadius: outerGlowRadius,
+              elevation: 20,
+            },
+          ]}
+        >
+          <ImageBackground
+            source={imageSource}
+            style={[styles.tile, { width: tileSize, height: tileSize }]}
+            imageStyle={{ borderRadius: 12 }}
+            resizeMode="cover"
+          >
+            <Animated.View
+              style={[
+                styles.innerGlow,
+                {
+                  opacity: innerGlowOpacity,
+                  transform: [{ scale: innerGlowScale }],
+                  backgroundColor: `${glowColor}55`,
+                },
+              ]}
+            />
+            <Text style={[styles.letterText, styles.gemLetter, { fontSize }]}>{letter}</Text>
+          </ImageBackground>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  }
+
   // ===== GEM TIER V2 (Animated PNG with glow) =====
   if (isGemTier && variant === 2) {
     let glowColor: string;
