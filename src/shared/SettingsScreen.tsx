@@ -23,14 +23,14 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '0.1.0';
 const DEVELOPER_EMAIL = 'brandon.bach44@gmail.com';
 
 // What's New data - update this with each release
 const WHATS_NEW = [
   {
-    version: '1.0.0',
-    date: 'December 2024',
+    version: '0.1.0',
+    date: 'June 2026',
     changes: [
       'Initial release of Word Games',
       'Word Builder game with Daily Challenge',
