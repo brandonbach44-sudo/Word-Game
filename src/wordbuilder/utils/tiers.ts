@@ -1,6 +1,6 @@
 // Tile tier definitions and configurations
 
-export type TierName = 'default' | 'copper' | 'bronze' | 'silver' | 'gold' | 'ruby' | 'emerald' | 'platinum' | 'diamond' | 'legendary' | 'iridescence';
+export type TierName = 'default' | 'copper' | 'bronze' | 'silver' | 'gold' | 'ruby' | 'emerald' | 'platinum' | 'diamond' | 'legendary' | 'iridescence' | 'rose_quartz';
 
 export interface TierVariant {
   backgroundColor: string;
@@ -22,8 +22,8 @@ export interface TierConfig {
 
 // Tier order for timeline display
 export const TIER_ORDER: TierName[] = [
-  'default', 'copper', 'bronze', 'silver', 'gold', 
-  'platinum', 'ruby', 'emerald', 'diamond', 'legendary', 'iridescence'
+  'default', 'copper', 'bronze', 'silver', 'gold',
+  'platinum', 'ruby', 'emerald', 'diamond', 'legendary', 'iridescence', 'rose_quartz'
 ];
 
 // Full tier configurations
@@ -234,17 +234,37 @@ export const TIERS: Record<TierName, TierConfig> = {
     baseThreshold: 25000000,
     v2ScoreThreshold: 2000000,
     variants: {
-      1: { 
+      1: {
         backgroundColor: '#e6e6fa', // Iridescent colors handled in component
-        borderColor: '#e6e6fa', 
+        borderColor: '#e6e6fa',
         textColor: '#1a1a2e',
-        hasGlow: true, 
+        hasGlow: true,
       },
-      2: { 
-        backgroundColor: '#e6e6fa', 
-        borderColor: '#ffffff', 
+      2: {
+        backgroundColor: '#e6e6fa',
+        borderColor: '#ffffff',
         textColor: '#1a1a2e',
-        hasGlow: true, 
+        hasGlow: true,
+      },
+    }
+  },
+  rose_quartz: {
+    name: 'rose_quartz',
+    displayName: 'Rose Quartz',
+    baseThreshold: 30000000,
+    v2ScoreThreshold: 2500000,
+    variants: {
+      1: {
+        backgroundColor: '#f4a7c0',
+        borderColor: '#f4a7c0',
+        textColor: '#fff',
+        hasGlow: true,
+      },
+      2: {
+        backgroundColor: '#f4a7c0',
+        borderColor: '#ffffff',
+        textColor: '#fff',
+        hasGlow: true,
       },
     }
   },

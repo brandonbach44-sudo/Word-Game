@@ -98,6 +98,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'lifetime_5000000', emoji: '💎', name: 'Diamond', description: 'Reach 5,000,000 lifetime score', requirement: 5000000, category: 'lifetime_score' },
   { id: 'lifetime_10000000', emoji: '👑', name: 'Legendary', description: 'Reach 10,000,000 lifetime score', requirement: 10000000, category: 'lifetime_score' },
   { id: 'lifetime_25000000', emoji: '✨', name: 'Iridescence', description: 'Reach 25,000,000 lifetime score', requirement: 25000000, category: 'lifetime_score' },
+  { id: 'lifetime_30000000', emoji: '🌸', name: 'Rose Quartz', description: 'Reach 30,000,000 lifetime score', requirement: 30000000, category: 'lifetime_score' },
 
   // Words Per Game (Single Game)
   { id: 'wpg_10', emoji: '🎯', name: 'Sharp Eye', description: 'Find 10+ words in one game', requirement: 10, category: 'words_per_game' },
@@ -260,6 +261,7 @@ export const checkAchievements = async (
   if (lifetimeScore >= 50000) await tryUnlock('lifetime_50000');
   if (lifetimeScore >= 100000) await tryUnlock('lifetime_100000');
   if (lifetimeScore >= 500000) await tryUnlock('lifetime_500000');
+  if (lifetimeScore >= 30000000) await tryUnlock('lifetime_30000000');
   
   // === Words Per Game ===
   const wordsThisGame = gameResult.words.length;

@@ -62,6 +62,7 @@ const GEM_IMAGES: Partial<Record<TierName, any>> = {
   diamond: require('../../../assets/tiles/diamond_v1.png'),
   legendary: require('../../../assets/tiles/legendary_v1.png'),
   iridescence: require('../../../assets/tiles/iridescence_v1.png'),
+  rose_quartz: require('../../../assets/tiles/rose_quartz_v1.png'),
 };
 
 // Glow colors for gem tiers
@@ -71,6 +72,7 @@ const GEM_GLOW_COLORS: Record<string, string> = {
   diamond: '#00bfff',
   legendary: '#ff0000',
   iridescence: '#e6e6fa',
+  rose_quartz: '#f4a7c0',
 };
 
 // Rainbow colors for legendary glow animation
