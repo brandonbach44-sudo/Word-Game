@@ -105,17 +105,41 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'wpg_15', emoji: '🔍', name: 'Word Hunter', description: 'Find 15+ words in one game', requirement: 15, category: 'words_per_game' },
   { id: 'wpg_20', emoji: '🦅', name: 'Eagle Eye', description: 'Find 20+ words in one game', requirement: 20, category: 'words_per_game' },
   { id: 'wpg_25', emoji: '🐙', name: 'Octopus', description: 'Find 25+ words in one game', requirement: 25, category: 'words_per_game' },
+  { id: 'wpg_30', emoji: '🌊', name: 'Word Flood', description: 'Find 30+ words in one game', requirement: 30, category: 'words_per_game' },
 
   // Daily Challenge Specific
   { id: 'daily_10', emoji: '🎯', name: 'Daily Devotee', description: 'Complete 10 dailies', requirement: 10, category: 'daily_specific' },
   { id: 'daily_30', emoji: '📆', name: 'Daily Regular', description: 'Complete 30 dailies', requirement: 30, category: 'daily_specific' },
   { id: 'daily_100', emoji: '🗓️', name: 'Daily Champion', description: 'Complete 100 dailies', requirement: 100, category: 'daily_specific' },
+  { id: 'daily_250', emoji: '📅', name: 'Daily Legend', description: 'Complete 250 dailies', requirement: 250, category: 'daily_specific' },
+  { id: 'daily_500', emoji: '🏆', name: 'Daily God', description: 'Complete 500 dailies', requirement: 500, category: 'daily_specific' },
   { id: 'daily_score_3000', emoji: '💯', name: 'Daily Dominator', description: 'Score 3,000+ on a daily challenge', requirement: 3000, category: 'daily_specific' },
+  { id: 'daily_score_5000', emoji: '🔥', name: 'Daily Inferno', description: 'Score 5,000+ on a daily challenge', requirement: 5000, category: 'daily_specific' },
+  { id: 'daily_score_8000', emoji: '💥', name: 'Daily Destroyer', description: 'Score 8,000+ on a daily challenge', requirement: 8000, category: 'daily_specific' },
+
+  // Blitz Mode
+  { id: 'blitz_25', emoji: '⚡', name: 'Blitz Regular', description: 'Play 25 Blitz games', requirement: 25, category: 'special' },
+  { id: 'blitz_50', emoji: '⚡', name: 'Blitz Veteran', description: 'Play 50 Blitz games', requirement: 50, category: 'special' },
+  { id: 'blitz_100', emoji: '⚡', name: 'Blitz Master', description: 'Play 100 Blitz games', requirement: 100, category: 'special' },
+  { id: 'blitz_200', emoji: '⚡', name: 'Blitz Legend', description: 'Play 200 Blitz games', requirement: 200, category: 'special' },
+  { id: 'blitz_score_1000', emoji: '⚡', name: 'Quick Draw', description: 'Score 1,000+ in a single Blitz game', requirement: 1000, category: 'special' },
+  { id: 'blitz_score_2000', emoji: '⚡', name: 'Lightning Strike', description: 'Score 2,000+ in a single Blitz game', requirement: 2000, category: 'special' },
+  { id: 'blitz_score_3000', emoji: '⚡', name: 'Thunderbolt', description: 'Score 3,000+ in a single Blitz game', requirement: 3000, category: 'special' },
+
+  // Standard Mode
+  { id: 'standard_25', emoji: '🐢', name: 'Standard Regular', description: 'Play 25 Standard games', requirement: 25, category: 'special' },
+  { id: 'standard_50', emoji: '🐢', name: 'Standard Veteran', description: 'Play 50 Standard games', requirement: 50, category: 'special' },
+  { id: 'standard_score_3000', emoji: '📖', name: 'Deep Thinker', description: 'Score 3,000+ in a Standard game', requirement: 3000, category: 'special' },
+  { id: 'standard_score_5000', emoji: '📖', name: 'Grand Scholar', description: 'Score 5,000+ in a Standard game', requirement: 5000, category: 'special' },
+  { id: 'standard_score_8000', emoji: '📖', name: 'Encyclopedic', description: 'Score 8,000+ in a Standard game', requirement: 8000, category: 'special' },
 
   // Special
   { id: 'blitz_5', emoji: '⚡', name: 'Speed Demon', description: 'Find 5+ words in Blitz mode', requirement: 5, category: 'special' },
   { id: 'standard_10', emoji: '🐢', name: 'Slow & Steady', description: 'Play 10 Standard mode games', requirement: 10, category: 'special' },
   { id: 'full_house', emoji: '🔤', name: 'Full House', description: 'Use all letters in a single word', requirement: 1, category: 'special' },
+  { id: 'palindrome', emoji: '🔁', name: 'Mirror Image', description: 'Find a palindrome word', requirement: 1, category: 'special' },
+  { id: 'rare_letter', emoji: '💎', name: 'Rare Find', description: 'Use Q, X, or Z in a word', requirement: 1, category: 'special' },
+  { id: 'new_high_score', emoji: '🏅', name: 'Personal Best', description: 'Set a new all-time high score', requirement: 1, category: 'special' },
 ];
 
 // ==================== STORAGE FUNCTIONS ====================
@@ -184,10 +208,14 @@ export interface GameResult {
 
 export interface PlayerProgress {
   // From PlayerStats
-  totalGamesPlayed: number; // practice games
-  totalScore: number; // lifetime score from practice
+  totalGamesPlayed: number;
+  totalScore: number;
   totalWordsFound: number;
+  highScore: number;
+  blitzGamesPlayed: number;
   standardGamesPlayed: number;
+  bestBlitzScore: number;
+  bestStandardScore: number;
   // From DailyChallenge
   dailyGamesPlayed: number;
   dailyStreak: number;
@@ -288,20 +316,59 @@ export const checkAchievements = async (
   if (wordsThisGame >= 15) await tryUnlock('wpg_15');
   if (wordsThisGame >= 20) await tryUnlock('wpg_20');
   if (wordsThisGame >= 25) await tryUnlock('wpg_25');
+  if (wordsThisGame >= 30) await tryUnlock('wpg_30');
 
   // === Daily Specific ===
   if (progress.dailyGamesPlayed >= 10) await tryUnlock('daily_10');
   if (progress.dailyGamesPlayed >= 30) await tryUnlock('daily_30');
   if (progress.dailyGamesPlayed >= 100) await tryUnlock('daily_100');
+  if (progress.dailyGamesPlayed >= 250) await tryUnlock('daily_250');
+  if (progress.dailyGamesPlayed >= 500) await tryUnlock('daily_500');
   if (gameResult.mode === 'daily' && gameResult.score >= 3000) await tryUnlock('daily_score_3000');
+  if (gameResult.mode === 'daily' && gameResult.score >= 5000) await tryUnlock('daily_score_5000');
+  if (gameResult.mode === 'daily' && gameResult.score >= 8000) await tryUnlock('daily_score_8000');
+
+  // === Blitz Mode ===
+  if (gameResult.mode === 'blitz' && wordsThisGame >= 5) await tryUnlock('blitz_5');
+  if (progress.blitzGamesPlayed >= 25) await tryUnlock('blitz_25');
+  if (progress.blitzGamesPlayed >= 50) await tryUnlock('blitz_50');
+  if (progress.blitzGamesPlayed >= 100) await tryUnlock('blitz_100');
+  if (progress.blitzGamesPlayed >= 200) await tryUnlock('blitz_200');
+  if (progress.bestBlitzScore >= 1000) await tryUnlock('blitz_score_1000');
+  if (progress.bestBlitzScore >= 2000) await tryUnlock('blitz_score_2000');
+  if (progress.bestBlitzScore >= 3000) await tryUnlock('blitz_score_3000');
+
+  // === Standard Mode ===
+  if (progress.standardGamesPlayed >= 10) await tryUnlock('standard_10');
+  if (progress.standardGamesPlayed >= 25) await tryUnlock('standard_25');
+  if (progress.standardGamesPlayed >= 50) await tryUnlock('standard_50');
+  if (progress.bestStandardScore >= 3000) await tryUnlock('standard_score_3000');
+  if (progress.bestStandardScore >= 5000) await tryUnlock('standard_score_5000');
+  if (progress.bestStandardScore >= 8000) await tryUnlock('standard_score_8000');
 
   // === Special ===
-  if (gameResult.mode === 'blitz' && wordsThisGame >= 5) await tryUnlock('blitz_5');
-  if (progress.standardGamesPlayed >= 10) await tryUnlock('standard_10');
-
-  // Full House - check if any word uses all letters
+  // Full House - use all letters in a single word
   const hasFullHouse = gameResult.words.some(word => word.length === gameResult.letterCount);
   if (hasFullHouse) await tryUnlock('full_house');
+
+  // Palindrome - find a word that reads the same forwards and backwards
+  const hasPalindrome = gameResult.words.some(word =>
+    word.length >= 3 && word === word.split('').reverse().join('')
+  );
+  if (hasPalindrome) await tryUnlock('palindrome');
+
+  // Rare letter - use Q, X, or Z in any word
+  const hasRareLetter = gameResult.words.some(word =>
+    /[qxz]/i.test(word)
+  );
+  if (hasRareLetter) await tryUnlock('rare_letter');
+
+  // Personal Best - new all-time high score this game
+  const isNewHighScore =
+    gameResult.score > 0 &&
+    gameResult.score >= progress.highScore &&
+    progress.totalGamesPlayed > 1;
+  if (isNewHighScore) await tryUnlock('new_high_score');
   
   return newlyUnlocked;
 };

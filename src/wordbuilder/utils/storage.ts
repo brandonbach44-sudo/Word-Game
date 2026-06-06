@@ -19,6 +19,12 @@ export interface PlayerStats {
   // Mode-specific stats
   blitzGamesPlayed: number;
   standardGamesPlayed: number;
+  bestBlitzScore: number;
+  bestStandardScore: number;
+  blitzTotalScore: number;
+  standardTotalScore: number;
+  // Single-game records
+  mostWordsInGame: number;
   // Letter count preferences
   gamesWithSixLetters: number;
   gamesWithSevenLetters: number;
@@ -62,6 +68,11 @@ const defaultStats: PlayerStats = {
   longestWord: '',
   blitzGamesPlayed: 0,
   standardGamesPlayed: 0,
+  bestBlitzScore: 0,
+  bestStandardScore: 0,
+  blitzTotalScore: 0,
+  standardTotalScore: 0,
+  mostWordsInGame: 0,
   gamesWithSixLetters: 0,
   gamesWithSevenLetters: 0,
   gamesWithEightLetters: 0,
@@ -144,8 +155,18 @@ export const updateStatsAfterGame = async (
     stats.longestWord = longestInGame;
   }
   
-  if (mode === 'blitz') stats.blitzGamesPlayed += 1;
-  if (mode === 'standard') stats.standardGamesPlayed += 1;
+  if (mode === 'blitz') {
+    stats.blitzGamesPlayed += 1;
+    stats.bestBlitzScore = Math.max(stats.bestBlitzScore, score);
+    stats.blitzTotalScore += score;
+  }
+  if (mode === 'standard') {
+    stats.standardGamesPlayed += 1;
+    stats.bestStandardScore = Math.max(stats.bestStandardScore, score);
+    stats.standardTotalScore += score;
+  }
+
+  stats.mostWordsInGame = Math.max(stats.mostWordsInGame, words.length);
   
   if (letterCount === 6) stats.gamesWithSixLetters += 1;
   if (letterCount === 7) stats.gamesWithSevenLetters += 1;
