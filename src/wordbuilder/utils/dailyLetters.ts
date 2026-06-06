@@ -1,6 +1,8 @@
 // Daily Challenge Letter Generation
 // Uses date as seed to ensure all users get the same letters each day
 
+import { isPlayable } from './letterValidator';
+
 // Simple seeded random number generator
 function seededRandom(seed: number): () => number {
   let state = seed;
@@ -19,63 +21,102 @@ function dateToSeed(date: Date): number {
   return year * 10000 + month * 100 + day;
 }
 
-// Letter frequencies (same as regular letter generator)
-const LETTER_WEIGHTS: Record<string, number> = {
-  E: 12, T: 9, A: 8, O: 8, I: 7, N: 7, S: 6, H: 6, R: 6,
-  D: 4, L: 4, C: 3, U: 3, M: 3, W: 2, F: 2, G: 2, Y: 2,
-  P: 2, B: 1.5, V: 1, K: 0.8, J: 0.15, X: 0.15, Q: 0.1, Z: 0.07,
+// Vowel weights — favors E and A (no J, Q, X, Z)
+const VOWEL_WEIGHTS: Record<string, number> = {
+  E: 14, A: 10, I: 9, O: 9, U: 4,
 };
+
+// Consonant weights — common letters only, no J, Q, X, Z
+const CONSONANT_WEIGHTS: Record<string, number> = {
+  T: 9, N: 8, S: 8, R: 9, L: 6,
+  D: 5, H: 5, G: 4, M: 4, C: 4,
+  P: 4, B: 3, F: 3, W: 3, Y: 3,
+  K: 2, V: 2,
+};
+
+// Common anchor consonants — guarantee at least one of these
+const ANCHOR_CONSONANTS = ['S', 'T', 'R', 'N', 'L'];
 
 const VOWELS = ['A', 'E', 'I', 'O', 'U'];
 
-// Generate daily letters using date seed
-export function generateDailyLetters(date: Date = new Date()): string[] {
-  const seed = dateToSeed(date);
+function pickWeightedSeeded(
+  weights: Record<string, number>,
+  random: () => number
+): string {
+  const keys = Object.keys(weights);
+  const vals = Object.values(weights);
+  const total = vals.reduce((a, b) => a + b, 0);
+  let r = random() * total;
+  for (let i = 0; i < keys.length; i++) {
+    r -= vals[i];
+    if (r <= 0) return keys[i];
+  }
+  return keys[keys.length - 1];
+}
+
+const MAX_DAILY_RETRIES = 20;
+
+// Core generation logic — extracted so we can retry with different seeds
+function generateFromSeed(seed: number): string[] {
   const random = seededRandom(seed);
-  
-  // Build weighted letter pool
-  const letterPool: string[] = [];
-  for (const [letter, weight] of Object.entries(LETTER_WEIGHTS)) {
-    const count = Math.round(weight * 10);
-    for (let i = 0; i < count; i++) {
-      letterPool.push(letter);
-    }
-  }
-  
-  // Shuffle using seeded random
-  for (let i = letterPool.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [letterPool[i], letterPool[j]] = [letterPool[j], letterPool[i]];
-  }
-  
-  // Pick 6 letters
+
   const letters: string[] = [];
-  const used = new Set<number>();
-  
+
+  // 3 vowels, avoiding 3 of the same
+  const vowelBag: Record<string, number> = {};
+  while (letters.length < 3) {
+    let v: string;
+    let attempts = 0;
+    do {
+      v = pickWeightedSeeded(VOWEL_WEIGHTS, random);
+      attempts++;
+    } while ((vowelBag[v] ?? 0) >= 2 && attempts < 10);
+    vowelBag[v] = (vowelBag[v] ?? 0) + 1;
+    letters.push(v);
+  }
+
+  // Anchor consonant — guaranteed common letter (S, T, R, N, or L)
+  const anchor = ANCHOR_CONSONANTS[Math.floor(random() * ANCHOR_CONSONANTS.length)];
+  letters.push(anchor);
+
+  // Fill remaining 2 consonants — avoid duplicating rare ones
+  const consonantBag: Record<string, number> = { [anchor]: 1 };
   while (letters.length < 6) {
-    const idx = Math.floor(random() * letterPool.length);
-    if (!used.has(idx)) {
-      used.add(idx);
-      letters.push(letterPool[idx]);
-    }
+    let c: string;
+    let attempts = 0;
+    do {
+      c = pickWeightedSeeded(CONSONANT_WEIGHTS, random);
+      attempts++;
+      const isUncommon = !['S', 'T', 'R', 'N', 'L', 'D', 'H', 'G', 'M', 'C'].includes(c);
+      const limit = isUncommon ? 1 : 2;
+      if ((consonantBag[c] ?? 0) < limit) break;
+    } while (attempts < 15);
+    consonantBag[c] = (consonantBag[c] ?? 0) + 1;
+    letters.push(c);
   }
-  
-  // Ensure at least 2 vowels
-  const vowelCount = letters.filter(l => VOWELS.includes(l)).length;
-  if (vowelCount < 2) {
-    // Replace some consonants with vowels using seeded random
-    const consonantIndices = letters
-      .map((l, i) => VOWELS.includes(l) ? -1 : i)
-      .filter(i => i !== -1);
-    
-    const needed = 2 - vowelCount;
-    for (let i = 0; i < needed && i < consonantIndices.length; i++) {
-      const vowelIdx = Math.floor(random() * VOWELS.length);
-      letters[consonantIndices[i]] = VOWELS[vowelIdx];
-    }
+
+  // Shuffle using seeded random
+  for (let i = letters.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [letters[i], letters[j]] = [letters[j], letters[i]];
   }
-  
+
   return letters;
+}
+
+// Generate daily letters using date seed
+// Retries with seed+1, seed+2, … until a playable set is found.
+// Deterministic: same date always produces the same result for all users.
+export function generateDailyLetters(date: Date = new Date()): string[] {
+  const baseSeed = dateToSeed(date);
+
+  for (let i = 0; i < MAX_DAILY_RETRIES; i++) {
+    const letters = generateFromSeed(baseSeed + i);
+    if (isPlayable(letters)) return letters;
+  }
+
+  // Fallback: return the base seed result even if below threshold
+  return generateFromSeed(baseSeed);
 }
 
 // Get today's date string (for storage key)

@@ -1,3 +1,7 @@
+import { isPlayable } from './letterValidator';
+
+const MAX_RETRIES = 20;
+
 // Common consonants that appear in lots of real words
 const COMMON_CONSONANTS = ['T', 'N', 'S', 'R', 'L', 'D', 'C', 'H', 'M', 'P'];
 
@@ -33,8 +37,8 @@ const pickConsonant = (excludeRare = false): string => {
   return excludeRare ? 'V' : 'V'; // V as the least-common allowed consonant
 };
 
-// Generate random letters for the game
-export const generateLetters = (count: number): string[] => {
+// Core generation logic — extracted so we can retry
+const generateOnce = (count: number): string[] => {
   const letters: string[] = [];
 
   // Vowel counts — more generous so boards are playable
@@ -88,4 +92,14 @@ export const generateLetters = (count: number): string[] => {
 
   // Shuffle
   return letters.sort(() => Math.random() - 0.5);
+};
+
+// Generate random letters for the game — retries until playable
+export const generateLetters = (count: number): string[] => {
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    const letters = generateOnce(count);
+    if (isPlayable(letters)) return letters;
+  }
+  // Fallback: return whatever we get on the last try
+  return generateOnce(count);
 };
