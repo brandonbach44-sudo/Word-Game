@@ -1,4 +1,4 @@
-import { VALID_WORDS } from '../data/words';
+import { VALID_WORDS } from '../../shared/words';
 import { calculateWordScore } from './scoring';
 
 export interface PossibleWord {

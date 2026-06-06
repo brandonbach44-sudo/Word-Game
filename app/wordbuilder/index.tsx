@@ -67,7 +67,7 @@ import {
 } from '../../src/wordbuilder/utils/achievements';
 
 // Data
-import { VALID_WORDS } from '../../src/wordbuilder/data/words';
+import { VALID_WORDS } from '../../src/shared/words';
 
 const { width } = Dimensions.get('window');
 

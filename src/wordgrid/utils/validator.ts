@@ -1,8 +1,6 @@
 // src/wordgrid/utils/validator.ts
-import wordList from '../data/wordlist';
-
-const dictionary = new Set(wordList.map(w => w.toLowerCase()));
+import { VALID_WORDS } from '../../shared/words';
 
 export function isValidWord(word: string): boolean {
-  return word.length >= 3 && word.length <= 8 && dictionary.has(word.toLowerCase());
+  return word.length >= 3 && word.length <= 8 && VALID_WORDS.has(word.toLowerCase());
 }

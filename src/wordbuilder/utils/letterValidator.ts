@@ -4,7 +4,7 @@
 // Using VALID_WORDS (a Set) directly rather than findAllPossibleWords
 // so we avoid sorting overhead during generation retries.
 
-import { VALID_WORDS } from '../data/words';
+import { VALID_WORDS } from '../../shared/words';
 
 const MIN_WORDS = 8; // minimum number of valid words required to accept a letter set
 
