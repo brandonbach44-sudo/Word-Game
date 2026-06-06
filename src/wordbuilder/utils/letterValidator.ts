@@ -6,7 +6,7 @@
 
 import { VALID_WORDS } from '../data/words';
 
-const MIN_WORDS = 5; // minimum number of valid words required to accept a letter set
+const MIN_WORDS = 8; // minimum number of valid words required to accept a letter set
 
 /**
  * Returns true if the letter set can form at least MIN_WORDS valid words.
