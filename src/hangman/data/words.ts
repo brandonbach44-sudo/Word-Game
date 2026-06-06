@@ -137,16 +137,15 @@ export const categories = {
   ],
   "Technology": [
     "Computer", "Laptop", "Smartphone", "Tablet", "Server", "Router", "Switch", "Modem", "Firewall", "Database", "Monitor", "Keyboard",
-    "Mouse", "Printer", "Scanner", "Webcam", "Microphone", "Speaker", "Headphones", "Motherboard", "Processor", "CPU", "GPU", "RAM",
-    "Hard Drive", "SSD", "USB Drive", "Flash Drive", "Ethernet", "WiFi", "Bluetooth", "NFC", "Cloud", "AI", "Machine Learning",
+    "Mouse", "Printer", "Scanner", "Webcam", "Microphone", "Speaker", "Headphones", "Motherboard", "Processor", ,
+    "Hard Drive", "USB Drive", "Flash Drive", "Ethernet", "WiFi", "Bluetooth", "Cloud", "Machine Learning",
     "Deep Learning", "Robot", "Drone", "Augmented Reality", "Virtual Reality", "3D Printer", "Smartwatch", "VR Headset",
-    "Operating System", "Windows", "macOS", "Linux", "Android", "iOS", "App", "Application", "Software", "Code", "Algorithm", "Data",
+    "Operating System", "Windows", "macOS", "Linux", "Android", "App", "Application", "Software", "Code", "Algorithm", "Data",
     "Network", "Internet", "Web", "Browser", "Search Engine", "Google", "Bing", "Yahoo", "Social Media", "Facebook", "Instagram",
     "Twitter", "TikTok", "YouTube", "Encryption", "Decryption", "Password", "Login", "Cloud Storage", "Dropbox", "Drive", "OneDrive",
-    "Email", "Spam", "Phishing", "Malware", "Virus", "Antivirus", "Patch", "Update", "Backup", "Recovery", "API", "SDK",
-    "IDE", "Git", "Repository", "Commit", "Pull Request", "Merge", "Branch", "Bug", "Issue", "Ticket", "Release", "CI", "CD", "DevOps",
-    "Container", "Docker", "Kubernetes", "Serverless", "Lambda", "SQL", "NoSQL", "Table", "Row", "Column", "Key", "Value",
-    "Blockchain", "Bitcoin", "Ethereum", "NFT", "Token", "Wallet", "Transaction"
+    "Email", "Spam", "Phishing", "Malware", "Virus", "Antivirus", "Patch", "Update", "Backup", "Recovery", , , "Repository", "Commit", "Pull Request", "Merge", "Branch", "Bug", "Issue", "Ticket", "Release", , "DevOps",
+    "Container", "Docker", "Kubernetes", "Serverless", "Lambda", "NoSQL", "Table", "Row", "Column", "Key", "Value",
+    "Blockchain", "Bitcoin", "Ethereum", "Token", "Wallet", "Transaction"
   ],
   "Idioms": [
     "A bird in the hand is worth two in the bush", "A penny saved is a penny earned", "Actions speak louder than words",
