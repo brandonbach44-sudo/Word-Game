@@ -1,5 +1,6 @@
 // app/index.tsx
 import { router } from 'expo-router';
+import { useState } from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -11,13 +12,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/shared/ThemeContext';
 import { FallingLetters } from '../src/shared/FallingLetters';
+import { SplashScreen } from '../src/shared/SplashScreen';
 
 export default function Home() {
   const { background } = useTheme();
+  const [showSplash, setShowSplash] = useState(true);
 
   return (
     <View style={[styles.root, { backgroundColor: background.backgroundColor }]}>
       <FallingLetters />
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle={background.statusBar === 'dark' ? 'dark-content' : 'light-content'}
