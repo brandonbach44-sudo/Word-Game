@@ -11,27 +11,42 @@ interface TileConfig {
   delay: number;
   duration: number;
   size: number;
+  seedY: number; // if >= 0, tile starts mid-screen at this Y (pre-seeded); if -1, starts from top with delay
 }
 
 function FallingTile({ tile }: { tile: TileConfig }) {
-  const translateY = useRef(new Animated.Value(-tile.size - 20)).current;
+  const totalDistance = SCREEN_HEIGHT + tile.size + 120;
+  const isPreSeeded = tile.seedY >= 0;
+  const translateY = useRef(new Animated.Value(isPreSeeded ? tile.seedY : -tile.size - 20)).current;
 
   useEffect(() => {
-    const totalDistance = SCREEN_HEIGHT + tile.size + 120;
-
-    const startAnimation = () => {
+    const loopAnimation = () => {
       translateY.setValue(-tile.size - 20);
       Animated.timing(translateY, {
         toValue: totalDistance,
         duration: tile.duration,
         useNativeDriver: true,
       }).start(({ finished }) => {
-        if (finished) startAnimation();
+        if (finished) loopAnimation();
       });
     };
 
-    const timeout = setTimeout(startAnimation, tile.delay);
-    return () => clearTimeout(timeout);
+    if (isPreSeeded) {
+      // First pass: animate from mid-screen to bottom, proportionally shorter duration
+      const remainingFraction = (totalDistance - tile.seedY) / totalDistance;
+      const remainingDuration = remainingFraction * tile.duration;
+      Animated.timing(translateY, {
+        toValue: totalDistance,
+        duration: remainingDuration,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) loopAnimation();
+      });
+    } else {
+      // New tile: wait for staggered delay then fall from top
+      const timeout = setTimeout(loopAnimation, tile.delay);
+      return () => clearTimeout(timeout);
+    }
   }, []);
 
   return (
@@ -64,14 +79,29 @@ function FallingTile({ tile }: { tile: TileConfig }) {
 }
 
 export function FallingLetters() {
-  const tiles: TileConfig[] = Array.from({ length: 25 }, (_, i) => ({
+  // 10 pre-seeded tiles scattered across the screen at mount time
+  const preSeeded: TileConfig[] = Array.from({ length: 10 }, (_, i) => ({
     id: i,
     letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
     startX: Math.random() * (SCREEN_WIDTH - 60),
-    delay: Math.random() * 2000,
+    delay: 0,
     duration: 12000 + Math.random() * 8000,
     size: 40 + Math.random() * 20,
+    seedY: Math.random() * SCREEN_HEIGHT * 0.85, // random position on screen
   }));
+
+  // 5 new tiles that trickle in with wide staggered delays
+  const incoming: TileConfig[] = Array.from({ length: 5 }, (_, i) => ({
+    id: 10 + i,
+    letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
+    startX: Math.random() * (SCREEN_WIDTH - 60),
+    delay: 2000 + Math.random() * 8000, // 2–10s stagger so they don't bunch up
+    duration: 12000 + Math.random() * 8000,
+    size: 40 + Math.random() * 20,
+    seedY: -1,
+  }));
+
+  const tiles = [...preSeeded, ...incoming];
 
   return (
     <View style={styles.container} pointerEvents="none">
