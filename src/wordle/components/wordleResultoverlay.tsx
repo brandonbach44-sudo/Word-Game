@@ -118,7 +118,7 @@ const WordleResultOverlay = ({
     try {
       const text = shareText && shareText.length > 0
         ? shareText
-        : `Word Fury ${isWin ? `${guessesCount}/6` : "X/6"}`;
+        : `Wordle ${isWin ? `${guessesCount}/6` : "X/6"}`;
       const { Share } = require("react-native");
       await Share.share({ message: text });
     } catch (e) {

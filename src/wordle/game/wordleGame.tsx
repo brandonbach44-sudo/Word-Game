@@ -847,8 +847,8 @@ export default function WordleGame() {
       );
       const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
       const header = gameMode === "daily"
-        ? `Word Fury ${getDailyIndex()} ${resultStr}`
-        : `Word Fury ${resultStr}`;
+        ? `Wordle ${getDailyIndex()} ${resultStr}`
+        : `Wordle ${resultStr}`;
       const shareText = `${header}\n\n${emojiRows.join("\n")}`;
       setOverlayShareText(shareText);
       setOverlayEvaluationRows(evaluations.map(row => row.map(cell => cell.state)));
@@ -1445,7 +1445,7 @@ export default function WordleGame() {
                       <Pressable
                         onPress={() => {
                           const text = dailyLock?.shareText
-                            ?? `Word Fury Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+                            ?? `Wordle Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
                           Share.share({ message: text });
                         }}
                         style={({ pressed }) => [
