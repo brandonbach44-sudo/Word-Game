@@ -35,14 +35,13 @@ export const categories = {
   "Animals": [
     "Lion", "Tiger", "Jaguar", "Leopard", "Cheetah", "Panther", "Cougar", "Snow Leopard",
     "Mountain Lion", "Serval", "Caracal", "Lynx", "Bobcat", "Polar Bear", "Grizzly Bear", "Brown Bear",
-    "Sun Bear", "Spectacled Bear", "Koala Bear", "Panda Bear", "Elephant", "African Elephant",
+    "Sun Bear", "Spectacled Bear", "Panda Bear", "Elephant", "African Elephant",
     "Asian Elephant", "Giraffe", "Hippopotamus", "Rhinoceros", "Buffalo", "Bison", "Zebra", "Kangaroo",
     "Koala", "Wombat", "Platypus", "Tasmanian Devil", "Gorilla", "Chimpanzee", "Orangutan", "Baboon",
     "Macaque", "Gibbon", "Lemur", "Wolf", "Coyote", "Fox", "Arctic Fox", "Fennec Fox", "Rabbit",
     "Beaver", "Otter", "Sea Otter", "Porcupine", "Hedgehog", "Squirrel", "Flying Squirrel", "Chipmunk",
-    "Hamster", "Gerbil", "Mole", "Moose", "Elk", "Reindeer", "Caribou", "Deer", "White Tail Deer",
-    "Red Deer", "Fallow Deer", "Mule Deer", "Horse", "Wild Horse", "Donkey", "Mule", "Camel",
-    "Dromedary Camel", "Bactrian Camel", "Llama", "Alpaca", "Goat", "Mountain Goat", "Ibex", "Oryx",
+    "Hamster", "Gerbil", "Mole", "Moose", "Elk", "Reindeer", "Caribou", "Deer", "Horse", "Wild Horse", "Donkey", "Mule", "Camel",
+    "Llama", "Alpaca", "Goat", "Mountain Goat", "Ibex", "Oryx",
     "Kudu", "Gazelle", "Impala", "Bighorn Sheep", "Cow", "Ox", "Yak", "Water Buffalo", "Pig", "Boar",
     "Warthog", "Tapir", "Okapi", "Ferret", "Weasel", "Marten", "Wolverine", "Skunk", "Raccoon", "Badger",
     "Bat", "Fruit Bat", "Vampire Bat", "Dolphin", "Bottlenose Dolphin", "Spinner Dolphin", "Orca",
@@ -58,8 +57,9 @@ export const categories = {
     "Hammerhead Shark", "Tiger Shark", "Bull Shark", "Great White Shark", "Mako Shark", "Whale Shark",
     "Swordfish", "Marlin", "Sailfish", "Barracuda", "Piranha", "Catfish", "Sturgeon", "Moray Eel",
     "Electric Eel", "Octopus", "Squid", "Cuttlefish", "Nautilus", "Starfish", "Sea Urchin",
-    "Sea Cucumber", "Sea Horse", "Sea Turtle", "Manta Ray", "Stingray", "Eagle Ray", "Mammoth",
+    "Sea Cucumber", "Sea Horse", "Sea Turtle", "Manta Ray", "Stingray", "Mammoth",
     "Sabertooth Tiger", "Anteater", "Armadillo", "Sloth",
+    "Black Bear", "Hyena", "Dingo", "Jackal", "Capybara", "Meerkat", "Mongoose", "Honey Badger", "Manatee", "Dugong", "Wildebeest", "Pronghorn", "Springbok", "Wallaby", "Quokka", "Pangolin", "Aardvark", "Chinchilla", "Prairie Dog", "Groundhog", "Swan", "Duck", "Goose", "Toucan", "Hummingbird", "Condor", "Vulture", "Crow", "Raven", "Dove", "Pheasant", "Quail", "Cassowary", "Jellyfish", "Crab", "Lobster", "Shrimp", "Clownfish", "Pufferfish", "Tuna", "Dodo", "Woolly Rhinoceros", "Dire Wolf",
   
   ],
   "Countries": [
@@ -137,13 +137,13 @@ export const categories = {
   ],
   "Technology": [
     "Computer", "Laptop", "Smartphone", "Tablet", "Server", "Router", "Switch", "Modem", "Firewall", "Database", "Monitor", "Keyboard",
-    "Mouse", "Printer", "Scanner", "Webcam", "Microphone", "Speaker", "Headphones", "Motherboard", "Processor", ,
+    "Mouse", "Printer", "Scanner", "Webcam", "Microphone", "Speaker", "Headphones", "Motherboard", "Processor",
     "Hard Drive", "USB Drive", "Flash Drive", "Ethernet", "WiFi", "Bluetooth", "Cloud", "Machine Learning",
     "Deep Learning", "Robot", "Drone", "Augmented Reality", "Virtual Reality", "3D Printer", "Smartwatch", "VR Headset",
     "Operating System", "Windows", "macOS", "Linux", "Android", "App", "Application", "Software", "Code", "Algorithm", "Data",
     "Network", "Internet", "Web", "Browser", "Search Engine", "Google", "Bing", "Yahoo", "Social Media", "Facebook", "Instagram",
     "Twitter", "TikTok", "YouTube", "Encryption", "Decryption", "Password", "Login", "Cloud Storage", "Dropbox", "Drive", "OneDrive",
-    "Email", "Spam", "Phishing", "Malware", "Virus", "Antivirus", "Patch", "Update", "Backup", "Recovery", , , "Repository", "Commit", "Pull Request", "Merge", "Branch", "Bug", "Issue", "Ticket", "Release", , "DevOps",
+    "Email", "Spam", "Phishing", "Malware", "Virus", "Antivirus", "Patch", "Update", "Backup", "Recovery", , "Repository", "Commit", "Pull Request", "Merge", "Branch", "Bug", "Issue", "Ticket", "Release", "DevOps",
     "Container", "Docker", "Kubernetes", "Serverless", "Lambda", "NoSQL", "Table", "Row", "Column", "Key", "Value",
     "Blockchain", "Bitcoin", "Ethereum", "Token", "Wallet", "Transaction"
   ],
@@ -1026,3 +1026,4 @@ export const movieTitles = [
   "Born on the Fourth of July",
   "Hamburger Hill",
   "Black Hawk Down",
+                                                                                                                                                                                                                                                                                                                                                                                                                           
