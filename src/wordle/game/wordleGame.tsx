@@ -193,7 +193,9 @@ function evaluateGuess(guess: string, solution: string): EvaluatedLetter[] {
 
 function getDailyIndex(date = new Date()): number {
   const msPerDay = 24 * 60 * 60 * 1000;
-  const dayNumber = Math.floor(date.setHours(0, 0, 0, 0) / msPerDay);
+  const dayNumber = Math.floor(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / msPerDay
+  );
   return Math.abs(dayNumber) % SOLUTIONS_LC.length;
 }
 
