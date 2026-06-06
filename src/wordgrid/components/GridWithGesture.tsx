@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Line } from 'react-native-svg';
@@ -8,7 +8,10 @@ const GRID_SIZE = 4;
 const CELL_GAP = 8;
 const GRID_PADDING = 12;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48 - GRID_PADDING * 2 - CELL_GAP * (GRID_SIZE - 1)) / GRID_SIZE);
+const CELL_SIZE = Math.floor(
+  (SCREEN_WIDTH - 48 - GRID_PADDING * 2 - CELL_GAP * (GRID_SIZE - 1)) / GRID_SIZE
+);
+const CELL_STEP = CELL_SIZE + CELL_GAP;
 const GRID_DIM = GRID_SIZE * CELL_SIZE + CELL_GAP * (GRID_SIZE - 1);
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
@@ -29,9 +32,98 @@ function SerifI({ color }: { color: string }) {
 // Center pixel of a cell (relative to the inner gesture area, offset by padding)
 function cellCenter(pos: Position) {
   return {
-    x: GRID_PADDING + pos.col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
-    y: GRID_PADDING + pos.row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
+    x: GRID_PADDING + pos.col * CELL_STEP + CELL_SIZE / 2,
+    y: GRID_PADDING + pos.row * CELL_STEP + CELL_SIZE / 2,
   };
+}
+
+// Find the nearest cell to a raw touch coordinate.
+// Used only for the initial tap (forceNearest=true always returns a cell).
+// With forceNearest=false a threshold of 0.8×CELL_STEP is applied.
+function getNearestCell(x: number, y: number, forceNearest = false): Position | null {
+  let bestDist = Infinity;
+  let bestCell: Position | null = null;
+
+  for (let row = 0; row < GRID_SIZE; row++) {
+    for (let col = 0; col < GRID_SIZE; col++) {
+      const cx = GRID_PADDING + col * CELL_STEP + CELL_SIZE / 2;
+      const cy = GRID_PADDING + row * CELL_STEP + CELL_SIZE / 2;
+      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCell = { row, col };
+      }
+    }
+  }
+
+  if (forceNearest) return bestCell;
+  return bestDist <= CELL_STEP * 0.8 ? bestCell : null;
+}
+
+// Angle-based next-cell selection — the fix for diagonal tracing.
+//
+// Why the old nearest-cell approach broke diagonals:
+//   At the centre of the 2×2 gap between four cells, all four centres are
+//   exactly equidistant (√2/2 × CELL_STEP). The loop tiebreaks by order,
+//   so it almost always snaps to a horizontal/vertical neighbour instead of
+//   the intended diagonal one.
+//
+// This function anchors to lastCell and computes the 8-directional snap from
+// the angle of the drag vector. Each of the 8 neighbours owns a 45° sector,
+// so diagonals are unambiguous regardless of where the finger physically is.
+//
+// Returns:
+//   'same'           → finger still in dead zone; keep current cell
+//   null             → target would be out of bounds
+//   Position         → snap to this neighbour
+function getCellFromAngle(
+  lastCell: Position,
+  touchX: number,
+  touchY: number
+): Position | 'same' | null {
+  const center = cellCenter(lastCell);
+  const dx = touchX - center.x;
+  const dy = touchY - center.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  // Dead zone: still "on" the current cell — no change needed.
+  // 0.35 × CELL_STEP fires before the midpoint to any neighbour, keeping
+  // the feel responsive without being jittery.
+  if (dist < CELL_STEP * 0.35) return 'same';
+
+  // Normalised drag direction
+  const ux = dx / dist;
+  const uy = dy / dist;
+
+  // 8 directions with pre-normalised unit vectors
+  const S2 = 1 / Math.sqrt(2); // sin / cos 45°
+  const DIRS = [
+    { dr: -1, dc:  0, nx:  0,  ny: -1  }, // N
+    { dr: -1, dc:  1, nx:  S2, ny: -S2 }, // NE
+    { dr:  0, dc:  1, nx:  1,  ny:  0  }, // E
+    { dr:  1, dc:  1, nx:  S2, ny:  S2 }, // SE
+    { dr:  1, dc:  0, nx:  0,  ny:  1  }, // S
+    { dr:  1, dc: -1, nx: -S2, ny:  S2 }, // SW
+    { dr:  0, dc: -1, nx: -1,  ny:  0  }, // W
+    { dr: -1, dc: -1, nx: -S2, ny: -S2 }, // NW
+  ] as const;
+
+  let bestDot = -Infinity;
+  let bestDr = 0;
+  let bestDc = 0;
+  for (const dir of DIRS) {
+    const dot = dir.nx * ux + dir.ny * uy;
+    if (dot > bestDot) {
+      bestDot = dot;
+      bestDr = dir.dr;
+      bestDc = dir.dc;
+    }
+  }
+
+  const newRow = lastCell.row + bestDr;
+  const newCol = lastCell.col + bestDc;
+  if (newRow < 0 || newRow >= GRID_SIZE || newCol < 0 || newCol >= GRID_SIZE) return null;
+  return { row: newRow, col: newCol };
 }
 
 interface Props {
@@ -45,65 +137,60 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const pathRef = useRef<Position[]>([]);
 
-  // Nearest-cell-center approach: snaps to whichever cell center is closest,
-  // as long as the finger is within a reasonable radius. This fixes:
-  //  • First-letter misses (strict boundary rejection no longer blocks onStart)
-  //  • Diagonal tracking (no gap-zone null returns mid-swipe)
-  //  • Side-letter false positives (threshold prevents jumping to far cells)
-  const getCellFromCoords = useCallback((x: number, y: number): Position | null => {
-    const cellStep = CELL_SIZE + CELL_GAP;
-    let bestDist = Infinity;
-    let bestCell: Position | null = null;
-
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        const cx = GRID_PADDING + col * cellStep + CELL_SIZE / 2;
-        const cy = GRID_PADDING + row * cellStep + CELL_SIZE / 2;
-        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestCell = { row, col };
-        }
-      }
-    }
-
-    // Only snap if within ~60% of half-cell-step — tight enough to avoid
-    // accidentally grabbing adjacent cells, loose enough for natural diagonals
-    const threshold = cellStep * 0.6;
-    return bestDist <= threshold ? bestCell : null;
-  }, []);
-
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
     .minDistance(0)
-    .onStart((e) => {
-      const cell = getCellFromCoords(e.x, e.y);
+    .onBegin((e) => {
+      // onBegin fires instantly on touch — snap to nearest cell unconditionally
+      const cell = getNearestCell(e.x, e.y, true);
       const next = cell ? [cell] : [];
       pathRef.current = next;
       setSelectedCells(next);
     })
-    .onUpdate((e) => {
-      const cell = getCellFromCoords(e.x, e.y);
+    .onStart((e) => {
+      // If the finger moved slightly before RNGH activation and landed on a
+      // different cell, update to that cell without clearing the path.
+      const cell = getNearestCell(e.x, e.y, true);
       if (!cell) return;
+      const path = pathRef.current;
+      const alreadyFirst =
+        path.length > 0 && path[0].row === cell.row && path[0].col === cell.col;
+      if (!alreadyFirst) {
+        const next = [cell];
+        pathRef.current = next;
+        setSelectedCells(next);
+      }
+    })
+    .onUpdate((e) => {
 
       const path = pathRef.current;
+      if (path.length === 0) return;
 
-      // Check if we're backtracking (cell is already in path, not the last one)
+      const lastCell = path[path.length - 1];
+      const result = getCellFromAngle(lastCell, e.x, e.y);
+
+      // Still in dead zone — no path change
+      if (result === 'same') return;
+
+      // Would exit the grid
+      if (result === null) return;
+
+      const cell = result;
+
+      // Backtracking: cell is already in path before the last position
       const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
-
       if (existingIdx !== -1 && existingIdx !== path.length - 1) {
-        // Backtrack: trim path back to this cell
         const trimmed = path.slice(0, existingIdx + 1);
         pathRef.current = trimmed;
         setSelectedCells(trimmed);
         return;
       }
 
-      // Skip if it's already the last cell
+      // Already the last cell — no change
       if (existingIdx === path.length - 1) return;
 
-      // Otherwise append
+      // Append new cell
       const next = [...path, cell];
       pathRef.current = next;
       setSelectedCells(next);
@@ -117,7 +204,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       }
     })
     .onFinalize(() => {
-      // Safety reset if gesture is cancelled
+      // Safety reset if gesture is cancelled mid-drag
       if (pathRef.current.length > 0) {
         pathRef.current = [];
         setSelectedCells([]);
@@ -167,7 +254,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
             ))}
           </View>
 
-          {/* Path lines — drawn on top of the grid */}
+          {/* Path lines between selected cells */}
           {selectedCells.length >= 2 && (
             <Svg
               style={StyleSheet.absoluteFill}
@@ -186,7 +273,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                     x2={to.x}
                     y2={to.y}
                     stroke="rgba(255,255,255,0.75)"
-                    strokeWidth={4}
+                    strokeWidth={7}
                     strokeLinecap="round"
                   />
                 );
@@ -226,7 +313,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f0e6',
     borderRadius: 10,
-    // Subtle 3D shadow (bottom-weighted)
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.13,
