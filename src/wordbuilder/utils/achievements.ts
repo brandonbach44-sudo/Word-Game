@@ -211,32 +211,46 @@ export const checkAchievements = async (
   };
   
   // === Score Milestones (Single Game) ===
-  if (gameResult.score >= 500) await tryUnlock('score_500');
-  if (gameResult.score >= 1000) await tryUnlock('score_1000');
   if (gameResult.score >= 2000) await tryUnlock('score_2000');
   if (gameResult.score >= 4000) await tryUnlock('score_4000');
   if (gameResult.score >= 6000) await tryUnlock('score_6000');
-  if (gameResult.score >= 8000) await tryUnlock('score_8000');
-  
+  if (gameResult.score >= 10000) await tryUnlock('score_10000');
+  if (gameResult.score >= 15000) await tryUnlock('score_15000');
+  if (gameResult.score >= 20000) await tryUnlock('score_20000');
+
   // === Daily Streak ===
   const currentStreak = Math.max(progress.dailyStreak, progress.bestDailyStreak);
-  if (currentStreak >= 3) await tryUnlock('streak_3');
-  if (currentStreak >= 7) await tryUnlock('streak_7');
-  if (currentStreak >= 14) await tryUnlock('streak_14');
+  if (currentStreak >= 1) await tryUnlock('streak_1');
+  if (currentStreak >= 2) await tryUnlock('streak_2');
+  if (currentStreak >= 5) await tryUnlock('streak_5');
+  if (currentStreak >= 10) await tryUnlock('streak_10');
+  if (currentStreak >= 15) await tryUnlock('streak_15');
+  if (currentStreak >= 20) await tryUnlock('streak_20');
   if (currentStreak >= 30) await tryUnlock('streak_30');
-  if (currentStreak >= 60) await tryUnlock('streak_60');
+  if (currentStreak >= 40) await tryUnlock('streak_40');
+  if (currentStreak >= 50) await tryUnlock('streak_50');
+  if (currentStreak >= 75) await tryUnlock('streak_75');
   if (currentStreak >= 100) await tryUnlock('streak_100');
-  
+  if (currentStreak >= 125) await tryUnlock('streak_125');
+  if (currentStreak >= 150) await tryUnlock('streak_150');
+  if (currentStreak >= 175) await tryUnlock('streak_175');
+  if (currentStreak >= 200) await tryUnlock('streak_200');
+  if (currentStreak >= 250) await tryUnlock('streak_250');
+  if (currentStreak >= 300) await tryUnlock('streak_300');
+  if (currentStreak >= 365) await tryUnlock('streak_365');
+  if (currentStreak >= 500) await tryUnlock('streak_500');
+  if (currentStreak >= 730) await tryUnlock('streak_730');
+
   // === Word Length ===
   const longestWordLength = gameResult.words.reduce(
-    (max, word) => Math.max(max, word.length), 
+    (max, word) => Math.max(max, word.length),
     0
   );
   if (longestWordLength >= 5) await tryUnlock('word_5');
   if (longestWordLength >= 6) await tryUnlock('word_6');
   if (longestWordLength >= 7) await tryUnlock('word_7');
   if (longestWordLength >= 8) await tryUnlock('word_8');
-  
+
   // === Words Found (Cumulative) ===
   const totalWords = progress.totalWordsFound;
   if (totalWords >= 10) await tryUnlock('words_10');
@@ -244,7 +258,7 @@ export const checkAchievements = async (
   if (totalWords >= 500) await tryUnlock('words_500');
   if (totalWords >= 1000) await tryUnlock('words_1000');
   if (totalWords >= 5000) await tryUnlock('words_5000');
-  
+
   // === Games Played (Practice + Daily) ===
   const totalGames = progress.totalGamesPlayed + progress.dailyGamesPlayed;
   if (totalGames >= 1) await tryUnlock('games_1');
@@ -253,34 +267,38 @@ export const checkAchievements = async (
   if (totalGames >= 100) await tryUnlock('games_100');
   if (totalGames >= 250) await tryUnlock('games_250');
   if (totalGames >= 500) await tryUnlock('games_500');
-  
+
   // === Lifetime Score ===
   const lifetimeScore = progress.totalScore + progress.dailyTotalScore;
-  if (lifetimeScore >= 1000) await tryUnlock('lifetime_1000');
-  if (lifetimeScore >= 10000) await tryUnlock('lifetime_10000');
-  if (lifetimeScore >= 50000) await tryUnlock('lifetime_50000');
+  if (lifetimeScore >= 5000) await tryUnlock('lifetime_5000');
+  if (lifetimeScore >= 25000) await tryUnlock('lifetime_25000');
   if (lifetimeScore >= 100000) await tryUnlock('lifetime_100000');
+  if (lifetimeScore >= 250000) await tryUnlock('lifetime_250000');
   if (lifetimeScore >= 500000) await tryUnlock('lifetime_500000');
+  if (lifetimeScore >= 1000000) await tryUnlock('lifetime_1000000');
+  if (lifetimeScore >= 2500000) await tryUnlock('lifetime_2500000');
+  if (lifetimeScore >= 5000000) await tryUnlock('lifetime_5000000');
+  if (lifetimeScore >= 10000000) await tryUnlock('lifetime_10000000');
+  if (lifetimeScore >= 25000000) await tryUnlock('lifetime_25000000');
   if (lifetimeScore >= 30000000) await tryUnlock('lifetime_30000000');
-  
+
   // === Words Per Game ===
   const wordsThisGame = gameResult.words.length;
   if (wordsThisGame >= 10) await tryUnlock('wpg_10');
   if (wordsThisGame >= 15) await tryUnlock('wpg_15');
   if (wordsThisGame >= 20) await tryUnlock('wpg_20');
   if (wordsThisGame >= 25) await tryUnlock('wpg_25');
-  
+
   // === Daily Specific ===
-  if (progress.dailyGamesPlayed >= 1) await tryUnlock('daily_1');
   if (progress.dailyGamesPlayed >= 10) await tryUnlock('daily_10');
   if (progress.dailyGamesPlayed >= 30) await tryUnlock('daily_30');
   if (progress.dailyGamesPlayed >= 100) await tryUnlock('daily_100');
-  if (gameResult.mode === 'daily' && gameResult.score >= 200) await tryUnlock('daily_score_200');
-  
+  if (gameResult.mode === 'daily' && gameResult.score >= 3000) await tryUnlock('daily_score_3000');
+
   // === Special ===
   if (gameResult.mode === 'blitz' && wordsThisGame >= 5) await tryUnlock('blitz_5');
   if (progress.standardGamesPlayed >= 10) await tryUnlock('standard_10');
-  
+
   // Full House - check if any word uses all letters
   const hasFullHouse = gameResult.words.some(word => word.length === gameResult.letterCount);
   if (hasFullHouse) await tryUnlock('full_house');
