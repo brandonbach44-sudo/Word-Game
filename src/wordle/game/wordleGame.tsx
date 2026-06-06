@@ -839,16 +839,17 @@ export default function WordleGame() {
       setOverlayGuessesCount(guessesUsed);
       setOverlayTimeSeconds(elapsedSeconds);
 
-      // Build share text
+      // Build share text (matches real Wordle format)
       const emojiRows = evaluations.map((row) =>
         row.map((cell) =>
           cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
         ).join("")
       );
-      const timeStr = elapsedSeconds != null ? ` • ${formatSeconds(elapsedSeconds)}` : "";
-      const modeStr = gameMode === "daily" ? "Wordle Daily" : "Wordle Practice";
       const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
-      const shareText = `${modeStr} ${resultStr}${timeStr}\n\n${emojiRows.join("\n")}`;
+      const header = gameMode === "daily"
+        ? `Word Fury ${getDailyIndex()} ${resultStr}`
+        : `Word Fury ${resultStr}`;
+      const shareText = `${header}\n\n${emojiRows.join("\n")}`;
       setOverlayShareText(shareText);
       setOverlayEvaluationRows(evaluations.map(row => row.map(cell => cell.state)));
 
