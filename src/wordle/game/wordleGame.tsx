@@ -114,6 +114,7 @@ type Achievement = {
   name: string;
   description: string;
   unlocked: boolean;
+  progress?: number; // 0–1, only for countable achievements
 };
 
 const KEYBOARD_ROWS: string[][] = [
@@ -396,6 +397,11 @@ const AchievementCard = ({
   borderColor: string;
 }) => {
   const opacity = achievement.unlocked ? 1 : 0.5;
+  const showProgress =
+    !achievement.unlocked &&
+    achievement.progress !== undefined &&
+    achievement.progress > 0;
+
   return (
     <View
       style={[
@@ -410,6 +416,16 @@ const AchievementCard = ({
       <Text style={[styles.achievementDesc, { color: secondaryText }]}>
         {achievement.description}
       </Text>
+      {showProgress && (
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${Math.round(achievement.progress! * 100)}%` },
+            ]}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -1262,14 +1278,14 @@ export default function WordleGame() {
       // Guess skill
       { id: "perfect", emoji: "⚡", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
       { id: "lucky_guess", emoji: "🍀", name: "Lucky Guess", description: "Win in 2 guesses", unlocked: twoGuessWins >= 1 },
-      { id: "two_try_5", emoji: "🎉", name: "Two Tries", description: "Win in 2 guesses 5 times", unlocked: twoGuessWins >= 5 },
+      { id: "two_try_5", emoji: "🎉", name: "Two Tries", description: "Win in 2 guesses 5 times", unlocked: twoGuessWins >= 5, progress: Math.min(twoGuessWins / 5, 1) },
       { id: "clutch", emoji: "😅", name: "Clutch", description: "Win on the 6th guess", unlocked: ((stats.daily.guessDistribution?.[6] ?? 0) + (stats.practice.guessDistribution?.[6] ?? 0)) >= 1 },
       { id: "comeback", emoji: "😤", name: "Comeback", description: "Win after reaching guess 5", unlocked: ((stats.daily.guessDistribution?.[5] ?? 0) + (stats.practice.guessDistribution?.[5] ?? 0)) >= 1 },
       // Streaks
-      { id: "streak_3", emoji: "🌱", name: "On a Roll", description: "Reach a 3-day streak", unlocked: bestStreak >= 3 },
-      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day streak", unlocked: bestStreak >= 7 },
-      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day streak", unlocked: bestStreak >= 14 },
-      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day streak", unlocked: bestStreak >= 30 },
+      { id: "streak_3", emoji: "🌱", name: "On a Roll", description: "Reach a 3-day streak", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
+      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day streak", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
+      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day streak", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
+      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day streak", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
       // Speed
       { id: "speed_60", emoji: "⏱️", name: "Quick Thinker", description: "Win in under 60 seconds", unlocked: fastestAny != null && fastestAny <= 60 },
       { id: "speed_30", emoji: "💨", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
@@ -1278,13 +1294,13 @@ export default function WordleGame() {
       { id: "sharpshooter", emoji: "🎯", name: "Sharpshooter", description: "80%+ win rate after 20+ dailies", unlocked: stats.daily.gamesPlayed >= 20 && winRateDaily >= 80 },
       { id: "hat_trick", emoji: "🎩", name: "Hat Trick", description: "Win 3 practice games in a row", unlocked: practiceWins >= 3 },
       // Volume
-      { id: "marathon", emoji: "🏃", name: "Marathon", description: "Complete 50 daily challenges", unlocked: stats.daily.gamesPlayed >= 50 },
-      { id: "play_25", emoji: "🧩", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25 },
-      { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100 },
-      { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25 },
-      { id: "wins_50", emoji: "🏅", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50 },
-      { id: "perfectionist", emoji: "🎓", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10 },
-      { id: "comeback_king", emoji: "👑", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5 },
+      { id: "marathon", emoji: "🏃", name: "Marathon", description: "Complete 50 daily challenges", unlocked: stats.daily.gamesPlayed >= 50, progress: Math.min(stats.daily.gamesPlayed / 50, 1) },
+      { id: "play_25", emoji: "🧩", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25, progress: Math.min(lifetimeGames / 25, 1) },
+      { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100, progress: Math.min(lifetimeGames / 100, 1) },
+      { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25, progress: Math.min(totalWins / 25, 1) },
+      { id: "wins_50", emoji: "🏅", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50, progress: Math.min(totalWins / 50, 1) },
+      { id: "perfectionist", emoji: "🎓", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10, progress: Math.min(((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) / 10, 1) },
+      { id: "comeback_king", emoji: "👑", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5, progress: Math.min(((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) / 5, 1) },
       { id: "early_bird", emoji: "🌅", name: "Early Bird", description: "Complete a daily challenge", unlocked: stats.daily.gamesPlayed >= 1 },
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
@@ -2141,6 +2157,19 @@ const styles = StyleSheet.create({
   achievementDesc: {
     fontSize: 11,
     textAlign: "center",
+  },
+  progressTrack: {
+    marginTop: 8,
+    width: "100%",
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+    backgroundColor: "#22c55e",
   },
 
   // Game screen
