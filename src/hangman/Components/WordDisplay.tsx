@@ -146,9 +146,11 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
             // Regular letter or blank
             return (
               <View key={`${lineIdx}-${charIdx}`} style={styles.letterContainer}>
-                <Text style={[styles.letter, getLetterStyle(char, originalIndex)]}>
-                  {char !== '_' ? char : ''}
-                </Text>
+                <View style={styles.letterSlot}>
+                  <Text style={[styles.letter, getLetterStyle(char, originalIndex)]}>
+                    {char !== '_' ? char : ''}
+                  </Text>
+                </View>
                 <View
                   style={[
                     styles.underline,
@@ -182,31 +184,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginBottom: 12,
   },
   letterContainer: {
     alignItems: 'center',
     marginHorizontal: 4,
+  },
+  letterSlot: {
+    height: 50,
     width: 36,
-    height: 72,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   letter: {
-    position: 'absolute',
-    bottom: 12,
     fontSize: 36,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    width: 36,
     textAlign: 'center',
     lineHeight: 42,
   },
   underline: {
-    position: 'absolute',
-    bottom: 0,
     height: 4,
     width: 28,
     borderRadius: 2,
+    marginTop: 4,
   },
   punctuationContainer: {
     alignItems: 'center',
