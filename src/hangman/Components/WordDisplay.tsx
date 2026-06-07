@@ -190,9 +190,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   letterContainer: {
-    alignItems: 'center',
+    width: 36,
+    height: 54,
     marginHorizontal: 4,
-    paddingTop: 50, // space for letter above; underline is the only layout child
   },
   letterAbsoluteWrapper: {
     position: 'absolute',
@@ -211,8 +211,11 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   underline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 4,
+    right: 4,
     height: 4,
-    width: 28,
     borderRadius: 2,
   },
   punctuationContainer: {
