@@ -41,6 +41,7 @@ import {
   getLockedAchievements,
   getTotalAchievementCount,
   getUnlockedAchievementsWithDetails,
+  unlockAllAchievementsForDev,
 } from './utils/achievements';
 import {
   getAverageIncorrectGuesses,
@@ -286,6 +287,9 @@ export default function HangmanScreen() {
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
+      // ⚠️ DEV ONLY — remove before App Store release
+      await unlockAllAchievementsForDev();
+
       const [stats, unlocked, locked] = await Promise.all([
         loadHangmanStats(),
         getUnlockedAchievementsWithDetails(),

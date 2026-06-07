@@ -415,6 +415,19 @@ const unlockAchievement = async (id: string): Promise<boolean> => {
   return true;
 };
 
+// ==================== DEV / OWNER UNLOCK ====================
+
+export const unlockAllAchievementsForDev = async (): Promise<void> => {
+  const unlocked = await loadUnlockedAchievements();
+  const now = new Date().toISOString();
+  for (const achievement of ACHIEVEMENTS) {
+    if (!unlocked.some((a) => a.id === achievement.id)) {
+      unlocked.push({ id: achievement.id, unlockedAt: now });
+    }
+  }
+  await saveUnlockedAchievements(unlocked);
+};
+
 // ==================== CHECK ACHIEVEMENTS ====================
 
 export interface GameResult {

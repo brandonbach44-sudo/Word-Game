@@ -5,8 +5,9 @@ const STATS_KEY = 'wordbuilder_stats';
 const TILES_KEY = 'wordbuilder_tiles';
 const DAILY_KEY = 'wordbuilder_daily';
 
-// Debug flag - set to true to unlock all tiles for testing
-export const DEBUG_UNLOCK_ALL = false;
+// Debug flag - set to true to unlock all tiles/achievements for owner testing
+// ⚠️ SET BACK TO false BEFORE SHIPPING TO THE APP STORE
+export const DEBUG_UNLOCK_ALL = true;
 
 // ==================== INTERFACES ====================
 
@@ -394,20 +395,58 @@ export const getDailyAverageWords = (daily: DailyChallenge): number => {
 // ==================== DEBUG FUNCTIONS ====================
 
 export const unlockAllTilesForTesting = async (): Promise<void> => {
+  // Unlock all tile tiers and variants
   const tiles = await loadTiles();
-  
   for (const tierName of TIER_ORDER) {
     tiles.tierProgress[tierName] = {
-      scoreWithTier: 999999,
+      scoreWithTier: 999999999,
       highestVariantUnlocked: tierName === 'default' ? 6 : 2,
     };
   }
-  
   await saveTiles(tiles);
-  
+
+  // Max out all stats so progress bars and displays look populated
   const stats = await loadStats();
   stats.totalScore = 999999999;
+  stats.gamesPlayed = 500;
+  stats.highScore = 25000;
+  stats.totalWordsFound = 5000;
+  stats.longestWord = 'breaking';
+  stats.blitzGamesPlayed = 250;
+  stats.standardGamesPlayed = 250;
+  stats.bestBlitzScore = 3500;
+  stats.bestStandardScore = 25000;
+  stats.blitzTotalScore = 500000;
+  stats.standardTotalScore = 500000;
+  stats.mostWordsInGame = 30;
+  stats.gamesWithSixLetters = 200;
+  stats.gamesWithSevenLetters = 200;
+  stats.gamesWithEightLetters = 100;
   await saveStats(stats);
+
+  // Max out daily stats
+  const daily = await loadDailyChallenge();
+  if (daily.dailyGamesPlayed === 0) {
+    daily.dailyStreak = 30;
+    daily.bestDailyStreak = 30;
+    daily.dailyGamesPlayed = 100;
+    daily.dailyTotalScore = 300000;
+    daily.dailyTotalWords = 1000;
+    daily.bestDailyScore = 8500;
+    daily.bestDailyWords = 28;
+    await saveDailyChallenge(daily);
+  }
+
+  // Unlock all WordBuilder achievements
+  const { ACHIEVEMENTS, loadAchievements, saveAchievements } = await import('./achievements');
+  const achievementsData = await loadAchievements();
+  const now = new Date().toISOString();
+  for (const achievement of ACHIEVEMENTS) {
+    if (!achievementsData.unlocked.some((a: { id: string }) => a.id === achievement.id)) {
+      achievementsData.unlocked.push({ id: achievement.id, unlockedAt: now });
+    }
+  }
+  await saveAchievements(achievementsData);
 };
 
 export const setScoreForTesting = async (score: number): Promise<void> => {
