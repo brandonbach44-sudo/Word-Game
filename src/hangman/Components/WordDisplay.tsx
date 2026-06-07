@@ -92,17 +92,15 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   return (
     <View style={styles.container}>
       {lines.map((line, lineIdx) => {
-        // Snapshot the starting globalIndex for this line so both rows use the same indices
         const lineStartIndex = globalIndex;
         globalIndex += line.filter(c => c !== ' ').length;
 
         return (
           <View key={lineIdx} style={styles.lineWrapper}>
-            {/* Letters row */}
-            <View style={styles.row}>
+            {/* Letters row — fixed height, so dashes row Y is always the same */}
+            <View style={styles.lettersRow}>
               {line.map((char, charIdx) => {
                 const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
-
                 if (char === ' ') {
                   return <View key={`l-space-${charIdx}`} style={styles.spaceGap} />;
                 }
@@ -119,8 +117,7 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
                     key={`l-${charIdx}`}
                     style={[
                       styles.letter,
-                      { color: getLetterColor(char, idx) },
-                      !revealed && { opacity: 0 },
+                      { color: revealed ? getLetterColor(char, idx) : 'transparent' },
                     ]}
                   >
                     {revealed ? char : 'A'}
@@ -129,11 +126,10 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
               })}
             </View>
 
-            {/* Dashes row — completely independent, never shifts */}
-            <View style={styles.row}>
+            {/* Dashes row — completely independent */}
+            <View style={styles.dashesRow}>
               {line.map((char, charIdx) => {
                 const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
-
                 if (char === ' ') {
                   return <View key={`d-space-${charIdx}`} style={styles.spaceGap} />;
                 }
@@ -141,10 +137,7 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
                   return <View key={`d-punc-${charIdx}`} style={styles.dashSlot} />;
                 }
                 return (
-                  <View
-                    key={`d-${charIdx}`}
-                    style={[styles.dashSlot, { justifyContent: 'center', alignItems: 'center' }]}
-                  >
+                  <View key={`d-${charIdx}`} style={styles.dashSlot}>
                     <View style={[styles.underline, { backgroundColor: getDashColor(idx) }]} />
                   </View>
                 );
@@ -167,12 +160,20 @@ const styles = StyleSheet.create({
   },
   lineWrapper: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  row: {
+  lettersRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    height: 52,
+  },
+  dashesRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    height: 12,
+    marginTop: 4,
   },
   letter: {
     fontSize: 36,
@@ -181,12 +182,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: 36,
     marginHorizontal: 4,
-    lineHeight: 44,
   },
   dashSlot: {
     width: 36,
     height: 12,
     marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   underline: {
     height: 4,
