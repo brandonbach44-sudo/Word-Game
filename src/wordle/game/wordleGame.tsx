@@ -1483,27 +1483,19 @@ export default function WordleGame() {
                   )}
                 </View>
 
-                {/* Practice */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 18 }]}>
-                  Practice
-                </Text>
-
-                <View style={[styles.modeCard, { backgroundColor: CARD, borderColor: BORDER }]}>
-                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Random Word</Text>
+                {/* Play */}
+                <Pressable
+                  onPress={() => startGame("practice")}
+                  style={({ pressed }) => [
+                    styles.modeCard,
+                    { backgroundColor: CARD, borderColor: BORDER, opacity: pressed ? 0.75 : 1, marginTop: 18 },
+                  ]}
+                >
+                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Play</Text>
                   <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
                     Play as much as you want.
                   </Text>
-
-                  <Pressable
-                    onPress={() => startGame("practice")}
-                    style={({ pressed }) => [
-                      styles.primaryCta,
-                      { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
-                    ]}
-                  >
-                    <Text style={[styles.primaryCtaText, { color: TEXT }]}>Play Practice</Text>
-                  </Pressable>
-                </View>
+                </Pressable>
 
                 {/* Settings toggles */}
                 <Text style={[styles.sectionTitle,{color:TEXT,marginTop:24}]}>Settings</Text>
@@ -1599,8 +1591,8 @@ export default function WordleGame() {
                   borderColor={BORDER}
                 />
 
-                {/* ── PRACTICE (secondary) ── */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Practice</Text>
+                {/* ── PLAY (secondary) ── */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Play</Text>
                 <View style={styles.statsGrid}>
                   <StatsCard label="Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Won" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
@@ -1656,7 +1648,7 @@ export default function WordleGame() {
                   <Text style={[styles.gameBackText, { color: SUBTEXT }]}>← Back</Text>
                 </Pressable>
                 <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
-                  {gameMode === "daily" ? "Daily Challenge" : "Practice"}
+                  {gameMode === "daily" ? "Daily Challenge" : "Play"}
                 </Text>
                 <View style={styles.gameHeaderSpacer} />
               </View>
@@ -1960,7 +1952,7 @@ const styles = StyleSheet.create({
   modeCardSubtitle: {
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   modeCardMeta: {
     marginTop: 10,
