@@ -192,6 +192,22 @@ export const categories = {
     "Quantum Computing", "Biometrics", "Facial Recognition", "Subscription", "Console", "Esports",
     "Website", "Profile",
   ],
+  "Dinosaurs": [
+    "Tyrannosaurus Rex", "Triceratops", "Velociraptor", "Brachiosaurus", "Stegosaurus", "Pterodactyl",
+    "Ankylosaurus", "Diplodocus", "Allosaurus", "Spinosaurus", "Parasaurolophus", "Pachycephalosaurus",
+    "Iguanodon", "Carnotaurus", "Ceratosaurus", "Deinonychus", "Gallimimus", "Compsognathus",
+    "Archaeopteryx", "Mosasaurus", "Plesiosaurus", "Pteranodon", "Therizinosaurus", "Oviraptor",
+    "Styracosaurus",
+  ],
+  "Superheroes": [
+    "Superman", "Batman", "Spider-Man", "Wonder Woman", "Iron Man", "Black Panther",
+    "Captain America", "Thor", "Hulk", "Black Widow", "Hawkeye", "Ant-Man",
+    "Doctor Strange", "Scarlet Witch", "Captain Marvel", "Deadpool", "Wolverine", "Cyclops",
+    "Storm", "Jean Grey", "Magneto", "Professor X", "Gambit", "Rogue",
+    "Flash", "Green Lantern", "Aquaman", "Nightwing", "Robin", "Batgirl",
+    "Supergirl", "Shazam", "Daredevil", "Luke Cage", "Jessica Jones", "Punisher",
+    "Ghost Rider", "Blade", "Silver Surfer",
+  ],
   "Cat Breeds": [
     "Persian", "Siamese", "Maine Coon", "Ragdoll", "Bengal", "Sphynx",
     "Abyssinian", "Birman", "Burmese", "Russian Blue", "Scottish Fold", "Norwegian Forest",
