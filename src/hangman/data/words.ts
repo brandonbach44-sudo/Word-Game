@@ -192,6 +192,17 @@ export const categories = {
     "Quantum Computing", "Biometrics", "Facial Recognition", "Subscription", "Console", "Esports",
     "Website", "Profile",
   ],
+  "Dog Breeds": [
+    "Labrador", "Golden Retriever", "Bulldog", "Poodle", "Beagle", "Rottweiler",
+    "Dachshund", "Chihuahua", "Boxer", "Shih Tzu", "Husky", "Pomeranian",
+    "Maltese", "Corgi", "Schnauzer", "German Shepherd", "Doberman", "Border Collie",
+    "Australian Shepherd", "Great Dane", "Saint Bernard", "Mastiff", "Greyhound", "Dalmatian",
+    "Weimaraner", "Vizsla", "Bloodhound", "Basset Hound", "Yorkshire Terrier", "Bull Terrier",
+    "Scottish Terrier", "Jack Russell", "Airedale", "Staffordshire", "Rat Terrier", "Fox Terrier",
+    "Bichon Frise", "Cavalier", "Papillon", "Pekingese", "Shiba Inu", "Lhasa Apso",
+    "Havanese", "Cocker Spaniel", "Samoyed", "Akita", "Chow Chow", "Shar Pei",
+    "Basenji", "Saluki", "Borzoi", "Newfoundland", "Leonberger", "Xoloitzcuintli",
+  ],
   "Space": [
     "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus",
     "Neptune", "Pluto", "Europa", "Titan", "Ganymede", "Io",
