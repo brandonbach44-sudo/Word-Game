@@ -1,10 +1,11 @@
 import React from 'react';
-import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useTheme } from '../../shared/ThemeContext';
-import { COLORS } from '../../shared/theme';
-import { formatDisplayDate } from '../utils/dailyChallenge';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Share2 } from 'lucide-react-native';
 
-type DailyChallengePopupProps = {
+import { useTheme } from '../../shared/ThemeContext';
+import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
+
+type Props = {
   visible: boolean;
   won: boolean;
   word: string;
@@ -16,7 +17,26 @@ type DailyChallengePopupProps = {
   onBackToMenu: () => void;
 };
 
-export const DailyChallengePopup: React.FC<DailyChallengePopupProps> = ({
+const StatPill = ({
+  label,
+  value,
+  textColor,
+  borderColor,
+  backgroundColor,
+}: {
+  label: string;
+  value: string;
+  textColor: string;
+  borderColor: string;
+  backgroundColor: string;
+}) => (
+  <View style={[styles.statPill, { borderColor, backgroundColor }]}>
+    <Text style={[styles.statPillLabel, { color: textColor }]}>{label}</Text>
+    <Text style={[styles.statPillValue, { color: textColor }]}>{value}</Text>
+  </View>
+);
+
+export const DailyChallengePopup: React.FC<Props> = ({
   visible,
   won,
   word,
@@ -28,11 +48,22 @@ export const DailyChallengePopup: React.FC<DailyChallengePopupProps> = ({
   onBackToMenu,
 }) => {
   const { background } = useTheme();
+  const countdown = useCountdownToMidnight();
 
   if (!visible) return null;
 
-  // Build the emoji block row: ❌ for wrong guesses, ✅ if won (last slot), ⬜ for unused
-  const buildBlocks = () => {
+  const BG = background.backgroundColor ?? '#f9f5ec';
+  const TEXT = background.textColor ?? '#111827';
+  const SUBTEXT = background.secondaryText ?? '#6b7280';
+  const CARD = background.cardColor ?? '#ffffff';
+  const BORDER = background.borderColor ?? '#e5e7eb';
+
+  const title = won ? 'Nice!' : 'Better luck tomorrow';
+  const subtitle = won
+    ? `You guessed it with ${incorrectCount}/${maxAttempts} wrong guesses.`
+    : `The word was ${word.toUpperCase()}.`;
+
+  const handleShare = async () => {
     const blocks: string[] = [];
     for (let i = 0; i < maxAttempts; i++) {
       if (i < incorrectCount) {
@@ -43,80 +74,115 @@ export const DailyChallengePopup: React.FC<DailyChallengePopupProps> = ({
         blocks.push('⬜');
       }
     }
-    return blocks.join('');
-  };
-
-  const blocks = buildBlocks();
-
-  const handleShare = async () => {
-    const date = formatDisplayDate();
+    const blockRow = blocks.join('');
     const resultLine = won
       ? `✅ Won with ${incorrectCount}/${maxAttempts} wrong guesses!`
       : `💀 Lost — better luck tomorrow!`;
     const streakLine = streak > 1 ? `🔥 ${streak} day streak\n` : '';
-    const message = `🎯 Hangman Daily\n${date}\nCategory: ${category}\n\n${resultLine}\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
-
+    const message = `🎯 Hangman Daily\n${formatDisplayDate()}\nCategory: ${category}\n\n${resultLine}\n${streakLine}\n${blockRow}\n\nPlay Word Fury!`;
     try {
+      const { Share } = require('react-native');
       await Share.share({ message });
     } catch (e) {}
   };
 
   return (
     <View style={styles.overlay}>
-      <View style={[styles.popup, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+      <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
 
-        {/* Header */}
-        <Text style={[styles.title, { color: background.textColor }]}>Daily Hangman</Text>
-        <Text style={[styles.date, { color: background.secondaryText }]}>{formatDisplayDate()}</Text>
-        <Text style={[styles.category, { color: background.secondaryText }]}>{category}</Text>
+        {/* Brand */}
+        <Text style={[styles.brand, { color: SUBTEXT }]}>WORD FURY</Text>
 
-        {/* Result */}
-        <Text style={styles.resultEmoji}>{won ? '🎉' : '💀'}</Text>
-        <Text style={[styles.resultText, { color: won ? COLORS.accent : COLORS.danger }]}>
-          {won ? 'You Won!' : 'Better Luck Tomorrow!'}
-        </Text>
+        {/* Title + subtitle */}
+        <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
+        <Text style={[styles.subtitle, { color: SUBTEXT }]}>{subtitle}</Text>
 
-        {/* Word */}
-        <View style={[styles.wordBox, { backgroundColor: background.backgroundColor, borderColor: background.borderColor }]}>
-          <Text style={[styles.wordLabel, { color: background.secondaryText }]}>The word was</Text>
-          <Text style={[styles.word, { color: background.textColor }]}>{word.toUpperCase()}</Text>
+        {/* Solution */}
+        <View style={[styles.solutionBox, { borderColor: BORDER }]}>
+          <Text style={[styles.solutionLabel, { color: SUBTEXT }]}>The word was</Text>
+          <Text style={[styles.solutionWord, { color: TEXT }]}>{word.toUpperCase()}</Text>
+          <Text style={[styles.solutionCategory, { color: SUBTEXT }]}>{category}</Text>
         </View>
 
-        {/* Wrong guess blocks */}
-        <Text style={styles.blocks}>{blocks}</Text>
-        <Text style={[styles.blockLabel, { color: background.secondaryText }]}>
-          {incorrectCount}/{maxAttempts} wrong guesses
-        </Text>
-
-        {/* Streak */}
-        <View style={styles.streakRow}>
-          <View style={[styles.streakCard, { backgroundColor: background.backgroundColor, borderColor: background.borderColor }]}>
-            <Text style={styles.streakEmoji}>🔥</Text>
-            <Text style={[styles.streakValue, { color: background.textColor }]}>{streak}</Text>
-            <Text style={[styles.streakLabel, { color: background.secondaryText }]}>Streak</Text>
-          </View>
-          <View style={[styles.streakCard, { backgroundColor: background.backgroundColor, borderColor: background.borderColor }]}>
-            <Text style={styles.streakEmoji}>🏆</Text>
-            <Text style={[styles.streakValue, { color: background.textColor }]}>{bestStreak}</Text>
-            <Text style={[styles.streakLabel, { color: background.secondaryText }]}>Best</Text>
-          </View>
+        {/* This game */}
+        <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
+        <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
+        <View style={styles.statsRow}>
+          <StatPill
+            label="Wrong"
+            value={`${incorrectCount}`}
+            textColor={TEXT}
+            borderColor={BORDER}
+            backgroundColor={BG}
+          />
+          <StatPill
+            label="Max"
+            value={`${maxAttempts}`}
+            textColor={TEXT}
+            borderColor={BORDER}
+            backgroundColor={BG}
+          />
         </View>
+
+        {/* Stats */}
+        <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
+        <Text style={[styles.sectionTitle, { color: TEXT }]}>Stats</Text>
+        <View style={styles.statsRow}>
+          <StatPill
+            label="Streak"
+            value={`${streak}`}
+            textColor={TEXT}
+            borderColor={BORDER}
+            backgroundColor={BG}
+          />
+          <StatPill
+            label="Best"
+            value={`${bestStreak}`}
+            textColor={TEXT}
+            borderColor={BORDER}
+            backgroundColor={BG}
+          />
+        </View>
+
+        {/* Countdown */}
+        <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
+        <Text style={[styles.countdownLabel, { color: SUBTEXT }]}>Next Daily in</Text>
+        <Text style={[styles.countdownValue, { color: TEXT }]}>{countdown}</Text>
 
         {/* Buttons */}
-        <TouchableOpacity
-          style={[styles.shareBtn, { backgroundColor: COLORS.accent }]}
+        <View style={styles.buttonRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryButton,
+              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={onBackToMenu}
+          >
+            <Text style={[styles.primaryButtonText, { color: TEXT }]}>Main Menu</Text>
+          </Pressable>
+        </View>
+
+        {/* Share Result */}
+        <Pressable
+          style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
           onPress={handleShare}
-          activeOpacity={0.8}
         >
-          <Text style={styles.shareBtnText}>Share Result</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.menuBtn, { borderColor: background.borderColor }]}
+          <View style={styles.shareButtonInner}>
+            <Share2 size={18} color="#fff" />
+            <Text style={styles.shareButtonText}>Share Result</Text>
+          </View>
+        </Pressable>
+
+        {/* Close */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+          ]}
           onPress={onBackToMenu}
-          activeOpacity={0.8}
         >
-          <Text style={[styles.menuBtnText, { color: background.textColor }]}>Back to Menu</Text>
-        </TouchableOpacity>
+          <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
+        </Pressable>
 
       </View>
     </View>
@@ -126,67 +192,164 @@ export const DailyChallengePopup: React.FC<DailyChallengePopupProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
     zIndex: 100,
   },
-  popup: {
-    width: 340,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
-  date: { fontSize: 14, marginBottom: 2 },
-  category: { fontSize: 13, marginBottom: 12 },
-  resultEmoji: { fontSize: 44, marginBottom: 4 },
-  resultText: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  wordBox: {
+  card: {
     width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginBottom: 16,
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
   },
-  wordLabel: { fontSize: 12, marginBottom: 4 },
-  word: { fontSize: 26, fontWeight: 'bold', letterSpacing: 2 },
-  blocks: { fontSize: 28, letterSpacing: 2, marginBottom: 4 },
-  blockLabel: { fontSize: 12, marginBottom: 16 },
-  streakRow: { flexDirection: 'row', gap: 12, marginBottom: 20, width: '100%' },
-  streakCard: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
+  brand: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  title: {
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  subtitle: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  solutionBox: {
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  solutionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  solutionWord: {
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  solutionCategory: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+  statPill: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  statPillLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    opacity: 0.8,
+    marginBottom: 2,
+  },
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  countdownLabel: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  countdownValue: {
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  primaryButton: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  shareButton: {
+    marginTop: 10,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    backgroundColor: '#22c55e',
+  },
+  shareButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderRadius: 999,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  streakEmoji: { fontSize: 20, marginBottom: 2 },
-  streakValue: { fontSize: 22, fontWeight: 'bold' },
-  streakLabel: { fontSize: 12 },
-  shareBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 10,
+  secondaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
-  shareBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  menuBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
-  menuBtnText: { fontSize: 16, fontWeight: '600' },
 });

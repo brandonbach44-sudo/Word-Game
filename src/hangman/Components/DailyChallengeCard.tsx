@@ -1,5 +1,6 @@
 import React from 'react';
 import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Share2 } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
@@ -113,7 +114,7 @@ export const DailyChallengeCard: React.FC<Props> = ({
             onPress={handleShare}
             activeOpacity={0.8}
           >
-            <Text style={styles.shareIcon}>↑</Text>
+            <Share2 size={18} color={background.textColor} />
           </TouchableOpacity>
         </View>
       )}
@@ -196,8 +197,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
   },
-  shareIcon: { fontSize: 20, fontWeight: 'bold', color: '#555' },
-  countdownContainer: { alignItems: 'center' },
+countdownContainer: { alignItems: 'center' },
   countdownLabel: { fontSize: 13, marginBottom: 2 },
   countdown: { fontSize: 20, fontWeight: 'bold', letterSpacing: 1 },
 });
