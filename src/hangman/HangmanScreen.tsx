@@ -801,9 +801,49 @@ export default function HangmanScreen() {
       )}
       {segment === 'stats' && (
         <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
+          {/* Daily Challenge Stats */}
+          {dailyStats && dailyStats.gamesPlayed > 0 && (
+            <>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor }]}>Daily Challenge Stats</Text>
+              <View style={styles.statsGrid}>
+                <StatsCard
+                  label="Dailies Played"
+                  value={dailyStats.gamesPlayed.toString()}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard
+                  label="Last Result"
+                  value={dailyStats.lastDailyResult === 'won' ? '✓ Won' : dailyStats.lastDailyResult === 'lost' ? '✗ Lost' : '-'}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard
+                  label="Current Streak"
+                  value={`${dailyStats.streak} ${dailyStats.streak === 1 ? 'day' : 'days'}`}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard
+                  label="Best Streak"
+                  value={`${dailyStats.bestStreak} ${dailyStats.bestStreak === 1 ? 'day' : 'days'}`}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+              </View>
+            </>
+          )}
           {playerStats ? (
             <>
-              <Text style={[styles.statsSectionTitle, { color: background.textColor }]}>Overview</Text>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Normal Play Stats</Text>
               <View style={styles.statsGrid}>
                 <StatsCard
                   label="Games Played"
