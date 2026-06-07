@@ -1940,18 +1940,20 @@ const styles = StyleSheet.create({
 
   // Mode cards (Play menu)
   modeCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 15,
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 20,
+    width: "100%",
+    alignItems: "center",
   },
   modeCardTitle: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "bold",
     marginBottom: 4,
   },
   modeCardSubtitle: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "400",
     marginBottom: 0,
   },
   modeCardMeta: {
