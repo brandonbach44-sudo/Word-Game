@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Dimensions,
   Modal,
   PanResponder,
   Pressable,
@@ -12,6 +14,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
@@ -102,7 +106,9 @@ const styles = StyleSheet.create({
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   categoryCard: { width: '48%', padding: 20, borderRadius: 15, borderWidth: 2, alignItems: 'flex-start', justifyContent: 'center', minHeight: 80 },
   categoryCardText: { fontSize: 16, fontWeight: 'bold', textAlign: 'left' },
-  statsContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 15 },
+  statsContainer: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 40 },
+  tabStripWrapper: { flex: 1, overflow: 'hidden', alignItems: 'flex-start' },
+  tabStrip: { width: width * 2, flexDirection: 'row', alignSelf: 'flex-start' },
   statsSectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
   statsCard: { width: '48%', padding: 15, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
@@ -237,6 +243,10 @@ export default function HangmanScreen() {
   const { background } = useTheme();
 
   const [segment, setSegment] = useState<SegmentKey>('play');
+  const SEGMENT_KEYS: SegmentKey[] = ['play', 'stats'];
+  const tabAnim = useRef(new Animated.Value(0)).current;
+  const currentTabIdxRef = useRef(0);
+  const dragBase = useRef(0);
   const [gameMode, setGameMode] = useState<GameMode>('menu');
   const [gameType, setGameType] = useState<GameType>('custom');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -472,14 +482,49 @@ export default function HangmanScreen() {
   const isPhraseCategory = (categoryName: string) =>
     Object.keys(PHRASE_CATEGORIES).includes(categoryName);
 
-  // Swipe to switch Play/Stats tabs
-  const swipePanResponder = useRef(
+  // Keep currentTabIdxRef in sync with segment state
+  useEffect(() => {
+    currentTabIdxRef.current = SEGMENT_KEYS.indexOf(segment);
+  }, [segment]);
+
+  const handleSegmentPress = (key: SegmentKey) => {
+    const newIdx = SEGMENT_KEYS.indexOf(key);
+    setSegment(key);
+    Animated.spring(tabAnim, {
+      toValue: newIdx,
+      useNativeDriver: true,
+      tension: 70,
+      friction: 12,
+    }).start();
+  };
+
+  // Full live-drag pan responder matching WordBuilder
+  const menuPanResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+      onPanResponderGrant: () => {
+        tabAnim.stopAnimation();
+        dragBase.current = currentTabIdxRef.current;
+      },
+      onPanResponderMove: (_, gs) => {
+        const raw = dragBase.current - gs.dx / width;
+        tabAnim.setValue(Math.max(0, Math.min(SEGMENT_KEYS.length - 1, raw)));
+      },
       onPanResponderRelease: (_, gs) => {
-        if (gs.dx < -40) setSegment('stats');
-        else if (gs.dx > 40) setSegment('play');
+        const base = dragBase.current;
+        let newIdx = Math.round(base);
+        if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, SEGMENT_KEYS.length - 1);
+        else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
+        currentTabIdxRef.current = newIdx;
+        setSegment(SEGMENT_KEYS[newIdx]);
+        Animated.spring(tabAnim, {
+          toValue: newIdx,
+          useNativeDriver: true,
+          tension: 70,
+          friction: 12,
+        }).start();
       },
     })
   ).current;
@@ -708,7 +753,7 @@ export default function HangmanScreen() {
 
   // Main Menu
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]} {...swipePanResponder.panHandlers}>
+    <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
       <AchievementPopup
         achievement={currentPopupAchievement}
@@ -736,7 +781,7 @@ export default function HangmanScreen() {
                 styles.segmentButton,
                 isActive && { backgroundColor: background.backgroundColor },
               ]}
-              onPress={() => setSegment(key)}
+              onPress={() => handleSegmentPress(key)}
             >
               <Text style={[
                 styles.segmentButtonText,
@@ -749,9 +794,14 @@ export default function HangmanScreen() {
           );
         })}
       </View>
-      {segment === 'play' && (
+      <View style={styles.tabStripWrapper} {...menuPanResponder.panHandlers}>
+      <Animated.View style={[styles.tabStrip, { transform: [{ translateX: tabAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -width],
+      }) }] }]}>
+
         <ScrollView
-          style={styles.playScrollView}
+          style={{ width, flex: 1 }}
           contentContainerStyle={styles.playContainer}
           showsVerticalScrollIndicator={false}
         >
@@ -826,9 +876,8 @@ export default function HangmanScreen() {
           </View>
           <View style={{ height: 40 }} />
         </ScrollView>
-      )}
-      {segment === 'stats' && (
-        <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
+
+        <ScrollView style={{ width, flex: 1 }} contentContainerStyle={styles.statsContainer} showsVerticalScrollIndicator={false}>
           {/* Daily Challenge Stats */}
           {dailyStats && dailyStats.gamesPlayed > 0 && (
             <>
@@ -1103,16 +1152,21 @@ export default function HangmanScreen() {
             </Text>
           )}
         </ScrollView>
-      )}
-      
+
+      </Animated.View>
+      </View>
+
       {/* Daily Results Popup (when viewing from menu after already played) */}
       {showDailyPopup && dailyStats && !playingDaily && (
         <DailyChallengePopup
           visible={true}
           won={dailyStats.lastDailyResult === 'won'}
           word={dailyStats.lastDailyWord || ''}
+          category={'Daily Challenge'}
           streak={dailyStats.streak || 0}
           bestStreak={dailyStats.bestStreak || 0}
+          incorrectCount={dailyStats.lastIncorrectCount ?? 0}
+          maxAttempts={6}
           onBackToMenu={() => setShowDailyPopup(false)}
         />
       )}
