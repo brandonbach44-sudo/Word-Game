@@ -192,6 +192,16 @@ export const categories = {
     "Quantum Computing", "Biometrics", "Facial Recognition", "Subscription", "Console", "Esports",
     "Website", "Profile",
   ],
+  "Cat Breeds": [
+    "Persian", "Siamese", "Maine Coon", "Ragdoll", "Bengal", "Sphynx",
+    "Abyssinian", "Birman", "Burmese", "Russian Blue", "Scottish Fold", "Norwegian Forest",
+    "Himalayan", "Manx", "Tonkinese", "British Shorthair", "American Shorthair", "Exotic Shorthair",
+    "Devon Rex", "Cornish Rex", "Bombay", "Ocicat", "Egyptian Mau", "Chartreux",
+    "Havana Brown", "Turkish Angora", "Turkish Van", "Balinese", "Somali", "Tiffany",
+    "Selkirk Rex", "Siberian", "Chantilly", "Savannah", "Caracat", "Peterbald",
+    "Lykoi", "Khao Manee", "LaPerm", "Singapura", "Munchkin", "Pixiebob",
+    "Toyger",
+  ],
   "Dog Breeds": [
     "Labrador", "Golden Retriever", "Bulldog", "Poodle", "Beagle", "Rottweiler",
     "Dachshund", "Chihuahua", "Boxer", "Shih Tzu", "Husky", "Pomeranian",
