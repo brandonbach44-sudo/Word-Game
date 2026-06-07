@@ -843,7 +843,7 @@ export default function HangmanScreen() {
           )}
           {playerStats ? (
             <>
-              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Normal Play Stats</Text>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Free Play Stats</Text>
               <View style={styles.statsGrid}>
                 <StatsCard
                   label="Games Played"
