@@ -519,6 +519,9 @@ export const songTitles = [
   "Nothing Else Matters",
 ];
 
+// Alias for HangmanScreen imports
+export const WORD_CATEGORIES = categories;
+
 // Exported after arrays are defined so they can be referenced correctly
 export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
   "Idioms": categories["Idioms"],
