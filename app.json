@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bachapps.wordgames"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,9 +43,15 @@
       "expo-font",
       "expo-web-browser"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "28b704c1-a924-4832-960a-f7ac13f4902b"
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "owner": "bach2"
   }
 }
