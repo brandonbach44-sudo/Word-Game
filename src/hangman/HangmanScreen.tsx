@@ -350,7 +350,7 @@ export default function HangmanScreen() {
       
       const handleDailyEnd = async () => {
         const result = isWon ? 'won' : 'lost';
-        await saveDailyResult(result, dailyWord);
+        await saveDailyResult(result, dailyWord, incorrectGuesses.length);
         const updatedDailyStats = await loadDailyStats();
         setDailyStats(updatedDailyStats);
         setShowDailyPopup(true);
@@ -753,8 +753,12 @@ export default function HangmanScreen() {
         >
           <DailyChallengeCard
             played={dailyStats?.lastPlayedDate === getTodayDateString()}
+            result={dailyStats?.lastDailyResult || ''}
+            word={dailyStats?.lastDailyWord || ''}
             streak={dailyStats?.streak || 0}
             bestStreak={dailyStats?.bestStreak || 0}
+            incorrectCount={dailyStats?.lastIncorrectCount ?? 0}
+            maxAttempts={6}
             onPlay={() => {
               if (dailyStats?.lastPlayedDate === getTodayDateString()) {
                 setShowDailyPopup(true);

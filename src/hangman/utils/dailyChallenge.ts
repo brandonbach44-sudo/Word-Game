@@ -59,6 +59,7 @@ export interface DailyChallengeStats {
   lastPlayedDate: string;
   lastDailyResult: 'won' | 'lost' | '';
   lastDailyWord: string;
+  lastIncorrectCount: number;
   streak: number;
   bestStreak: number;
   gamesPlayed: number;
@@ -70,6 +71,7 @@ const defaultStats: DailyChallengeStats = {
   lastPlayedDate: '',
   lastDailyResult: '',
   lastDailyWord: '',
+  lastIncorrectCount: 0,
   streak: 0,
   bestStreak: 0,
   gamesPlayed: 0,
@@ -87,7 +89,7 @@ export async function loadDailyStats(): Promise<DailyChallengeStats> {
 export async function saveDailyStats(s: DailyChallengeStats) {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 }
-export async function saveDailyResult(result: 'won' | 'lost', word: string) {
+export async function saveDailyResult(result: 'won' | 'lost', word: string, incorrectCount: number = 0) {
   const stats = await loadDailyStats();
   const today = getTodayDateString();
   const yesterday = getYesterdayDateString();
@@ -100,6 +102,7 @@ export async function saveDailyResult(result: 'won' | 'lost', word: string) {
     lastPlayedDate: today,
     lastDailyResult: result,
     lastDailyWord: word,
+    lastIncorrectCount: incorrectCount,
     streak,
     bestStreak,
     gamesPlayed: stats.gamesPlayed + 1,
