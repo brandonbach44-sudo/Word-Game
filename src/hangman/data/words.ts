@@ -192,6 +192,15 @@ export const categories = {
     "Quantum Computing", "Biometrics", "Facial Recognition", "Subscription", "Console", "Esports",
     "Website", "Profile",
   ],
+  "Landmarks": [
+    "Eiffel Tower", "Colosseum", "Great Wall", "Stonehenge", "Machu Picchu", "Taj Mahal",
+    "Parthenon", "Acropolis", "Pyramids of Giza", "Sphinx", "Pantheon", "Pompeii",
+    "Angkor Wat", "Chichen Itza", "Petra", "Statue of Liberty", "Golden Gate Bridge", "Mount Rushmore",
+    "Niagara Falls", "Grand Canyon", "Hoover Dam", "Empire State Building", "Hollywood Sign", "Alcatraz",
+    "Yellowstone", "Big Ben", "Buckingham Palace", "Louvre", "Sistine Chapel", "Leaning Tower of Pisa",
+    "Sagrada Familia", "Brandenburg Gate", "Neuschwanstein Castle", "Vatican City", "Burj Khalifa", "Sydney Opera House",
+    "Mount Fuji", "Forbidden City", "Alhambra", "Serengeti", "Victoria Falls", "Kilimanjaro",
+  ],
   "Occupations": [
     "Surgeon", "Physician", "Dentist", "Pharmacist", "Paramedic", "Radiologist",
     "Anesthesiologist", "Pediatrician", "Psychiatrist", "Cardiologist", "Dermatologist", "Neurologist",
