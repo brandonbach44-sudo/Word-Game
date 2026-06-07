@@ -1493,7 +1493,7 @@ export default function WordleGame() {
                 >
                   <Text style={[styles.modeCardTitle, { color: TEXT }]}>Play</Text>
                   <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
-                    Play as much as you want.
+                    A fresh 5-letter word whenever you want.
                   </Text>
                 </Pressable>
 
