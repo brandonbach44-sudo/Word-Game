@@ -580,17 +580,14 @@ export default function GameScreen() {
             contentContainerStyle={styles.playContainer}
             showsVerticalScrollIndicator={false}
           >
-            {/* Quick Play button — large, prominent CTA */}
+            {/* Quick Play button */}
             <TouchableOpacity
               style={[styles.quickPlayButton, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
               onPress={startGame}
-              activeOpacity={0.82}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.quickPlayIcon, { color: bg.textColor }]}>▶</Text>
-              <View>
-                <Text style={[styles.quickPlayTitle, { color: bg.textColor }]}>Quick Play</Text>
-                <Text style={[styles.quickPlaySub, { color: bg.secondaryText }]}>1 minute · 4×4 letter grid</Text>
-              </View>
+              <Text style={[styles.quickPlayTitle, { color: bg.textColor }]}>Quick Play</Text>
+              <Text style={[styles.quickPlaySub, { color: bg.secondaryText }]}>1 minute · 4×4 letter grid</Text>
             </TouchableOpacity>
 
             {/* How to Play */}
@@ -742,24 +739,17 @@ const styles = StyleSheet.create({
   quickPlayButton: {
     borderRadius: 16,
     borderWidth: 2,
-    paddingVertical: 22,
-    paddingHorizontal: 28,
-    marginBottom: 20,
-    flexDirection: 'row',
+    padding: 20,
+    marginBottom: 12,
     alignItems: 'center',
-    gap: 16,
-  },
-  quickPlayIcon: {
-    fontSize: 32,
   },
   quickPlayTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
   quickPlaySub: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 14,
   },
 
   rulesCard: { borderRadius: 14, borderWidth: 1.5, padding: 16 },
