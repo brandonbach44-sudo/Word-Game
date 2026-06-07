@@ -192,6 +192,16 @@ export const categories = {
     "Quantum Computing", "Biometrics", "Facial Recognition", "Subscription", "Console", "Esports",
     "Website", "Profile",
   ],
+  "Games": [
+    "Monopoly", "Scrabble", "Clue", "Checkers", "Chess", "Backgammon",
+    "Battleship", "Othello", "Connect Four", "Jenga", "Trouble", "Sorry",
+    "Risk", "Stratego", "Boggle", "Uno", "Yahtzee", "Dominoes",
+    "Poker", "Blackjack", "Solitaire", "Rummy", "Cribbage", "Spades",
+    "Hearts", "Catan", "Ticket to Ride", "Pandemic", "Codenames", "Wingspan",
+    "Azul", "Carcassonne", "Splendor", "Dominion", "Terraforming Mars", "Betrayal",
+    "Diplomacy", "Trivial Pursuit", "Pictionary", "Taboo", "Balderdash", "Cranium",
+    "Apples to Apples", "Scattergories",
+  ],
   "Landmarks": [
     "Eiffel Tower", "Colosseum", "Great Wall", "Stonehenge", "Machu Picchu", "Taj Mahal",
     "Parthenon", "Acropolis", "Pyramids of Giza", "Sphinx", "Pantheon", "Pompeii",
