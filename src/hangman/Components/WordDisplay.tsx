@@ -6,34 +6,27 @@ import { COLORS } from '../../shared/theme';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type WordDisplayProps = {
-  displayWord: string[]; // Array of letters, '_' for unguessed, or punctuation
+  displayWord: string[];
   isWon?: boolean;
   isLost?: boolean;
-  actualWord?: string; // Show the actual word when game is lost
+  actualWord?: string;
 };
 
-// Check if character is a letter
 const isLetter = (char: string) => /[a-zA-Z]/.test(char);
-
-// Check if character is punctuation (not letter, not space)
 const isPunctuation = (char: string) => char !== ' ' && !isLetter(char);
 
-// Smart word wrapper: breaks at word boundaries, handles long phrases
 function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[])[] {
   if (letters.length === 0) return [];
-
   const lines: string[][] = [];
   let currentLine: string[] = [];
   let currentWord: string[] = [];
 
   for (let i = 0; i < letters.length; i++) {
     const char = letters[i];
-
     if (char === ' ') {
       if (currentWord.length > 0) {
         const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
         const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
-
         if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
           lines.push(currentLine);
           currentLine = [...currentWord];
@@ -42,9 +35,7 @@ function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[]
         }
         currentWord = [];
       }
-      if (currentLine.length > 0) {
-        currentLine.push(' ');
-      }
+      if (currentLine.length > 0) currentLine.push(' ');
     } else {
       currentWord.push(char);
     }
@@ -53,7 +44,6 @@ function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[]
   if (currentWord.length > 0) {
     const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
     const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
-
     if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
       lines.push(currentLine);
       currentLine = [...currentWord];
@@ -63,9 +53,7 @@ function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[]
   }
 
   if (currentLine.length > 0) {
-    if (currentLine[currentLine.length - 1] === ' ') {
-      currentLine.pop();
-    }
+    if (currentLine[currentLine.length - 1] === ' ') currentLine.pop();
     lines.push(currentLine);
   }
 
@@ -79,82 +67,92 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   actualWord = '',
 }) => {
   const { background } = useTheme();
-
   const maxLettersPerLine = Math.max(6, Math.floor((SCREEN_WIDTH - 30) / 40));
 
-  const getLetterStyle = (letter: string, originalIndex: number) => {
-    if (isWon) {
-      return { color: COLORS.accent };
-    }
+  const getLetterColor = (char: string, originalIndex: number) => {
+    if (isWon) return COLORS.accent;
     if (isLost) {
-      if (displayWord[originalIndex] === '_') {
-        return { color: COLORS.danger };
-      }
-      return { color: background.textColor };
+      if (displayWord[originalIndex] === '_') return COLORS.danger;
+      return background.textColor;
     }
-    return { color: background.textColor };
+    return background.textColor;
   };
 
-  const lettersToShow = isLost && actualWord
-    ? actualWord.split('')
-    : displayWord;
+  const getDashColor = (originalIndex: number) => {
+    if (isWon) return COLORS.accent;
+    if (isLost && displayWord[originalIndex] === '_') return COLORS.danger;
+    return background.borderColor;
+  };
 
+  const lettersToShow = isLost && actualWord ? actualWord.split('') : displayWord;
   const lines = smartWrapLetters(lettersToShow, maxLettersPerLine);
 
   let globalIndex = 0;
 
   return (
     <View style={styles.container}>
-      {lines.map((line, lineIdx) => (
-        <View key={lineIdx} style={styles.wordContainer}>
-          {line.map((char, charIdx) => {
-            const originalIndex = globalIndex++;
+      {lines.map((line, lineIdx) => {
+        // Snapshot the starting globalIndex for this line so both rows use the same indices
+        const lineStartIndex = globalIndex;
+        globalIndex += line.filter(c => c !== ' ').length;
 
-            if (char === ' ') {
-              return <View key={`${lineIdx}-${charIdx}`} style={styles.spaceGap} />;
-            }
+        return (
+          <View key={lineIdx} style={styles.lineWrapper}>
+            {/* Letters row */}
+            <View style={styles.row}>
+              {line.map((char, charIdx) => {
+                const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
 
-            if (isPunctuation(char)) {
-              return (
-                <View key={`${lineIdx}-${charIdx}`} style={styles.letterContainer}>
-                  <Text style={[styles.letter, { color: background.textColor }]}>
-                    {char}
+                if (char === ' ') {
+                  return <View key={`l-space-${charIdx}`} style={styles.spaceGap} />;
+                }
+                if (isPunctuation(char)) {
+                  return (
+                    <Text key={`l-punc-${charIdx}`} style={[styles.letter, { color: background.textColor }]}>
+                      {char}
+                    </Text>
+                  );
+                }
+                const revealed = char !== '_';
+                return (
+                  <Text
+                    key={`l-${charIdx}`}
+                    style={[
+                      styles.letter,
+                      { color: getLetterColor(char, idx) },
+                      !revealed && { opacity: 0 },
+                    ]}
+                  >
+                    {revealed ? char : 'A'}
                   </Text>
-                  <View style={styles.underlineSpacer} />
-                </View>
-              );
-            }
+                );
+              })}
+            </View>
 
-            // Render letter slot — always a visible character so height never changes
-            const revealed = char !== '_';
-            return (
-              <View key={`${lineIdx}-${charIdx}`} style={styles.letterContainer}>
-                <Text
-                  style={[
-                    styles.letter,
-                    getLetterStyle(char, originalIndex),
-                    !revealed && { opacity: 0 },
-                  ]}
-                >
-                  {revealed ? char : 'A'}
-                </Text>
-                <View
-                  style={[
-                    styles.underline,
-                    {
-                      backgroundColor: isWon
-                        ? COLORS.accent
-                        : isLost && displayWord[originalIndex] === '_'
-                        ? COLORS.danger
-                        : background.borderColor,
-                    },
-                  ]}
-                />
-              </View>
-            );
-          })}
-        </View>
-      ))}
+            {/* Dashes row — completely independent, never shifts */}
+            <View style={styles.row}>
+              {line.map((char, charIdx) => {
+                const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
+
+                if (char === ' ') {
+                  return <View key={`d-space-${charIdx}`} style={styles.spaceGap} />;
+                }
+                if (isPunctuation(char)) {
+                  return <View key={`d-punc-${charIdx}`} style={styles.dashSlot} />;
+                }
+                return (
+                  <View
+                    key={`d-${charIdx}`}
+                    style={[styles.dashSlot, { justifyContent: 'center', alignItems: 'center' }]}
+                  >
+                    <View style={[styles.underline, { backgroundColor: getDashColor(idx) }]} />
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
     </View>
   );
 };
@@ -167,16 +165,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  wordContainer: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+  lineWrapper: {
+    alignItems: 'center',
     marginBottom: 12,
   },
-  letterContainer: {
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 4,
   },
   letter: {
     fontSize: 36,
@@ -184,20 +180,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     textAlign: 'center',
     width: 36,
+    marginHorizontal: 4,
     lineHeight: 44,
+  },
+  dashSlot: {
+    width: 36,
+    height: 12,
+    marginHorizontal: 4,
   },
   underline: {
     height: 4,
     width: 28,
     borderRadius: 2,
-    marginTop: 4,
-  },
-  underlineSpacer: {
-    height: 4,
-    width: 28,
-    borderRadius: 2,
-    marginTop: 4,
-    backgroundColor: 'transparent',
   },
   spaceGap: {
     width: 20,
