@@ -188,22 +188,25 @@ const styles = StyleSheet.create({
   letterContainer: {
     alignItems: 'center',
     marginHorizontal: 4,
+    width: 36,
     height: 72,
-    justifyContent: 'flex-end',
   },
   letter: {
+    position: 'absolute',
+    bottom: 12,
     fontSize: 36,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    minWidth: 28,
+    width: 36,
     textAlign: 'center',
     lineHeight: 42,
   },
   underline: {
+    position: 'absolute',
+    bottom: 0,
     height: 4,
     width: 28,
     borderRadius: 2,
-    marginTop: 8,
   },
   punctuationContainer: {
     alignItems: 'center',
