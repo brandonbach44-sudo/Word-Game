@@ -5,6 +5,14 @@ import { COLORS } from '../../shared/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Slot dimensions — everything is derived from these two constants
+const SLOT_WIDTH = 32;
+const SLOT_H_MARGIN = 4;
+const SLOT_TOTAL = SLOT_WIDTH + SLOT_H_MARGIN * 2; // 40px per slot
+const LETTERS_ROW_HEIGHT = 50;
+const DASH_HEIGHT = 4;
+const DASH_GAP = 5; // gap between letter row and dash row
+
 type WordDisplayProps = {
   displayWord: string[];
   isWon?: boolean;
@@ -15,7 +23,7 @@ type WordDisplayProps = {
 const isLetter = (char: string) => /[a-zA-Z]/.test(char);
 const isPunctuation = (char: string) => char !== ' ' && !isLetter(char);
 
-function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[])[] {
+function smartWrapLetters(letters: string[], maxPerLine: number): (string[])[] {
   if (letters.length === 0) return [];
   const lines: string[][] = [];
   let currentLine: string[] = [];
@@ -25,9 +33,9 @@ function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[]
     const char = letters[i];
     if (char === ' ') {
       if (currentWord.length > 0) {
-        const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
-        const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
-        if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
+        const lineLetterCount = currentLine.filter(c => isLetter(c) || c === '_').length;
+        const wordLetterCount = currentWord.filter(c => isLetter(c) || c === '_').length;
+        if (lineLetterCount + wordLetterCount > maxPerLine && currentLine.length > 0) {
           lines.push(currentLine);
           currentLine = [...currentWord];
         } else {
@@ -42,9 +50,9 @@ function smartWrapLetters(letters: string[], maxPerLine: number = 10): (string[]
   }
 
   if (currentWord.length > 0) {
-    const currentLineLetters = currentLine.filter(c => isLetter(c) || c === '_').length;
-    const currentWordLetters = currentWord.filter(c => isLetter(c) || c === '_').length;
-    if (currentLineLetters + currentWordLetters > maxPerLine && currentLine.length > 0) {
+    const lineLetterCount = currentLine.filter(c => isLetter(c) || c === '_').length;
+    const wordLetterCount = currentWord.filter(c => isLetter(c) || c === '_').length;
+    if (lineLetterCount + wordLetterCount > maxPerLine && currentLine.length > 0) {
       lines.push(currentLine);
       currentLine = [...currentWord];
     } else {
@@ -67,9 +75,12 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   actualWord = '',
 }) => {
   const { background } = useTheme();
-  const maxLettersPerLine = Math.max(6, Math.floor((SCREEN_WIDTH - 30) / 40));
 
-  const getLetterColor = (char: string, originalIndex: number) => {
+  // Available width minus container padding (15px each side)
+  const availableWidth = SCREEN_WIDTH - 30;
+  const maxLettersPerLine = Math.max(5, Math.floor(availableWidth / SLOT_TOTAL));
+
+  const getLetterColor = (char: string, originalIndex: number): string => {
     if (isWon) return COLORS.accent;
     if (isLost) {
       if (displayWord[originalIndex] === '_') return COLORS.danger;
@@ -78,7 +89,7 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
     return background.textColor;
   };
 
-  const getDashColor = (originalIndex: number) => {
+  const getDashColor = (originalIndex: number): string => {
     if (isWon) return COLORS.accent;
     if (isLost && displayWord[originalIndex] === '_') return COLORS.danger;
     return background.borderColor;
@@ -97,48 +108,62 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
 
         return (
           <View key={lineIdx} style={styles.lineWrapper}>
-            {/* Letters row — fixed height, so dashes row Y is always the same */}
-            <View style={styles.lettersRow}>
+            {/*
+              Single row of slots. Each slot has a fixed width and height.
+              Inside each slot, the letter and dash are both absolutely
+              positioned — so neither can ever affect the other's position.
+            */}
+            <View style={styles.wordRow}>
               {line.map((char, charIdx) => {
-                const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
+                const idx =
+                  lineStartIndex +
+                  line.slice(0, charIdx).filter(c => c !== ' ').length;
+
                 if (char === ' ') {
-                  return <View key={`l-space-${charIdx}`} style={styles.spaceGap} />;
-                }
-                if (isPunctuation(char)) {
                   return (
-                    <Text key={`l-punc-${charIdx}`} style={[styles.letter, { color: background.textColor }]}>
-                      {char}
-                    </Text>
+                    <View key={`sp-${charIdx}`} style={styles.spaceGap} />
                   );
                 }
+
+                if (isPunctuation(char)) {
+                  return (
+                    <View key={`pu-${charIdx}`} style={styles.slot}>
+                      <Text style={[styles.letter, { color: background.textColor }]}>
+                        {char}
+                      </Text>
+                    </View>
+                  );
+                }
+
                 const revealed = char !== '_';
                 return (
-                  <Text
-                    key={`l-${charIdx}`}
-                    style={[
-                      styles.letter,
-                      { color: revealed ? getLetterColor(char, idx) : 'transparent' },
-                    ]}
-                  >
-                    {revealed ? char : 'A'}
-                  </Text>
-                );
-              })}
-            </View>
-
-            {/* Dashes row — completely independent */}
-            <View style={styles.dashesRow}>
-              {line.map((char, charIdx) => {
-                const idx = lineStartIndex + line.slice(0, charIdx).filter(c => c !== ' ').length;
-                if (char === ' ') {
-                  return <View key={`d-space-${charIdx}`} style={styles.spaceGap} />;
-                }
-                if (isPunctuation(char)) {
-                  return <View key={`d-punc-${charIdx}`} style={styles.dashSlot} />;
-                }
-                return (
-                  <View key={`d-${charIdx}`} style={styles.dashSlot}>
-                    <View style={[styles.underline, { backgroundColor: getDashColor(idx) }]} />
+                  <View key={`sl-${charIdx}`} style={styles.slot}>
+                    {/* Dash — absolutely pinned to bottom of slot */}
+                    <View
+                      style={[
+                        styles.dash,
+                        {
+                          backgroundColor: isWon
+                            ? COLORS.accent
+                            : isLost && displayWord[idx] === '_'
+                            ? COLORS.danger
+                            : background.borderColor,
+                        },
+                      ]}
+                    />
+                    {/* Letter — absolutely positioned above dash, invisible when unrevealed */}
+                    <Text
+                      style={[
+                        styles.letter,
+                        {
+                          color: revealed
+                            ? getLetterColor(char, idx)
+                            : 'transparent',
+                        },
+                      ]}
+                    >
+                      {revealed ? char : 'A'}
+                    </Text>
                   </View>
                 );
               })}
@@ -159,45 +184,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   lineWrapper: {
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  lettersRow: {
+  wordRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'flex-end',
-    height: 52,
   },
-  dashesRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 12,
-    marginTop: 4,
+  slot: {
+    width: SLOT_WIDTH,
+    height: LETTERS_ROW_HEIGHT + DASH_GAP + DASH_HEIGHT,
+    marginHorizontal: SLOT_H_MARGIN,
   },
   letter: {
-    fontSize: 36,
+    position: 'absolute',
+    bottom: DASH_GAP + DASH_HEIGHT,
+    left: 0,
+    right: 0,
+    fontSize: 28,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     textAlign: 'center',
-    width: 36,
-    marginHorizontal: 4,
+    height: LETTERS_ROW_HEIGHT,
+    textAlignVertical: 'bottom',
   },
-  dashSlot: {
-    width: 36,
-    height: 12,
-    marginHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  underline: {
-    height: 4,
-    width: 28,
+  dash: {
+    position: 'absolute',
+    bottom: 0,
+    left: 2,
+    right: 2,
+    height: DASH_HEIGHT,
     borderRadius: 2,
   },
   spaceGap: {
-    width: 20,
-    marginHorizontal: 6,
+    width: 16,
+    marginHorizontal: 4,
   },
 });
 
