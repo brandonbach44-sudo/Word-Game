@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
   categoryTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
   categorySubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 24 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
-  categoryCard: { width: '48%', padding: 20, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  categoryCardText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  categoryCard: { width: '48%', padding: 20, borderRadius: 15, borderWidth: 2, alignItems: 'flex-start', justifyContent: 'center', minHeight: 80 },
+  categoryCardText: { fontSize: 16, fontWeight: 'bold', textAlign: 'left' },
   statsContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 15 },
   statsSectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
 
 type SegmentKey = 'play' | 'stats';
 type GameMode = 'menu' | 'category-select' | 'playing';
-type GameType = 'daily' | 'words' | 'phrases';
+type GameType = 'daily' | 'custom';
 
 type StatsCardProps = {
   label: string;
@@ -157,6 +157,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
     <Text style={[styles.statsLabel, { color: secondaryText }]}>{label}</Text>
   </View>
 );
+
 
 type CategoryCardProps = {
   name: string;
@@ -219,7 +220,7 @@ export default function HangmanScreen() {
 
   const [segment, setSegment] = useState<SegmentKey>('play');
   const [gameMode, setGameMode] = useState<GameMode>('menu');
-  const [gameType, setGameType] = useState<GameType>('words');
+  const [gameType, setGameType] = useState<GameType>('custom');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [playerStats, setPlayerStats] = useState<HangmanStats | null>(null);
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
@@ -406,7 +407,7 @@ export default function HangmanScreen() {
       return;
     }
     if (selectedCategory && selectedCategory !== 'Daily Challenge') {
-      startGameWithCategory(selectedCategory, gameType === 'phrases');
+      startGameWithCategory(selectedCategory, isPhraseCategory(selectedCategory));
     } else {
       startGame();
     }
@@ -424,10 +425,10 @@ export default function HangmanScreen() {
       setGameMode('category-select');
     }
   };
-  
+
   const handleSelectCategory = (categoryName: string) => {
     setSelectedCategory(categoryName);
-    startGameWithCategory(categoryName, gameType === 'phrases');
+    startGameWithCategory(categoryName, isPhraseCategory(categoryName));
     setGameMode('playing');
   };
   
@@ -440,9 +441,15 @@ export default function HangmanScreen() {
   };
   const handleBack = () => setSelectedLetter(null);
   
-  const getCategories = () => (
-    gameType === 'phrases' ? Object.keys(PHRASE_CATEGORIES) : Object.keys(WORD_CATEGORIES)
-  );
+  // All categories combined — word categories first, then phrase categories
+  const getCategories = () => [
+    ...Object.keys(WORD_CATEGORIES),
+    ...Object.keys(PHRASE_CATEGORIES),
+  ];
+
+  // Auto-detect if a category is a phrase category
+  const isPhraseCategory = (categoryName: string) =>
+    Object.keys(PHRASE_CATEGORIES).includes(categoryName);
 
   // Swipe to switch Play/Stats tabs
   const swipePanResponder = useRef(
@@ -643,7 +650,7 @@ export default function HangmanScreen() {
             </Text>
           </TouchableOpacity>
           <Text style={[styles.title, { color: background.textColor }]}>
-            {gameType === 'phrases' ? 'Phrases' : 'Words'}
+            Categories
           </Text>
           <View style={styles.headerPlaceholder} />
         </View>
@@ -656,9 +663,7 @@ export default function HangmanScreen() {
             Pick a Category
           </Text>
           <Text style={[styles.categorySubtitle, { color: background.secondaryText }]}>
-            {gameType === 'phrases'
-              ? 'Guess famous phrases letter by letter'
-              : 'Guess single words letter by letter'}
+            Pick a category to start guessing
           </Text>
           <View style={styles.categoryGrid}>
             {categories.map((categoryName) => (
@@ -738,36 +743,17 @@ export default function HangmanScreen() {
               }
             }}
           />
-          <Text style={[styles.startTitle, { color: background.textColor }]}>
-            Ready to Play?
-          </Text>
-          <Text style={[styles.startDescription, { color: background.secondaryText }]}>
-            Choose a game mode to begin
-          </Text>
           <TouchableOpacity
             style={[
               styles.gameModeCard,
               { backgroundColor: background.cardColor, borderColor: background.borderColor },
             ]}
-            onPress={() => handleSelectGameType('words')}
+            onPress={() => handleSelectGameType('custom')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Words</Text>
+            <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Play</Text>
             <Text style={[styles.gameModeDescription, { color: background.secondaryText }]}>
-              Guess single words by category
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.gameModeCard,
-              { backgroundColor: background.cardColor, borderColor: background.borderColor },
-            ]}
-            onPress={() => handleSelectGameType('phrases')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Phrases</Text>
-            <Text style={[styles.gameModeDescription, { color: background.secondaryText }]}>
-              Guess famous phrases by category
+              Choose a category and start guessing
             </Text>
           </TouchableOpacity>
           <View
