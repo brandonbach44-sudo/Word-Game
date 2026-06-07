@@ -801,23 +801,6 @@ export const songTitles = [
 
 // Exported after arrays are defined so they can be referenced correctly
 export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
-  "Occupations": [
-    "Surgeon", "Physician", "Dentist", "Pharmacist", "Paramedic", "Radiologist",
-    "Anesthesiologist", "Pediatrician", "Psychiatrist", "Cardiologist", "Dermatologist", "Neurologist",
-    "Veterinarian", "Midwife", "Lawyer", "Attorney", "Judge", "Prosecutor",
-    "Detective", "Sheriff", "Senator", "Diplomat", "Ambassador", "Politician",
-    "Scientist", "Biologist", "Chemist", "Physicist", "Astronomer", "Geologist",
-    "Archaeologist", "Engineer", "Programmer", "Mathematician", "Actor", "Musician",
-    "Painter", "Sculptor", "Photographer", "Director", "Comedian", "Dancer",
-    "Author", "Journalist", "Illustrator", "Animator", "Choreographer", "Carpenter",
-    "Electrician", "Plumber", "Welder", "Mechanic", "Locksmith", "Roofer",
-    "Mason", "Teacher", "Professor", "Librarian", "Tutor", "Counselor",
-    "Chef", "Baker", "Bartender", "Sommelier", "Butcher", "Barista",
-    "Accountant", "Banker", "Economist", "Entrepreneur", "Consultant", "Analyst",
-    "Firefighter", "Soldier", "Sailor", "Pilot", "General", "Admiral",
-    "Architect", "Astronaut", "Coach", "Referee", "Psychologist", "Therapist",
-    "Farmer", "Fisherman", "Cartographer", "Auctioneer", "Actuary",
-  ],
   "Idioms": categories["Idioms"],
   "Movie Titles": movieTitles,
   "Song Titles": songTitles,
