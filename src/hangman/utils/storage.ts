@@ -32,6 +32,9 @@ export interface HangmanStats {
   // Performance
   perfectGames: number; // Games won with 0 incorrect guesses
   closeGames: number; // Games won with only 1 life remaining
+
+  // Word records
+  longestWordGuessed: string; // Longest word successfully guessed
 }
 
 // ==================== DEFAULT VALUES ====================
@@ -53,6 +56,7 @@ const defaultStats: HangmanStats = {
   categoryPlays: {},
   perfectGames: 0,
   closeGames: 0,
+  longestWordGuessed: '',
 };
 
 // ==================== DATE HELPERS ====================
@@ -142,8 +146,13 @@ export const updateStatsAfterGame = async (
     stats.categoryWins[category] = (stats.categoryWins[category] || 0) + 1;
 
     // Track unique words guessed
-    if (! stats.wordsGuessed.includes(word. toLowerCase())) {
+    if (!stats.wordsGuessed.includes(word.toLowerCase())) {
       stats.wordsGuessed.push(word.toLowerCase());
+    }
+
+    // Track longest word guessed
+    if (word.length > (stats.longestWordGuessed || '').length) {
+      stats.longestWordGuessed = word.toLowerCase();
     }
 
     // Perfect game (no incorrect guesses)

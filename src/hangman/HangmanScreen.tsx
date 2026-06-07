@@ -203,14 +203,27 @@ function getHangmanProgress(id: string, stats: import('./utils/storage').Hangman
     case 'animal_expert':       return clamp(cw('Animals'), 10);
     case 'world_traveler':      return clamp(cw('Countries'), 10);
     case 'foodie':              return clamp(cw('Foods'), 10);
-    case 'sports_fan':          return clamp(cw('Sports'), 10);
+    case 'sports_fan':          return clamp(cw('Sports Teams'), 10);
     case 'tech_guru':           return clamp(cw('Technology'), 10);
-    case 'film_buff':           return clamp(cw('Movies'), 10);
-    case 'nature_lover':        return clamp(cw('Nature'), 10);
-    case 'career_counselor':    return clamp(cw('Professions'), 10);
+    case 'film_buff':           return clamp(cw('Movie Titles'), 10);
+    case 'nature_lover':        return clamp(cw('Insects'), 10);
+    case 'career_counselor':    return clamp(cw('Occupations'), 10);
+    case 'dino_hunter':         return clamp(cw('Dinosaurs'), 10);
+    case 'superhero':           return clamp(cw('Superheroes'), 10);
+    case 'star_gazer':          return clamp(cw('Space'), 10);
+    case 'dog_lover':           return clamp(cw('Dog Breeds'), 10);
+    case 'cat_person':          return clamp(cw('Cat Breeds'), 10);
+    case 'fashion_forward':     return clamp(cw('Clothing'), 10);
+    case 'game_master':         return clamp(cw('Games'), 10);
+    case 'world_explorer':      return clamp(cw('Landmarks'), 10);
+    case 'category_king': {
+      const allCats = ['Animals','Countries','Foods','Sports Teams','US Capitals','Technology','Insects','Dinosaurs','Superheroes','Cat Breeds','Dog Breeds','Space','Clothing','Games','Landmarks','Occupations','Idioms','Movie Titles','Song Titles','TV Show Titles'];
+      return clamp(Math.min(...allCats.map(c => cw(c))), 10);
+    }
     case 'vocabulary_builder':  return clamp(stats.wordsGuessed.length, 25);
     case 'word_collector':      return clamp(stats.wordsGuessed.length, 50);
     case 'lexicon_master':      return clamp(stats.wordsGuessed.length, 100);
+    case 'big_brain':           return clamp((stats.longestWordGuessed || '').length, 10);
     default: return 0;
   }
 }
@@ -838,6 +851,14 @@ export default function HangmanScreen() {
                   cardColor={background.cardColor}
                   borderColor={background.borderColor}
                 />
+                <StatsCard
+                  label="Daily Wins"
+                  value={(dailyStats.dailyWins || 0).toString()}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
               </View>
             </>
           )}
@@ -969,6 +990,14 @@ export default function HangmanScreen() {
                 <StatsCard
                   label="Unique Words"
                   value={getUniqueWordsCount(playerStats).toString()}
+                  textColor={background.textColor}
+                  secondaryText={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
+                <StatsCard
+                  label="Longest Word"
+                  value={(playerStats.longestWordGuessed || '-').toUpperCase()}
                   wide
                   textColor={background.textColor}
                   secondaryText={background.secondaryText}

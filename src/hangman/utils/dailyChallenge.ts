@@ -62,6 +62,7 @@ export interface DailyChallengeStats {
   streak: number;
   bestStreak: number;
   gamesPlayed: number;
+  dailyWins: number;
 }
 
 const STORAGE_KEY = 'hangman_daily_challenge_stats';
@@ -72,6 +73,7 @@ const defaultStats: DailyChallengeStats = {
   streak: 0,
   bestStreak: 0,
   gamesPlayed: 0,
+  dailyWins: 0,
 };
 
 export async function loadDailyStats(): Promise<DailyChallengeStats> {
@@ -101,6 +103,7 @@ export async function saveDailyResult(result: 'won' | 'lost', word: string) {
     streak,
     bestStreak,
     gamesPlayed: stats.gamesPlayed + 1,
+    dailyWins: (stats.dailyWins || 0) + (result === 'won' ? 1 : 0),
   };
   await saveDailyStats(newStats);
   return newStats;

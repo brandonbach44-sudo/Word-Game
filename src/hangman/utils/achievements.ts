@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadDailyStats } from './dailyChallenge';
 import { HangmanStats } from './storage';
 
 const ACHIEVEMENTS_KEY = 'hangman_achievements';
@@ -20,6 +21,13 @@ export const ACHIEVEMENTS: Achievement[] = [
     name: 'First Win',
     description: 'Win your first game',
     emoji: '🎉',
+    category: 'getting_started',
+  },
+  {
+    id: 'first_daily',
+    name: 'First Daily',
+    description: 'Win your first daily challenge',
+    emoji: '🌅',
     category: 'getting_started',
   },
   {
@@ -208,22 +216,85 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'film_buff',
     name: 'Film Buff',
-    description: 'Win 10 games in Movies category',
+    description: 'Win 10 games in Movie Titles category',
     emoji: '🎬',
     category: 'categories',
   },
   {
     id: 'nature_lover',
     name: 'Nature Lover',
-    description: 'Win 10 games in Nature category',
+    description: 'Win 10 games in Insects category',
     emoji: '🌿',
     category: 'categories',
   },
   {
     id: 'career_counselor',
     name: 'Career Counselor',
-    description: 'Win 10 games in Professions category',
+    description: 'Win 10 games in Occupations category',
     emoji: '👔',
+    category: 'categories',
+  },
+  {
+    id: 'dino_hunter',
+    name: 'Dino Hunter',
+    description: 'Win 10 games in Dinosaurs category',
+    emoji: '🦕',
+    category: 'categories',
+  },
+  {
+    id: 'superhero',
+    name: 'Super Sleuth',
+    description: 'Win 10 games in Superheroes category',
+    emoji: '🦸',
+    category: 'categories',
+  },
+  {
+    id: 'star_gazer',
+    name: 'Star Gazer',
+    description: 'Win 10 games in Space category',
+    emoji: '🌌',
+    category: 'categories',
+  },
+  {
+    id: 'dog_lover',
+    name: 'Dog Lover',
+    description: 'Win 10 games in Dog Breeds category',
+    emoji: '🐕',
+    category: 'categories',
+  },
+  {
+    id: 'cat_person',
+    name: 'Cat Person',
+    description: 'Win 10 games in Cat Breeds category',
+    emoji: '🐱',
+    category: 'categories',
+  },
+  {
+    id: 'fashion_forward',
+    name: 'Fashion Forward',
+    description: 'Win 10 games in Clothing category',
+    emoji: '👗',
+    category: 'categories',
+  },
+  {
+    id: 'game_master',
+    name: 'Game Master',
+    description: 'Win 10 games in Games category',
+    emoji: '🎲',
+    category: 'categories',
+  },
+  {
+    id: 'world_explorer',
+    name: 'World Explorer',
+    description: 'Win 10 games in Landmarks category',
+    emoji: '🗿',
+    category: 'categories',
+  },
+  {
+    id: 'category_king',
+    name: 'Category King',
+    description: 'Win 10 games in every category',
+    emoji: '🎖️',
     category: 'categories',
   },
 
@@ -247,20 +318,23 @@ export const ACHIEVEMENTS: Achievement[] = [
     name: 'Lexicon Master',
     description: 'Guess 100 unique words',
     emoji: '🎓',
-    category:  'words',
+    category: 'words',
+  },
+  {
+    id: 'big_brain',
+    name: 'Big Brain',
+    description: 'Guess a word with 10 or more letters',
+    emoji: '📏',
+    category: 'words',
   },
 ];
 
-// All categories in the game
+// All categories in the game (must match exact category names used in play)
 const ALL_CATEGORIES = [
-  'Animals',
-  'Countries',
-  'Foods',
-  'Sports',
-  'Technology',
-  'Movies',
-  'Nature',
-  'Professions',
+  'Animals', 'Countries', 'Foods', 'Sports Teams', 'US Capitals',
+  'Technology', 'Insects', 'Dinosaurs', 'Superheroes', 'Cat Breeds',
+  'Dog Breeds', 'Space', 'Clothing', 'Games', 'Landmarks', 'Occupations',
+  'Idioms', 'Movie Titles', 'Song Titles', 'TV Show Titles',
 ];
 
 // ==================== INTERFACES ====================
@@ -344,7 +418,7 @@ export const checkAchievements = async (
   };
 
   // ===== GETTING STARTED =====
-  if (stats. gamesWon >= 1) {
+  if (stats.gamesWon >= 1) {
     await checkAndUnlock('first_win');
   }
   if (stats.gamesPlayed >= 10) {
@@ -357,6 +431,12 @@ export const checkAchievements = async (
     await checkAndUnlock('hangman_addict');
   }
 
+  // First daily win
+  const dailyStats = await loadDailyStats();
+  if ((dailyStats.dailyWins || 0) >= 1) {
+    await checkAndUnlock('first_daily');
+  }
+
   // ===== STREAKS (Win Streaks) =====
   if (stats.currentStreak >= 3 || stats.bestStreak >= 3) {
     await checkAndUnlock('on_a_roll');
@@ -364,18 +444,18 @@ export const checkAchievements = async (
   if (stats.currentStreak >= 5 || stats.bestStreak >= 5) {
     await checkAndUnlock('hot_streak');
   }
-  if (stats. currentStreak >= 10 || stats.bestStreak >= 10) {
+  if (stats.currentStreak >= 10 || stats.bestStreak >= 10) {
     await checkAndUnlock('unstoppable');
   }
 
   // ===== STREAKS (Day Streaks) =====
-  if (stats.currentStreak >= 3 || stats.bestStreak >= 3) {
+  if (stats.currentDayStreak >= 3 || stats.bestDayStreak >= 3) {
     await checkAndUnlock('daily_player');
   }
-  if (stats.currentStreak >= 7 || stats.bestStreak >= 7) {
+  if (stats.currentDayStreak >= 7 || stats.bestDayStreak >= 7) {
     await checkAndUnlock('weekly_warrior');
   }
-  if (stats.currentStreak >= 30 || stats.bestStreak >= 30) {
+  if (stats.currentDayStreak >= 30 || stats.bestDayStreak >= 30) {
     await checkAndUnlock('monthly_master');
   }
 
@@ -391,7 +471,7 @@ export const checkAchievements = async (
   }
 
   // ===== SKILL =====
-  if (gameResult?.won && gameResult. incorrectGuesses === 0) {
+  if (gameResult?.won && gameResult.incorrectGuesses === 0) {
     await checkAndUnlock('perfect_game');
   }
   if (stats.perfectGames >= 5) {
@@ -422,16 +502,24 @@ export const checkAchievements = async (
     await checkAndUnlock('explorer');
   }
 
-  // Category-specific wins
-  const categoryAchievements:  { [key: string]: string } = {
+  // Category-specific wins (10 wins each)
+  const categoryAchievements: { [key: string]: string } = {
     Animals: 'animal_expert',
     Countries: 'world_traveler',
     Foods: 'foodie',
-    Sports: 'sports_fan',
+    'Sports Teams': 'sports_fan',
     Technology: 'tech_guru',
-    Movies: 'film_buff',
-    Nature: 'nature_lover',
-    Professions: 'career_counselor',
+    'Movie Titles': 'film_buff',
+    Insects: 'nature_lover',
+    Occupations: 'career_counselor',
+    Dinosaurs: 'dino_hunter',
+    Superheroes: 'superhero',
+    Space: 'star_gazer',
+    'Dog Breeds': 'dog_lover',
+    'Cat Breeds': 'cat_person',
+    Clothing: 'fashion_forward',
+    Games: 'game_master',
+    Landmarks: 'world_explorer',
   };
 
   for (const [category, achievementId] of Object.entries(categoryAchievements)) {
@@ -440,8 +528,13 @@ export const checkAchievements = async (
     }
   }
 
+  // Category King — 10 wins in every category
+  if (ALL_CATEGORIES.every((cat) => (stats.categoryWins[cat] || 0) >= 10)) {
+    await checkAndUnlock('category_king');
+  }
+
   // ===== WORDS =====
-  if (stats.wordsGuessed. length >= 25) {
+  if (stats.wordsGuessed.length >= 25) {
     await checkAndUnlock('vocabulary_builder');
   }
   if (stats.wordsGuessed.length >= 50) {
@@ -449,6 +542,11 @@ export const checkAchievements = async (
   }
   if (stats.wordsGuessed.length >= 100) {
     await checkAndUnlock('lexicon_master');
+  }
+
+  // Big Brain — guess a word with 10+ letters
+  if ((stats.longestWordGuessed || '').length >= 10) {
+    await checkAndUnlock('big_brain');
   }
 
   return newlyUnlocked;
