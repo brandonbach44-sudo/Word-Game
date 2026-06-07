@@ -91,7 +91,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
       <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
 
         {/* Brand */}
-        <Text style={[styles.brand, { color: SUBTEXT }]}>WORD FURY</Text>
+        <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
 
         {/* Title + subtitle */}
         <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
