@@ -291,6 +291,34 @@ export const ACHIEVEMENTS: Achievement[] = [
     category: 'categories',
   },
   {
+    id: 'capital_expert',
+    name: 'Capital Expert',
+    description: 'Win 10 games in US Capitals category',
+    emoji: '🏛️',
+    category: 'categories',
+  },
+  {
+    id: 'idiom_expert',
+    name: 'Figure of Speech',
+    description: 'Win 10 games in Idioms category',
+    emoji: '💬',
+    category: 'categories',
+  },
+  {
+    id: 'music_fan',
+    name: 'Music Fan',
+    description: 'Win 10 games in Song Titles category',
+    emoji: '🎵',
+    category: 'categories',
+  },
+  {
+    id: 'tv_buff',
+    name: 'TV Buff',
+    description: 'Win 10 games in TV Show Titles category',
+    emoji: '📺',
+    category: 'categories',
+  },
+  {
     id: 'category_king',
     name: 'Category King',
     description: 'Win 10 games in every category',
@@ -520,6 +548,10 @@ export const checkAchievements = async (
     Clothing: 'fashion_forward',
     Games: 'game_master',
     Landmarks: 'world_explorer',
+    'US Capitals': 'capital_expert',
+    Idioms: 'idiom_expert',
+    'Song Titles': 'music_fan',
+    'TV Show Titles': 'tv_buff',
   };
 
   for (const [category, achievementId] of Object.entries(categoryAchievements)) {
