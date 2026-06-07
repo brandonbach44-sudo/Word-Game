@@ -472,11 +472,12 @@ export default function HangmanScreen() {
   };
   const handleBack = () => setSelectedLetter(null);
   
-  // All categories combined — word categories first, then phrase categories
-  const getCategories = () => [
-    ...Object.keys(WORD_CATEGORIES),
-    ...Object.keys(PHRASE_CATEGORIES),
-  ];
+  // All categories combined — word categories first, then phrase categories (deduplicated)
+  const getCategories = () => {
+    const wordKeys = Object.keys(WORD_CATEGORIES);
+    const phraseKeys = Object.keys(PHRASE_CATEGORIES).filter(k => !wordKeys.includes(k));
+    return [...wordKeys, ...phraseKeys];
+  };
 
   // Auto-detect if a category is a phrase category
   const isPhraseCategory = (categoryName: string) =>
