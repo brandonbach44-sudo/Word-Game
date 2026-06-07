@@ -203,10 +203,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   enterButton: {
-    borderRadius:  999,
-    paddingHorizontal: 40,
+    borderRadius: 999,
     paddingVertical: 10,
     borderWidth: 2,
+    width: '100%',
+    alignItems: 'center',
   },
   enterLabel:  {
     fontSize: 16,
