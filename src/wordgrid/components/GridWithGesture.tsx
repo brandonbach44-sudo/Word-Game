@@ -58,9 +58,9 @@ function getNearestCell(x: number, y: number): Position {
 
 // Angle-based next-cell selection.
 //
-// Each of the 8 neighbors owns a 45° sector around the current cell so diagonals
-// are unambiguous regardless of where the finger physically is. The dead zone
-// (CELL_STEP * 0.35) means the finger must move ~28px before any snap fires.
+// Each of the 8 neighbors owns a 45° sector so diagonals are unambiguous
+// regardless of where the finger physically is. The dead zone (CELL_STEP * 0.35)
+// means the finger must move ~28 px before any snap fires.
 //
 // Returns:
 //   'same'    → finger still in dead zone
@@ -121,37 +121,50 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const pathRef = useRef<Position[]>([]);
 
-  // committedRef: true once the finger has crossed the midpoint between the previous
-  // cell and the current last cell. Backtracking is blocked while false.
+  // committedRef: blocks backtracking immediately after a forward snap.
   //
-  // Why this fixes the flash:
-  //   After the angle-snap fires (at ~0.35×CELL_STEP from the old cell), the finger
-  //   is still physically closer to the old cell than the new one. getCellFromAngle
-  //   from the new cell immediately sees the finger pointing "back" and triggers a
-  //   backtrack — causing the green flash. committedRef blocks that backtrack until the
-  //   finger has genuinely crossed the midpoint, at which point any reversal is intentional.
+  // The flash bug: the angle-snap fires when the finger is ~0.35×CELL_STEP from the
+  // OLD cell. For straight neighbors the finger is then 0.65×CELL_STEP from the NEW
+  // cell; for diagonals it is ~0.86×CELL_STEP away. getCellFromAngle from the new
+  // cell immediately sees the finger pointing "back" and returns the old cell →
+  // backtrack → flash. committedRef blocks that backtrack.
   //
-  // Why midpoint (not a fixed pixel threshold)?
-  //   A fixed threshold breaks diagonal cells: the angle fires early but the diagonal
-  //   neighbor is √2× farther away, so a fixed threshold either blocks for too long on
-  //   diagonals or not long enough on straight moves. The midpoint is naturally adaptive
-  //   to the actual distance between whichever two cells are involved.
+  // Two events clear committedRef (allow backtracking again):
+  //   1. Finger enters the new cell's dead zone (getCellFromAngle returns 'same').
+  //      Normal forward travel — finger settled on the new cell.
+  //   2. Finger retreats back inside the OLD cell's dead zone (dist < 0.25×CELL_STEP).
+  //      User clearly reversed before settling. Allow the backtrack.
+  //      Threshold is 0.25 (not 0.35) so a single noisy event at the snap boundary
+  //      (~0.35) cannot accidentally trigger a reversal commit.
+  //
+  // Forward movement (new unvisited cell) is never blocked — only backtracking.
+  // This keeps rapid forward drags responsive while eliminating the flash.
   const committedRef = useRef(true);
+
+  // The cell we were on immediately before the last forward snap.
+  // Used for reversal detection (commit condition 2).
+  const snapFromRef = useRef<Position | null>(null);
+
+  function resetGesture() {
+    pathRef.current = [];
+    committedRef.current = true;
+    snapFromRef.current = null;
+  }
 
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
     .minDistance(0)
     .onBegin((e) => {
-      // onBegin fires instantly on touch — snap to nearest cell unconditionally
       const cell = getNearestCell(e.x, e.y);
       pathRef.current = [cell];
-      committedRef.current = true; // initial cell: no previous cell, always committed
+      committedRef.current = true;
+      snapFromRef.current = null;
       setSelectedCells([cell]);
     })
     .onStart((e) => {
       // If the finger moved slightly before RNGH activation and landed on a different
-      // cell, update to that cell without clearing the path.
+      // cell, update without clearing the path.
       const cell = getNearestCell(e.x, e.y);
       const path = pathRef.current;
       const alreadyFirst =
@@ -159,6 +172,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       if (!alreadyFirst) {
         pathRef.current = [cell];
         committedRef.current = true;
+        snapFromRef.current = null;
         setSelectedCells([cell]);
       }
     })
@@ -168,16 +182,22 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
 
       const lastCell = path[path.length - 1];
 
-      // Update commitment: once the finger crosses the midpoint between the previous
-      // cell and the current cell, mark as committed (backtracking is now intentional).
-      if (!committedRef.current && path.length >= 2) {
-        const prevCell = path[path.length - 2];
-        const lastCenter = cellCenter(lastCell);
-        const prevCenter = cellCenter(prevCell);
-        const distToLast = Math.sqrt((e.x - lastCenter.x) ** 2 + (e.y - lastCenter.y) ** 2);
-        const distToPrev = Math.sqrt((e.x - prevCenter.x) ** 2 + (e.y - prevCenter.y) ** 2);
-        if (distToLast <= distToPrev) committedRef.current = true;
+      // ── Commitment check ───────────────────────────────────────────────────
+      if (!committedRef.current) {
+        // Condition 1: finger entered the new cell's dead zone
+        if (getCellFromAngle(lastCell, e.x, e.y) === 'same') {
+          committedRef.current = true;
+        }
+        // Condition 2: finger retreated back to old cell's dead zone
+        else if (snapFromRef.current) {
+          const fc = cellCenter(snapFromRef.current);
+          const distBack = Math.sqrt((e.x - fc.x) ** 2 + (e.y - fc.y) ** 2);
+          if (distBack < CELL_STEP * 0.25) {
+            committedRef.current = true;
+          }
+        }
       }
+      // ───────────────────────────────────────────────────────────────────────
 
       const result = getCellFromAngle(lastCell, e.x, e.y);
       if (result === 'same' || result === null) return;
@@ -186,12 +206,12 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
 
       if (existingIdx !== -1 && existingIdx !== path.length - 1) {
-        // Backtracking: blocked until committed to the current cell.
-        // This is the key gate that prevents the flash.
+        // Backtrack — only allowed once committed to the current cell
         if (!committedRef.current) return;
         const trimmed = path.slice(0, existingIdx + 1);
         pathRef.current = trimmed;
-        committedRef.current = true; // backtracked to an already-visited cell
+        committedRef.current = true;
+        snapFromRef.current = null;
         setSelectedCells(trimmed);
         return;
       }
@@ -199,23 +219,22 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       // Already the last cell — no change
       if (existingIdx === path.length - 1) return;
 
-      // New cell: snap immediately, mark uncommitted until midpoint is crossed
+      // Forward snap: immediate, no commit requirement
       const next = [...path, cell];
+      snapFromRef.current = lastCell; // remember where we came from
       pathRef.current = next;
-      committedRef.current = false;
+      committedRef.current = false;  // must settle on new cell before backtracking
       setSelectedCells(next);
     })
     .onEnd(() => {
       const path = pathRef.current;
-      pathRef.current = [];
-      committedRef.current = true;
+      resetGesture();
       setSelectedCells([]);
       if (path.length >= 3) onPathComplete(path);
     })
     .onFinalize(() => {
       if (pathRef.current.length > 0) {
-        pathRef.current = [];
-        committedRef.current = true;
+        resetGesture();
         setSelectedCells([]);
       }
     });
