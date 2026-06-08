@@ -1,3 +1,4 @@
+// app/wordgrid/components/GridWithGesture.tsx
 import React, { useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -37,13 +38,10 @@ function cellCenter(pos: Position) {
   };
 }
 
-// Find the nearest cell to a raw touch coordinate.
-// Used only for the initial tap (forceNearest=true always returns a cell).
-// With forceNearest=false a threshold of 0.8×CELL_STEP is applied.
-function getNearestCell(x: number, y: number, forceNearest = false): Position | null {
+// Find the nearest cell to a raw touch coordinate (used for initial tap).
+function getNearestCell(x: number, y: number): Position {
   let bestDist = Infinity;
-  let bestCell: Position | null = null;
-
+  let bestCell: Position = { row: 0, col: 0 };
   for (let row = 0; row < GRID_SIZE; row++) {
     for (let col = 0; col < GRID_SIZE; col++) {
       const cx = GRID_PADDING + col * CELL_STEP + CELL_SIZE / 2;
@@ -55,75 +53,54 @@ function getNearestCell(x: number, y: number, forceNearest = false): Position | 
       }
     }
   }
-
-  if (forceNearest) return bestCell;
-  return bestDist <= CELL_STEP * 0.8 ? bestCell : null;
+  return bestCell;
 }
 
-// Angle-based next-cell selection — the fix for diagonal tracing.
+// Midpoint-rule next-cell selection.
 //
-// Why the old nearest-cell approach broke diagonals:
-//   At the centre of the 2×2 gap between four cells, all four centres are
-//   exactly equidistant (√2/2 × CELL_STEP). The loop tiebreaks by order,
-//   so it almost always snaps to a horizontal/vertical neighbour instead of
-//   the intended diagonal one.
+// A neighbor cell is selected when the finger is physically CLOSER to it than to
+// the current cell. This is the only threshold that is geometrically self-correcting:
 //
-// This function anchors to lastCell and computes the 8-directional snap from
-// the angle of the drag vector. Each of the 8 neighbours owns a 45° sector,
-// so diagonals are unambiguous regardless of where the finger physically is.
+//   • You cannot simultaneously be closer to B than A AND closer to A than B,
+//     so forward-snap and backtrack-snap can never both fire in the same frame.
+//     This eliminates the flash without any extra state or commit gates.
 //
-// Returns:
-//   'same'           → finger still in dead zone; keep current cell
-//   null             → target would be out of bounds
-//   Position         → snap to this neighbour
-function getCellFromAngle(
-  lastCell: Position,
-  touchX: number,
-  touchY: number
-): Position | 'same' | null {
-  const center = cellCenter(lastCell);
-  const dx = touchX - center.x;
-  const dy = touchY - center.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
+//   • Diagonals work correctly because proximity is computed per-cell, not by
+//     angle. The diagonal neighbor wins when the finger is genuinely in its
+//     territory, with no tiebreaking bias.
+//
+//   • The adjacency constraint (max 1 step in each axis) prevents the finger
+//     from jumping across the grid.
+//
+// Returns the neighbor that the finger has crossed into, or null if the finger
+// is still closest to the current cell (no change needed).
+function getNextCell(x: number, y: number, lastCell: Position): Position | null {
+  const lastCenter = cellCenter(lastCell);
+  const distToLast = Math.sqrt((x - lastCenter.x) ** 2 + (y - lastCenter.y) ** 2);
 
-  // Dead zone: still "on" the current cell — no change needed.
-  // 0.35 × CELL_STEP fires before the midpoint to any neighbour, keeping
-  // the feel responsive without being jittery.
-  if (dist < CELL_STEP * 0.35) return 'same';
+  // A neighbor must beat this distance (be strictly closer than the current cell).
+  let bestDist = distToLast;
+  let bestCell: Position | null = null;
 
-  // Normalised drag direction
-  const ux = dx / dist;
-  const uy = dy / dist;
+  for (let row = 0; row < GRID_SIZE; row++) {
+    for (let col = 0; col < GRID_SIZE; col++) {
+      const dr = Math.abs(row - lastCell.row);
+      const dc = Math.abs(col - lastCell.col);
+      // Only 8-directional neighbors; skip the current cell itself
+      if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) continue;
 
-  // 8 directions with pre-normalised unit vectors
-  const S2 = 1 / Math.sqrt(2); // sin / cos 45°
-  const DIRS = [
-    { dr: -1, dc:  0, nx:  0,  ny: -1  }, // N
-    { dr: -1, dc:  1, nx:  S2, ny: -S2 }, // NE
-    { dr:  0, dc:  1, nx:  1,  ny:  0  }, // E
-    { dr:  1, dc:  1, nx:  S2, ny:  S2 }, // SE
-    { dr:  1, dc:  0, nx:  0,  ny:  1  }, // S
-    { dr:  1, dc: -1, nx: -S2, ny:  S2 }, // SW
-    { dr:  0, dc: -1, nx: -1,  ny:  0  }, // W
-    { dr: -1, dc: -1, nx: -S2, ny: -S2 }, // NW
-  ] as const;
+      const cx = GRID_PADDING + col * CELL_STEP + CELL_SIZE / 2;
+      const cy = GRID_PADDING + row * CELL_STEP + CELL_SIZE / 2;
+      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
 
-  let bestDot = -Infinity;
-  let bestDr = 0;
-  let bestDc = 0;
-  for (const dir of DIRS) {
-    const dot = dir.nx * ux + dir.ny * uy;
-    if (dot > bestDot) {
-      bestDot = dot;
-      bestDr = dir.dr;
-      bestDc = dir.dc;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCell = { row, col };
+      }
     }
   }
 
-  const newRow = lastCell.row + bestDr;
-  const newCol = lastCell.col + bestDc;
-  if (newRow < 0 || newRow >= GRID_SIZE || newCol < 0 || newCol >= GRID_SIZE) return null;
-  return { row: newRow, col: newCol };
+  return bestCell;
 }
 
 interface Props {
@@ -143,42 +120,22 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
     .minDistance(0)
     .onBegin((e) => {
       // onBegin fires instantly on touch — snap to nearest cell unconditionally
-      const cell = getNearestCell(e.x, e.y, true);
-      const next = cell ? [cell] : [];
+      const cell = getNearestCell(e.x, e.y);
+      const next = [cell];
       pathRef.current = next;
       setSelectedCells(next);
     })
-    .onStart((e) => {
-      // If the finger moved slightly before RNGH activation and landed on a
-      // different cell, update to that cell without clearing the path.
-      const cell = getNearestCell(e.x, e.y, true);
-      if (!cell) return;
-      const path = pathRef.current;
-      const alreadyFirst =
-        path.length > 0 && path[0].row === cell.row && path[0].col === cell.col;
-      if (!alreadyFirst) {
-        const next = [cell];
-        pathRef.current = next;
-        setSelectedCells(next);
-      }
-    })
     .onUpdate((e) => {
-
       const path = pathRef.current;
       if (path.length === 0) return;
 
       const lastCell = path[path.length - 1];
-      const result = getCellFromAngle(lastCell, e.x, e.y);
+      const cell = getNextCell(e.x, e.y, lastCell);
 
-      // Still in dead zone — no path change
-      if (result === 'same') return;
+      // Finger is still closest to the current cell — no change
+      if (!cell) return;
 
-      // Would exit the grid
-      if (result === null) return;
-
-      const cell = result;
-
-      // Backtracking: cell is already in path before the last position
+      // Backtracking: cell already exists earlier in the path
       const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
       if (existingIdx !== -1 && existingIdx !== path.length - 1) {
         const trimmed = path.slice(0, existingIdx + 1);
