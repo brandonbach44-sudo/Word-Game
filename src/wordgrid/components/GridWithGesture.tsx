@@ -15,9 +15,9 @@ const CELL_SIZE = Math.floor(
 const CELL_STEP = CELL_SIZE + CELL_GAP;
 const GRID_DIM = GRID_SIZE * CELL_SIZE + CELL_GAP * (GRID_SIZE - 1);
 
-// Dead zone: minimum travel from current cell center before we look for the next cell.
-// Small = responsive feel. The high-water-mark gate (not proximity) prevents flash.
-const DEAD_ZONE = CELL_STEP * 0.35;
+// Dead zone: minimum travel from current cell center before a snap fires.
+// Also the threshold for "returned to anchor" in the backtrack gate.
+const DEAD_ZONE = CELL_STEP * 0.40;
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
@@ -60,24 +60,14 @@ function getNearestCell(x: number, y: number): Position {
   return bestCell;
 }
 
-// Angle-only cell detection with high-water-mark backtrack gate.
+// 8-way angle-based cell detection.
+// Returns 'same' when still in the current cell's dead zone.
+// Returns null when the candidate would be out of grid bounds.
+// Returns a Position when a neighboring cell is detected.
 //
-// APPROACH:
-//   Snap fires purely on angle (8-way, 45° sectors) once the finger leaves the dead
-//   zone. There is NO proximity requirement — this keeps diagonals easy to hit.
-//
-//   Flash prevention: After each forward snap, we record how far the finger was from
-//   the *previous* cell at snap time (snapDistRef). We also track the maximum distance
-//   the finger has ever been from the previous cell (maxDistRef / highWaterRef).
-//   Backtracking is only allowed once the finger's current distance from the previous
-//   cell drops BELOW snapDistRef — meaning it has reversed past the snap point.
-//   Because the finger is still moving forward right after a snap, backtrack is blocked
-//   for that brief moment → no flash, no oscillation.
-//
-// Returns:
-//   'same'   → still inside current cell's dead zone
-//   null     → outside dead zone but high-water-mark gate blocks backtrack
-//   Position → snap to this cell
+// Flash prevention is NOT done here — it's handled by snapAnchorRef in onUpdate.
+// Using angle (not proximity) means diagonals are just as easy as straight moves:
+// every direction has an equal 45° sector.
 function getCellFromAngle(
   lastCell: Position,
   touchX: number,
@@ -134,15 +124,26 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const pathRef = useRef<Position[]>([]);
 
-  // High-water-mark refs: prevent backtrack-flash right after a forward snap.
-  // snapDistRef  — distance from prev cell at snap time (the "snap point")
-  // highWaterRef — max distance achieved from prev cell since last snap
-  const snapDistRef = useRef<number>(0);
-  const highWaterRef = useRef<number>(0);
+  // Snap-anchor: the cell we most recently snapped FROM.
+  //
+  // WHY THIS FIXES THE FLASH:
+  //   After snapping A→B, the angle computed FROM B immediately points back toward A
+  //   (the finger is still between A and B). Without a gate this causes instant
+  //   backtrack → re-snap → oscillation (green flash).
+  //
+  //   The fix: after snapping A→B we store A as the snap anchor. Any detected
+  //   backtrack is blocked until the finger physically returns to within DEAD_ZONE
+  //   of A. Since the finger was already outside A's dead zone when the snap fired,
+  //   it must genuinely reverse all the way back before backtrack is allowed.
+  //
+  //   WHY THIS DOESN'T HURT DIAGONALS:
+  //   The snap fires purely on angle (no proximity requirement), so diagonal cells
+  //   are as easy to hit as straight ones. The anchor only prevents BACKWARD movement
+  //   immediately after a snap — forward movement to C, D, etc. is never blocked.
+  const snapAnchorRef = useRef<Position | null>(null);
 
-  const resetHighWater = () => {
-    snapDistRef.current = 0;
-    highWaterRef.current = 0;
+  const resetGesture = () => {
+    snapAnchorRef.current = null;
   };
 
   const panGesture = Gesture.Pan()
@@ -153,20 +154,12 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const cell = getNearestCell(e.x, e.y);
       pathRef.current = [cell];
       setSelectedCells([cell]);
-      resetHighWater();
+      resetGesture();
     })
-    .onStart((e) => {
-      // If the finger moved slightly before RNGH activation and landed on a different
-      // cell, update without clearing the path.
-      const cell = getNearestCell(e.x, e.y);
-      const path = pathRef.current;
-      const alreadyFirst =
-        path.length > 0 && path[0].row === cell.row && path[0].col === cell.col;
-      if (!alreadyFirst) {
-        pathRef.current = [cell];
-        setSelectedCells([cell]);
-        resetHighWater();
-      }
+    .onStart((_e) => {
+      // onBegin already committed the starting cell — do NOT override it here.
+      // The old code re-computed the nearest cell at onStart time, which skipped
+      // the starting letter when the user began dragging immediately after touch.
     })
     .onUpdate((e) => {
       const path = pathRef.current;
@@ -175,42 +168,33 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const lastCell = path[path.length - 1];
       const result = getCellFromAngle(lastCell, e.x, e.y);
 
-      if (result === 'same') {
-        // Inside dead zone — reset high water (finger is firmly on current cell)
-        resetHighWater();
-        return;
-      }
-
-      if (result === null) return; // out of bounds
+      // Still in dead zone or out of grid bounds — no change
+      if (result === 'same' || result === null) return;
 
       const cell = result;
-
-      // Compute current distance from last cell center (for high-water-mark)
-      const lc = cellCenter(lastCell);
-      const distFromLast = Math.sqrt((e.x - lc.x) ** 2 + (e.y - lc.y) ** 2);
-      highWaterRef.current = Math.max(highWaterRef.current, distFromLast);
-
       const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
 
       if (existingIdx !== -1 && existingIdx !== path.length - 1) {
-        // Finger is pointing toward a previous cell — potential backtrack.
-        // Only allow if finger has retreated back past the snap point.
-        if (highWaterRef.current > 0 && distFromLast >= snapDistRef.current) return;
-        // Genuine backtrack confirmed
+        // Detected a cell already in the path — potential backtrack.
+        // Block it until the finger has physically returned to the snap-anchor's dead zone.
+        if (snapAnchorRef.current) {
+          const sac = cellCenter(snapAnchorRef.current);
+          const distFromAnchor = Math.sqrt((e.x - sac.x) ** 2 + (e.y - sac.y) ** 2);
+          if (distFromAnchor > DEAD_ZONE) return; // not back yet — hold
+          // Finger is inside anchor's dead zone → genuine reversal, allow backtrack
+          snapAnchorRef.current = null;
+        }
         const trimmed = path.slice(0, existingIdx + 1);
         pathRef.current = trimmed;
         setSelectedCells(trimmed);
-        resetHighWater();
         return;
       }
 
       // Already the last cell — no change
       if (existingIdx === path.length - 1) return;
 
-      // Forward snap: record distance at snap time and reset high water
-      snapDistRef.current = distFromLast;
-      highWaterRef.current = distFromLast;
-
+      // Forward snap: record the cell we're leaving as the new snap anchor
+      snapAnchorRef.current = lastCell;
       const next = [...path, cell];
       pathRef.current = next;
       setSelectedCells(next);
@@ -219,14 +203,14 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const path = pathRef.current;
       pathRef.current = [];
       setSelectedCells([]);
-      resetHighWater();
+      resetGesture();
       if (path.length >= 3) onPathComplete(path);
     })
     .onFinalize(() => {
       if (pathRef.current.length > 0) {
         pathRef.current = [];
         setSelectedCells([]);
-        resetHighWater();
+        resetGesture();
       }
     });
 
