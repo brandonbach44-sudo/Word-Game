@@ -6,10 +6,11 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, with
 type FeedbackProps = {
   points: number;
   success: boolean;
+  alreadyFound?: boolean;
   onComplete: () => void;
 };
 
-export function FeedbackOverlay({ points, success, onComplete }: FeedbackProps) {
+export function FeedbackOverlay({ points, success, alreadyFound, onComplete }: FeedbackProps) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(0);
 
@@ -31,8 +32,8 @@ export function FeedbackOverlay({ points, success, onComplete }: FeedbackProps) 
 
   return (
     <Animated.View style={[styles.popup, animatedStyle]}>
-      <Text style={[styles.text, success ? styles.success : styles.fail]}>
-        {success ? `+${points}` : 'Invalid!'}
+      <Text style={[styles.text, success ? styles.success : alreadyFound ? styles.duplicate : styles.fail]}>
+        {success ? `+${points}` : alreadyFound ? 'Already found!' : 'Invalid!'}
       </Text>
     </Animated.View>
   );
@@ -50,4 +51,5 @@ const styles = StyleSheet.create({
   },
   success: { color: 'green' },
   fail: { color: 'red' },
+  duplicate: { color: 'orange' },
 });

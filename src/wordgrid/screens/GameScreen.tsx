@@ -21,7 +21,18 @@ import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../wordbuilder/components/AchievementPopup';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
+import { DailyChallengeCard } from '../components/DailyChallengeCard';
+import { DailyChallengePopup } from '../components/DailyChallengePopup';
 import { generateGrid } from '../utils/gridGenerator';
+import {
+  buildScoreBlocks,
+  formatDisplayDate,
+  generateDailyGrid,
+  getTodayDateString,
+  loadDailyWordGridStats,
+  saveDailyWordGridResult,
+  type DailyWordGridStats,
+} from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore } from '../utils/scoring';
 import {
@@ -39,12 +50,13 @@ import {
 const { width } = Dimensions.get('window');
 
 type Screen = 'menu' | 'game' | 'results';
+type GameMode = 'quick' | 'daily';
 type MenuTab = 'play' | 'stats';
 type ResultsPage = 'results' | 'words';
 
 const ROUND_DURATION = 60;
 
-type Feedback = { points: number; success: boolean; key: number };
+type Feedback = { points: number; success: boolean; alreadyFound?: boolean; key: number };
 
 // ─── Stats Card (matches WordBuilder) ────────────────────────────────────────
 
@@ -140,6 +152,7 @@ export default function GameScreen() {
 
   // ── Stats & achievements ──────────────────────────────────────────────────
   const [stats, setStats] = useState<WordGridStats | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyWordGridStats | null>(null);
   const [unlockedAchievements, setUnlockedAchievements] = useState<
     (Achievement & { unlockedAt: string })[]
   >([]);
@@ -148,6 +161,7 @@ export default function GameScreen() {
 
   useEffect(() => {
     loadWordGridStats().then(setStats);
+    loadDailyWordGridStats().then(setDailyStats);
     getUnlockedAchievements().then(setUnlockedAchievements);
   }, []);
 
@@ -158,6 +172,13 @@ export default function GameScreen() {
       setPendingAchievements(rest);
     }
   }, [currentAchievement, pendingAchievements]);
+
+  // ── Game mode & daily ─────────────────────────────────────────────────────
+  const [gameMode, setGameMode] = useState<GameMode>('quick');
+  const [showDailyPopup, setShowDailyPopup] = useState(false);
+  const [dailyShareText, setDailyShareText] = useState('');
+
+  const dailyPlayedToday = dailyStats?.lastPlayedDate === getTodayDateString();
 
   // ── Game state ────────────────────────────────────────────────────────────
   const [grid, setGrid] = useState<string[][]>(() => generateGrid(4));
@@ -210,7 +231,8 @@ export default function GameScreen() {
         setFoundWordSet((prev) => new Set([...prev, word]));
         setFeedbacks((prev) => [...prev, { points, success: true, key }]);
       } else {
-        setFeedbacks((prev) => [...prev, { points: 0, success: false, key }]);
+        const alreadyFound = valid && foundWordSet.has(word);
+        setFeedbacks((prev) => [...prev, { points: 0, success: false, alreadyFound, key }]);
       }
     },
     [grid, foundWords, foundWordSet]
@@ -240,14 +262,26 @@ export default function GameScreen() {
         getUnlockedAchievements().then(setUnlockedAchievements);
       }
 
-      setResultsPage('results');
-      setScreen('results');
+      if (gameMode === 'daily') {
+        const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
+        setDailyStats(newDailyStats);
+        const blocks = buildScoreBlocks(score);
+        const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
+        const text = `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${score} pts · ${foundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+        setDailyShareText(text);
+        setShowDailyPopup(true);
+        setScreen('results');
+      } else {
+        setResultsPage('results');
+        setScreen('results');
+      }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameOver]);
 
   const startGame = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    setGameMode('quick');
     setGrid(generateGrid(4));
     setScore(0);
     setFoundWords([]);
@@ -255,6 +289,22 @@ export default function GameScreen() {
     setTimeLeft(ROUND_DURATION);
     setGameOver(false);
     setFeedbacks([]);
+    setShowDailyPopup(false);
+    setScreen('game');
+    setTimeout(startTimer, 100);
+  }, [startTimer]);
+
+  const startDailyGame = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setGameMode('daily');
+    setGrid(generateDailyGrid());
+    setScore(0);
+    setFoundWords([]);
+    setFoundWordSet(new Set());
+    setTimeLeft(ROUND_DURATION);
+    setGameOver(false);
+    setFeedbacks([]);
+    setShowDailyPopup(false);
     setScreen('game');
     setTimeout(startTimer, 100);
   }, [startTimer]);
@@ -277,6 +327,7 @@ export default function GameScreen() {
     if (timerRef.current) clearInterval(timerRef.current);
     setGameOver(false);
     setResultsPage('results');
+    setShowDailyPopup(false);
     setScreen('menu');
     switchToTab('play');
   }, [switchToTab]);
@@ -342,6 +393,17 @@ export default function GameScreen() {
           onDismiss={() => setCurrentAchievement(null)}
           backgroundColor={bg.cardColor}
           textColor={bg.textColor}
+        />
+
+        {/* Daily challenge result popup (shown on top of results) */}
+        <DailyChallengePopup
+          visible={showDailyPopup}
+          score={dailyPlayedToday && gameMode !== 'daily' ? (dailyStats?.lastScore ?? 0) : score}
+          wordsCount={dailyPlayedToday && gameMode !== 'daily' ? (dailyStats?.lastWordsCount ?? 0) : foundWords.length}
+          streak={dailyStats?.streak ?? 0}
+          bestStreak={dailyStats?.bestStreak ?? 0}
+          shareText={dailyShareText}
+          onBackToMenu={handleBackToMenu}
         />
 
         {/* Horizontal swipe carousel */}
@@ -491,6 +553,7 @@ export default function GameScreen() {
               key={f.key}
               points={f.points}
               success={f.success}
+              alreadyFound={f.alreadyFound}
               onComplete={() => removeFeedback(f.key)}
             />
           ))}
@@ -580,13 +643,40 @@ export default function GameScreen() {
             contentContainerStyle={styles.playContainer}
             showsVerticalScrollIndicator={false}
           >
+            {/* Daily Challenge card */}
+            <DailyChallengeCard
+              played={dailyPlayedToday}
+              score={dailyStats?.lastScore ?? 0}
+              wordsCount={dailyStats?.lastWordsCount ?? 0}
+              streak={dailyStats?.streak ?? 0}
+              bestStreak={dailyStats?.bestStreak ?? 0}
+              shareText={dailyShareText || (() => {
+                if (!dailyStats) return '';
+                const blocks = buildScoreBlocks(dailyStats.lastScore);
+                const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
+                return `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+              })()}
+              onPlay={dailyPlayedToday
+                ? () => {
+                    if (!dailyShareText && dailyStats) {
+                      const blocks = buildScoreBlocks(dailyStats.lastScore);
+                      const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
+                      setDailyShareText(`🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
+                    }
+                    setShowDailyPopup(true);
+                    setScreen('results');
+                  }
+                : startDailyGame
+              }
+            />
+
             {/* Quick Play button */}
             <TouchableOpacity
               style={[styles.quickPlayButton, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
               onPress={startGame}
               activeOpacity={0.7}
             >
-              <Text style={[styles.quickPlayTitle, { color: bg.textColor }]}>Play</Text>
+              <Text style={[styles.quickPlayTitle, { color: bg.textColor }]}>Quick Play</Text>
               <Text style={[styles.quickPlaySub, { color: bg.secondaryText }]}>1 minute · 4×4 letter grid</Text>
             </TouchableOpacity>
 
