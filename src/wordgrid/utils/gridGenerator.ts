@@ -288,7 +288,9 @@ function fillGrid(
   letterCount: Record<string, number>,
   size: number
 ): void {
-  const canPlace = (l: string) => (letterCount[l] || 0) < 2;
+  // Allow up to 3 of any letter on a 16-cell grid (2 was too tight — seed words
+  // quickly max out common letters like E/T/A/R/S, forcing the fallback path).
+  const canPlace = (l: string) => (letterCount[l] || 0) < 3;
 
   // Ensure each quadrant has at least one vowel
   for (const quad of QUADRANTS) {
@@ -324,9 +326,13 @@ function fillGrid(
           ?? pickWeightedAvailable(VOWEL_WEIGHTS, canPlace);
       }
 
-      const placed = letter ?? 'E';
-      grid[r][c] = placed;
-      letterCount[placed] = (letterCount[placed] || 0) + 1;
+      // Last-resort fallback: relax the count cap so cells never get stuck.
+      // Prefer a vowel to keep the grid playable if consonants are exhausted.
+      if (letter === null) {
+        letter = pickWeighted(VOWEL_WEIGHTS);
+      }
+      grid[r][c] = letter;
+      letterCount[letter] = (letterCount[letter] || 0) + 1;
     }
   }
 }

@@ -17,7 +17,8 @@ const GRID_DIM = GRID_SIZE * CELL_SIZE + CELL_GAP * (GRID_SIZE - 1);
 
 // Dead zone: minimum travel from current cell center before a snap fires.
 // Also the threshold for "returned to anchor" in the backtrack gate.
-const DEAD_ZONE = CELL_STEP * 0.40;
+// 0.35 (was 0.40) — slightly more responsive without causing accidental snaps.
+const DEAD_ZONE = CELL_STEP * 0.35;
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
@@ -122,6 +123,7 @@ interface Props {
 
 export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
+  const [livePoint, setLivePoint] = useState<{ x: number; y: number } | null>(null);
   const pathRef = useRef<Position[]>([]);
 
   // Snap-anchor: the cell we most recently snapped FROM.
@@ -144,6 +146,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
 
   const resetGesture = () => {
     snapAnchorRef.current = null;
+    setLivePoint(null);
   };
 
   const panGesture = Gesture.Pan()
@@ -154,7 +157,8 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const cell = getNearestCell(e.x, e.y);
       pathRef.current = [cell];
       setSelectedCells([cell]);
-      resetGesture();
+      setLivePoint({ x: e.x, y: e.y });
+      snapAnchorRef.current = null;
     })
     .onStart((_e) => {
       // onBegin already committed the starting cell — do NOT override it here.
@@ -162,6 +166,9 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       // the starting letter when the user began dragging immediately after touch.
     })
     .onUpdate((e) => {
+      // Always update the live finger position for the rubber-band line
+      setLivePoint({ x: e.x, y: e.y });
+
       const path = pathRef.current;
       if (path.length === 0) return;
 
@@ -257,14 +264,15 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
             ))}
           </View>
 
-          {/* Path lines between selected cells */}
-          {selectedCells.length >= 2 && (
+          {/* Path lines + live rubber-band line */}
+          {(selectedCells.length >= 2 || (selectedCells.length === 1 && livePoint)) && (
             <Svg
               style={StyleSheet.absoluteFill}
               width={innerSize}
               height={innerSize}
               pointerEvents="none"
             >
+              {/* Committed path lines */}
               {selectedCells.slice(0, -1).map((pos, i) => {
                 const from = cellCenter(pos);
                 const to = cellCenter(selectedCells[i + 1]);
@@ -281,6 +289,22 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
                   />
                 );
               })}
+              {/* Live rubber-band: last selected cell → current finger */}
+              {livePoint && selectedCells.length >= 1 && (() => {
+                const from = cellCenter(selectedCells[selectedCells.length - 1]);
+                return (
+                  <Line
+                    x1={from.x}
+                    y1={from.y}
+                    x2={livePoint.x}
+                    y2={livePoint.y}
+                    stroke="rgba(255,255,255,0.40)"
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                    strokeDasharray="6,5"
+                  />
+                );
+              })()}
             </Svg>
           )}
         </View>
