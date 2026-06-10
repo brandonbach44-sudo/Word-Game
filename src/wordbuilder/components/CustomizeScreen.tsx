@@ -270,8 +270,9 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
             Select {isDefault ? 'Style' : 'Variant'}
           </Text>
           
-          <ScrollView 
-            horizontal 
+          <View onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}>
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.variantList}
           >
@@ -327,7 +328,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
               );
             })}
           </ScrollView>
-          
+          </View>
+
           {/* Equip button */}
           <TouchableOpacity
             style={[
@@ -543,8 +545,7 @@ const styles = StyleSheet.create({
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 100,
-    justifyContent: 'flex-start',
-    paddingTop: 100,
+    justifyContent: 'flex-end',
   },
   overlayBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -554,12 +555,14 @@ const styles = StyleSheet.create({
   // Variant Selector (preview overlay)
   variantSelector: {
     backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 10,
   },
