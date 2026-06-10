@@ -297,11 +297,14 @@ export default function WordBuilder() {
     }).start();
   };
 
+  const panLockedRef = React.useRef(false);
+  const setPanLocked = (v: boolean) => { panLockedRef.current = v; };
+
   const menuPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+        !panLockedRef.current && Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
       onPanResponderGrant: () => {
         tabAnim.stopAnimation();
         dragBase.current = currentTabIdxRef.current;
@@ -1222,6 +1225,23 @@ export default function WordBuilder() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* How to Play */}
+          <Text style={[styles.sectionLabel, dynamicStyles.text, { marginTop: 24 }]}>How to Play</Text>
+          <View style={[styles.rulesCard, dynamicStyles.card, { borderWidth: 1.5 }]}>
+            {[
+              'You are given a set of letters — form as many words as you can',
+              'Words must be 3+ letters and use only the provided letters',
+              'Each letter can only be used as many times as it appears',
+              'Longer words score more points',
+              'Race the clock — Blitz is 30s, Standard is 60s',
+            ].map((rule, i) => (
+              <View key={i} style={styles.ruleItem}>
+                <Text style={[styles.ruleNumber, { color: COLORS.accent }]}>{i + 1}</Text>
+                <Text style={[styles.ruleText, dynamicStyles.textSecondary]}>{rule}</Text>
+              </View>
+            ))}
+          </View>
           
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1232,6 +1252,7 @@ export default function WordBuilder() {
           onBack={() => handleSegmentPress('play')}
           embedded
           onTileChange={refreshPlayerData}
+          onPopupChange={setPanLocked}
         />
       </View>
 
@@ -1464,31 +1485,62 @@ export default function WordBuilder() {
       {showDailyResultModal && dailyResult && (
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-            <Text style={[styles.modalTitle, { color: background.textColor }]}>Daily Results</Text>
-            <Text style={[styles.modalDate, { color: background.secondaryText }]}>{formatDate()}</Text>
-            <Text style={[styles.modalScore, { color: COLORS.accent }]}>{dailyResult.score}</Text>
-            <Text style={[styles.modalScoreLabel, { color: background.secondaryText }]}>points</Text>
-            <Text style={[styles.modalWords, { color: background.textColor }]}>{dailyResult.words.length} words found</Text>
-            {dailyChallenge && dailyChallenge.dailyStreak > 1 && (
-              <Text style={[styles.modalStreak, { color: background.secondaryText }]}>
-                🔥 {dailyChallenge.dailyStreak} day streak
-              </Text>
-            )}
-            <View style={styles.modalButtons}>
+            <Text style={[styles.modalBrand, { color: background.secondaryText }]}>WORD BUILDER</Text>
+            <Text style={[styles.modalTitle, { color: background.textColor }]}>
+              {dailyResult.score >= 2000 ? 'Outstanding!' :
+               dailyResult.score >= 1000 ? 'Great Job!' :
+               dailyResult.score >= 500  ? 'Nice!' :
+               dailyResult.score >= 200  ? 'Good Game!' : 'Keep Practicing!'}
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: background.secondaryText }]}>
+              You scored {dailyResult.score} pts and found {dailyResult.words.length} words.
+            </Text>
+
+            <View style={[styles.modalScoreBox, { borderColor: background.borderColor }]}>
+              <Text style={[styles.modalScoreBoxLabel, { color: background.secondaryText }]}>Score</Text>
+              <Text style={[styles.modalScoreBoxValue, { color: background.textColor }]}>{dailyResult.score}</Text>
+              <Text style={[styles.modalScoreBoxWords, { color: background.secondaryText }]}>{dailyResult.words.length} words found</Text>
+            </View>
+
+            <View style={[styles.modalDividerLine, { backgroundColor: background.borderColor }]} />
+            <Text style={[styles.modalSectionTitle, { color: background.textColor }]}>STATS</Text>
+            <View style={styles.modalStatsRow}>
+              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.modalStatPillLabel, { color: background.textColor }]}>Streak</Text>
+                <Text style={[styles.modalStatPillValue, { color: background.textColor }]}>{dailyChallenge?.dailyStreak ?? 0}</Text>
+              </View>
+              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.modalStatPillLabel, { color: background.textColor }]}>Best</Text>
+                <Text style={[styles.modalStatPillValue, { color: background.textColor }]}>{dailyChallenge?.bestDailyStreak ?? 0}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.modalDividerLine, { backgroundColor: background.borderColor }]} />
+            <Text style={[styles.modalCountdownLabel, { color: background.secondaryText }]}>Next Daily in</Text>
+            <Text style={[styles.modalCountdownValue, { color: background.textColor }]}>{countdownToNextDaily}</Text>
+
+            <View style={styles.modalButtonRow}>
               <TouchableOpacity
-                style={[styles.modalShareBtn, { backgroundColor: COLORS.accent }]}
-                onPress={shareDailyFromMenu}
-              >
-                <Share2 size={16} color="#fff" />
-                <Text style={styles.modalShareText}>Share</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalCloseBtn, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+                style={[styles.modalPillButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
                 onPress={() => setShowDailyResultModal(false)}
               >
-                <Text style={[styles.modalCloseBtnText, { color: background.textColor }]}>Close</Text>
+                <Text style={[styles.modalPillButtonText, { color: background.textColor }]}>Main Menu</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity style={styles.modalGreenShareBtn} onPress={shareDailyFromMenu}>
+              <View style={styles.modalShareBtnInner}>
+                <Share2 size={18} color="#fff" />
+                <Text style={styles.modalShareBtnText}>Share Result</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalSecondaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+              onPress={() => setShowDailyResultModal(false)}
+            >
+              <Text style={[styles.modalSecondaryButtonText, { color: background.textColor }]}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -1651,78 +1703,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // Daily result modal
-  modalOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    zIndex: 100,
-  },
-  modalCard: {
-    width: '100%',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 28,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  modalDate: {
-    fontSize: 13,
-    marginBottom: 16,
-  },
-  modalScore: {
-    fontSize: 56,
-    fontWeight: 'bold',
-  },
-  modalScoreLabel: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  modalWords: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  modalStreak: {
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  modalShareBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingVertical: 13,
-  },
-  modalShareText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalCloseBtn: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  modalCloseBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 18, zIndex: 999 },
+  modalCard: { width: '100%', maxWidth: 420, borderRadius: 18, borderWidth: 2, padding: 16 },
+  modalBrand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
+  modalTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  modalSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
+  modalScoreBox: { borderWidth: 2, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', marginBottom: 4 },
+  modalScoreBoxLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  modalScoreBoxValue: { fontSize: 40, fontWeight: '900', letterSpacing: 2 },
+  modalScoreBoxWords: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  modalDividerLine: { height: 1, marginVertical: 12, opacity: 0.35 },
+  modalSectionTitle: { fontSize: 14, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
+  modalStatsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 },
+  modalStatPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
+  modalStatPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },
+  modalStatPillValue: { fontSize: 14, fontWeight: '900' },
+  modalCountdownLabel: { textAlign: 'center', fontSize: 12, fontWeight: '800', marginBottom: 4, letterSpacing: 1 },
+  modalCountdownValue: { textAlign: 'center', fontSize: 18, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  modalButtonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
+  modalPillButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  modalPillButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  modalGreenShareBtn: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
+  modalShareBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  modalShareBtnText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
+  modalSecondaryButton: { marginTop: 10, borderWidth: 2, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
+  modalSecondaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   // Countdown Timer
   dailyCountdownContainer: {
     alignItems: 'center',
@@ -1745,7 +1750,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
   },
-  modeCardTitle: {
+  sectionLabel: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  rulesCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  ruleNumber: {
+    fontSize: 15,
+    fontWeight: '800',
+    width: 22,
+    marginTop: 1,
+  },
+  ruleText: {
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
+  },
+    modeCardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,

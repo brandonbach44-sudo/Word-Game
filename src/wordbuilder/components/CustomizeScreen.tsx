@@ -24,9 +24,10 @@ interface CustomizeScreenProps {
   onBack: () => void;
   embedded?: boolean;
   onTileChange?: () => void;
+  onPopupChange?: (open: boolean) => void;
 }
 
-export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false, onTileChange }) => {
+export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false, onTileChange, onPopupChange }) => {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [tiles, setTiles] = useState<PlayerTiles | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,17 +102,18 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     const status = getTierStatus(tierName);
     if (status.unlocked) {
       setSelectedTier(tierName);
-      // Set initial variant to currently equipped if this tier is equipped, else 1
       if (tiles && tiles.equippedTier === tierName) {
         setSelectedVariant(tiles.equippedVariant);
       } else {
         setSelectedVariant(1);
       }
+      onPopupChange?.(true);
     }
   };
 
   const closeTierPreview = () => {
     setSelectedTier(null);
+    onPopupChange?.(false);
   };
 
   const renderTierCard = (tierName: TierName) => {
