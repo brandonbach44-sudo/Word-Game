@@ -1188,9 +1188,9 @@ export default function WordleGame() {
 
     const unit = availableWidth / totalWeight;
 
-    // Default key bg depends on dark/light mode
-    const emptyBg = IS_DARK ? "#1f2937" : CARD;
-    const emptyBorder = IS_DARK ? "#374151" : BORDER;
+    // Default key bg — matches current page background
+    const emptyBg = BG;
+    const emptyBorder = IS_DARK ? "#4b5563" : "#d1d5db";
     const emptyText = IS_DARK ? "#f9fafb" : TEXT;
 
     return (
@@ -1314,6 +1314,17 @@ export default function WordleGame() {
       { id: "perfectionist", emoji: "🎓", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10, progress: Math.min(((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) / 10, 1) },
       { id: "comeback_king", emoji: "👑", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5, progress: Math.min(((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) / 5, 1) },
       { id: "early_bird", emoji: "🌅", name: "Early Bird", description: "Complete a daily challenge", unlocked: stats.daily.gamesPlayed >= 1 },
+      // Key skin unlocks
+      { id: "skin_bronze", emoji: "🥉", name: "Bronze Keys", description: "Reach a 3-day streak to unlock Bronze keys", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
+      { id: "skin_silver", emoji: "🥈", name: "Silver Keys", description: "Reach a 7-day streak to unlock Silver keys", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
+      { id: "skin_gold", emoji: "🥇", name: "Gold Keys", description: "Reach a 14-day streak to unlock Gold keys", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
+      { id: "skin_platinum", emoji: "🔷", name: "Platinum Keys", description: "Reach a 21-day streak to unlock Platinum keys", unlocked: bestStreak >= 21, progress: Math.min(bestStreak / 21, 1) },
+      { id: "skin_ruby", emoji: "🔴", name: "Ruby Keys", description: "Reach a 30-day streak to unlock Ruby keys", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
+      { id: "skin_emerald", emoji: "💚", name: "Emerald Keys", description: "Reach a 50-day streak to unlock Emerald keys", unlocked: bestStreak >= 50, progress: Math.min(bestStreak / 50, 1) },
+      { id: "skin_diamond", emoji: "💎", name: "Diamond Keys", description: "Reach a 75-day streak to unlock Diamond keys", unlocked: bestStreak >= 75, progress: Math.min(bestStreak / 75, 1) },
+      { id: "skin_legendary", emoji: "🌟", name: "Legendary Keys", description: "Reach a 100-day streak to unlock Legendary keys", unlocked: bestStreak >= 100, progress: Math.min(bestStreak / 100, 1) },
+      { id: "skin_iridescence", emoji: "🌈", name: "Iridescence Keys", description: "Reach a 150-day streak to unlock Iridescence keys", unlocked: bestStreak >= 150, progress: Math.min(bestStreak / 150, 1) },
+      { id: "skin_rose_quartz", emoji: "🌸", name: "Rose Quartz Keys", description: "Reach a 200-day streak to unlock Rose Quartz keys", unlocked: bestStreak >= 200, progress: Math.min(bestStreak / 200, 1) },
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
 
@@ -1550,6 +1561,58 @@ export default function WordleGame() {
                 contentContainerStyle={styles.statsContent}
                 showsVerticalScrollIndicator={false}
               >
+                {/* ── BIG LIVE PREVIEW KEY ── */}
+                {(() => {
+                  const activeSkin = (prefs.keySkin ?? 'default') as KeySkinName;
+                  const skinCfg = KEY_SKINS[activeSkin];
+                  const isGem = skinCfg.isGem && (GEM_PREVIEW_IMAGES as any)[activeSkin];
+                  const isMetal = !skinCfg.isGem && skinCfg.gradient !== null;
+                  const isOutline = (prefs.keyStyle ?? 'filled') === 'outline';
+                  const isRounded = (prefs.keyShape ?? 'square') === 'rounded';
+                  const br = isRounded ? 28 : 8;
+                  const variantStyle = DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1];
+
+                  let bg = BG;
+                  let border = BORDER;
+                  let letterColor = TEXT;
+
+                  if (activeSkin === 'classic') {
+                    bg = variantStyle.background; border = variantStyle.border; letterColor = variantStyle.text;
+                  } else if (isMetal && skinCfg.gradient) {
+                    border = skinCfg.border; letterColor = skinCfg.letterColor;
+                  } else if (isGem) {
+                    border = 'transparent'; letterColor = skinCfg.letterColor;
+                  }
+
+                  if (isOutline) { bg = '#ffffff'; }
+
+                  return (
+                    <View style={[styles.bigPreviewContainer, { borderBottomColor: BORDER }]}>
+                      <View style={[styles.bigPreviewKey, { borderRadius: br, borderColor: border, borderWidth: isOutline ? 2 : 1.5, overflow: 'hidden' }]}>
+                        {isMetal && !isOutline && skinCfg.gradient ? (
+                          <LinearGradient
+                            colors={skinCfg.gradient as unknown as [string, string, ...string[]]}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        ) : isGem && !isOutline ? (
+                          <ImageBackground
+                            source={(GEM_PREVIEW_IMAGES as any)[activeSkin]}
+                            style={StyleSheet.absoluteFill}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]} />
+                        )}
+                        <Text style={[styles.bigPreviewLetter, { color: letterColor }]}>A</Text>
+                      </View>
+                      <Text style={[styles.bigPreviewLabel, { color: SUBTEXT }]}>
+                        {skinCfg.displayName}{activeSkin === 'classic' ? ` · Style ${prefs.keyDefaultVariant ?? 1}` : ''} · {isRounded ? 'Pill' : 'Square'} · {isOutline ? 'Outline' : 'Filled'}
+                      </Text>
+                    </View>
+                  );
+                })()}
+
                 {/* ── KEY SHAPE toggle ── */}
                 <View style={[styles.toggleCard, { backgroundColor: CARD, borderColor: BORDER }]}>
                   <View style={styles.toggleRow}>
@@ -1558,17 +1621,6 @@ export default function WordleGame() {
                       <Text style={[styles.toggleSub, { color: SUBTEXT }]}>
                         {(prefs.keyShape ?? 'square') === 'rounded' ? 'Rounded pill shape' : 'Standard square shape'}
                       </Text>
-                    </View>
-                    {/* Live preview key */}
-                    <View style={[
-                      styles.customizePreviewKey,
-                      {
-                        borderRadius: (prefs.keyShape ?? 'square') === 'rounded' ? 22 : 6,
-                        backgroundColor: IS_DARK ? '#1f2937' : CARD,
-                        borderColor: BORDER,
-                      }
-                    ]}>
-                      <Text style={[styles.customizePreviewLetter, { color: TEXT }]}>A</Text>
                     </View>
                     <Switch
                       value={(prefs.keyShape ?? 'square') === 'rounded'}
@@ -1579,7 +1631,6 @@ export default function WordleGame() {
                       }}
                       trackColor={{ false: '#d1d5db', true: COLOR_CORRECT }}
                       thumbColor="#ffffff"
-                      style={{ marginLeft: 12 }}
                     />
                   </View>
                 </View>
@@ -1593,18 +1644,6 @@ export default function WordleGame() {
                         {(prefs.keyStyle ?? 'filled') === 'outline' ? 'Transparent with border' : 'Solid filled background'}
                       </Text>
                     </View>
-                    {/* Live preview key */}
-                    <View style={[
-                      styles.customizePreviewKey,
-                      {
-                        borderRadius: (prefs.keyShape ?? 'square') === 'rounded' ? 22 : 6,
-                        backgroundColor: (prefs.keyStyle ?? 'filled') === 'outline' ? 'transparent' : BG,
-                        borderColor: BORDER,
-                        borderWidth: (prefs.keyStyle ?? 'filled') === 'outline' ? 2 : 1,
-                      }
-                    ]}>
-                      <Text style={[styles.customizePreviewLetter, { color: TEXT }]}>A</Text>
-                    </View>
                     <Switch
                       value={(prefs.keyStyle ?? 'filled') === 'outline'}
                       onValueChange={(val) => {
@@ -1614,7 +1653,6 @@ export default function WordleGame() {
                       }}
                       trackColor={{ false: '#d1d5db', true: COLOR_CORRECT }}
                       thumbColor="#ffffff"
-                      style={{ marginLeft: 12 }}
                     />
                   </View>
                 </View>
@@ -1646,9 +1684,9 @@ export default function WordleGame() {
                         key={skinName}
                         onPress={() => {
                           if (!unlocked) return;
-                          if (skinName === 'default') {
+                          if (skinName === 'classic') {
                             setPopupVariant(prefs.keyDefaultVariant ?? 1);
-                            setSelectedSkinForPopup('default');
+                            setSelectedSkinForPopup('classic');
                             return;
                           }
                           const updated = { ...prefs, keySkin: skinName };
@@ -1661,17 +1699,17 @@ export default function WordleGame() {
                             backgroundColor: CARD,
                             borderColor: active ? COLOR_CORRECT : BORDER,
                             borderWidth: active ? 2 : 1,
-                            opacity: unlocked ? 1 : 0.45,
-                          },
+                            },
                         ]}
                       >
-                        {/* Preview key — left side */}
+                        {/* Preview key — left (60px like WB tile) */}
                         <View style={[
                           styles.skinPreviewKey,
                           {
                             borderRadius: keyBorderRadius,
-                            borderColor: isMetal ? skinCfg.border : isGem ? (skinCfg.glowColor ?? BORDER) : skinName === 'default' ? (DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1]).border : BORDER,
+                            borderColor: isMetal ? skinCfg.border : isGem ? 'transparent' : skinName === 'classic' ? (DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1]).border : BORDER,
                             overflow: 'hidden',
+                            opacity: unlocked ? 1 : 0.5,
                           },
                         ]}>
                           {isMetal && skinCfg.gradient ? (
@@ -1687,34 +1725,33 @@ export default function WordleGame() {
                               style={StyleSheet.absoluteFill}
                               resizeMode="cover"
                             />
-                          ) : skinName === 'default' ? (
+                          ) : skinName === 'classic' ? (
                             <View style={[StyleSheet.absoluteFill, { backgroundColor: (DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1]).background }]} />
                           ) : (
-                            <View style={[StyleSheet.absoluteFill, { backgroundColor: IS_DARK ? '#1f2937' : CARD }]} />
+                            <View style={[StyleSheet.absoluteFill, { backgroundColor: BG }]} />
                           )}
-                          <Text style={[styles.skinPreviewLetter, { color: isMetal ? skinCfg.letterColor : isGem ? skinCfg.letterColor : skinName === 'default' ? (DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1]).text : TEXT }]}>A</Text>
+                          <Text style={[styles.skinPreviewLetter, { color: isMetal ? skinCfg.letterColor : isGem ? skinCfg.letterColor : skinName === 'classic' ? (DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1]).text : TEXT }]}>A</Text>
                         </View>
 
-                        {/* Middle — name + status */}
+                        {/* Middle — name + unlocked status + equipped pill (WB pattern) */}
                         <View style={styles.skinRowInfo}>
-                          <Text style={[styles.skinRowName, { color: TEXT }]}>{skinCfg.displayName}</Text>
-                          <Text style={[styles.skinRowStatus, {
-                            color: active ? COLOR_CORRECT : unlocked ? SUBTEXT : SUBTEXT,
-                          }]}>
-                            {active ? '✓ Equipped' : unlocked ? 'Unlocked' : 'Locked'}
+                          <Text style={[styles.skinRowName, { color: unlocked ? TEXT : SUBTEXT }]}>{skinCfg.displayName}</Text>
+                          <Text style={[styles.skinRowStatus, { color: unlocked ? COLOR_CORRECT : SUBTEXT }]}>
+                            {unlocked ? 'Unlocked' : 'Locked'}
                           </Text>
+                          {active && (
+                            <View style={[styles.skinEquippedBadge, { backgroundColor: COLOR_CORRECT }]}>
+                              <Text style={styles.skinEquippedText}>Equipped</Text>
+                            </View>
+                          )}
                         </View>
 
-                        {/* Right — streak requirement or equipped badge */}
-                        {!unlocked ? (
-                          <View style={[styles.skinLockBadge, { borderColor: BORDER }]}>
-                            <Text style={[styles.skinLockText, { color: SUBTEXT }]}>🔒 {skinCfg.streakRequired}d</Text>
+                        {/* Right — streak req for locked tiers */}
+                        {!unlocked && (
+                          <View style={styles.skinLockBadge}>
+                            <Text style={[styles.skinLockText, { color: SUBTEXT }]}>🔒 {skinCfg.streakRequired} days</Text>
                           </View>
-                        ) : active ? (
-                          <View style={[styles.skinEquippedBadge, { backgroundColor: COLOR_CORRECT + '22', borderColor: COLOR_CORRECT }]}>
-                            <Text style={[styles.skinEquippedText, { color: COLOR_CORRECT }]}>Equipped</Text>
-                          </View>
-                        ) : null}
+                        )}
                       </Pressable>
                     );
                   })}
@@ -1952,40 +1989,37 @@ export default function WordleGame() {
         />
       </View>
 
-      {/* ── DEFAULT VARIANT SELECTOR POPUP (mirrors Word Builder) ── */}
-      {selectedSkinForPopup === 'default' && (
-        <Pressable
-          style={styles.overlayContainer}
-          onPress={() => setSelectedSkinForPopup(null)}
-        >
-          <View style={styles.overlayBackdrop} />
-          <Pressable
-            style={[styles.variantSelector, { backgroundColor: CARD }]}
-            onPress={(e) => e.stopPropagation()}
-          >
+      {/* ── DEFAULT VARIANT SELECTOR POPUP (mirrors Word Builder exactly) ── */}
+      {selectedSkinForPopup === 'classic' && (
+        <View style={styles.overlayContainer}>
+          <Pressable style={styles.overlayBackdrop} onPress={() => setSelectedSkinForPopup(null)} />
+          <View style={[styles.variantSelector, { backgroundColor: CARD }]}>
             {/* Header */}
-            <View style={[styles.variantHeader, { borderBottomColor: BORDER }]}>
-              <Text style={[styles.variantHeaderTitle, { color: TEXT }]}>Default Style</Text>
-              <Pressable onPress={() => setSelectedSkinForPopup(null)}>
-                <Text style={[styles.variantHeaderClose, { color: SUBTEXT }]}>✕</Text>
+            <View style={styles.variantHeader}>
+              <Text style={[styles.variantTitle, { color: TEXT }]}>Classic</Text>
+              <Pressable style={[styles.closeButton, { backgroundColor: IS_DARK ? '#374151' : '#f5f0f0' }]} onPress={() => setSelectedSkinForPopup(null)}>
+                <Text style={[styles.closeButtonText, { color: SUBTEXT }]}>✕</Text>
               </Pressable>
             </View>
 
-            {/* Large preview key */}
-            <View style={styles.variantPreviewContainer}>
-              <View style={[
-                styles.variantPreviewKey,
-                {
-                  backgroundColor: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).background,
-                  borderColor: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).border,
-                  borderRadius: (prefs.keyShape ?? 'square') === 'rounded' ? 22 : 6,
-                },
-              ]}>
-                <Text style={[styles.variantPreviewLetter, { color: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).text }]}>A</Text>
+            {/* Content row: large preview left */}
+            <View style={[styles.variantContent, { borderBottomColor: BORDER }]}>
+              <View style={styles.previewSection}>
+                <View style={[
+                  styles.variantPreviewKey,
+                  {
+                    backgroundColor: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).background,
+                    borderColor: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).border,
+                    borderRadius: (prefs.keyShape ?? 'square') === 'rounded' ? 22 : 6,
+                  },
+                ]}>
+                  <Text style={[styles.variantPreviewLetter, { color: (DEFAULT_STYLES[popupVariant] ?? DEFAULT_STYLES[1]).text }]}>A</Text>
+                </View>
               </View>
             </View>
 
-            <Text style={[styles.variantSelectLabel, { color: SUBTEXT }]}>Select Style</Text>
+            {/* Select label */}
+            <Text style={[styles.selectLabel, { color: SUBTEXT }]}>Select Style</Text>
 
             {/* 6 variant cards */}
             <ScrollView
@@ -1996,39 +2030,59 @@ export default function WordleGame() {
               {[1, 2, 3, 4, 5, 6].map((v) => {
                 const vs = DEFAULT_STYLES[v];
                 const isSelected = popupVariant === v;
+                const isEquipped = (prefs.keyDefaultVariant ?? 1) === v && prefs.keySkin === 'classic';
                 return (
                   <Pressable
                     key={v}
                     style={[
                       styles.variantCard,
-                      {
-                        backgroundColor: vs.background,
-                        borderColor: isSelected ? '#fff' : vs.border,
-                        borderWidth: isSelected ? 3 : 1,
-                      },
+                      { backgroundColor: IS_DARK ? '#1f2937' : '#f5f0f0' },
+                      isSelected && styles.variantCardSelected,
+                      isEquipped && { backgroundColor: COLOR_CORRECT + '22' },
                     ]}
                     onPress={() => setPopupVariant(v)}
                   >
-                    <Text style={[styles.variantCardLetter, { color: vs.text }]}>A</Text>
+                    <View style={[
+                      styles.variantCardKey,
+                      {
+                        backgroundColor: vs.background,
+                        borderColor: vs.border,
+                        borderRadius: (prefs.keyShape ?? 'square') === 'rounded' ? 14 : 4,
+                      },
+                    ]}>
+                      <Text style={[styles.variantCardLetter, { color: vs.text }]}>A</Text>
+                    </View>
+                    <Text style={[styles.variantLabel, { color: isSelected ? TEXT : SUBTEXT }]}>Style {v}</Text>
+                    {isEquipped && (
+                      <View style={[styles.equippedCheckmark, { backgroundColor: COLOR_CORRECT }]}>
+                        <Text style={styles.checkmark}>✓</Text>
+                      </View>
+                    )}
                   </Pressable>
                 );
               })}
             </ScrollView>
 
             {/* Equip button */}
-            <Pressable
-              style={[styles.variantEquipBtn, { backgroundColor: COLOR_CORRECT }]}
-              onPress={() => {
-                const updated = { ...prefs, keySkin: 'default', keyDefaultVariant: popupVariant };
-                setPrefs(updated);
-                saveWordlePrefs(updated);
-                setSelectedSkinForPopup(null);
-              }}
-            >
-              <Text style={styles.variantEquipText}>Equip</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+            {(() => {
+              const alreadyEquipped = prefs.keySkin === 'classic' && (prefs.keyDefaultVariant ?? 1) === popupVariant;
+              return (
+                <Pressable
+                  style={[styles.equipButton, { backgroundColor: COLOR_CORRECT }, alreadyEquipped && styles.equipButtonDisabled]}
+                  disabled={alreadyEquipped}
+                  onPress={() => {
+                    const updated = { ...prefs, keySkin: 'classic', keyDefaultVariant: popupVariant };
+                    setPrefs(updated);
+                    saveWordlePrefs(updated);
+                    setSelectedSkinForPopup(null);
+                  }}
+                >
+                  <Text style={styles.equipButtonText}>{alreadyEquipped ? 'Currently Equipped' : 'Equip'}</Text>
+                </Pressable>
+              );
+            })()}
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -2622,6 +2676,27 @@ const styles = StyleSheet.create({
   },
 
   // Customize tab
+  bigPreviewContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+  },
+  bigPreviewKey: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  bigPreviewLetter: {
+    fontSize: 34,
+    fontWeight: '900',
+  },
+  bigPreviewLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   customizePreviewKey: {
     width: 40,
     height: 40,
@@ -2677,40 +2752,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    gap: 12,
+    borderWidth: 2,
+    padding: 15,
+    marginBottom: 12,
+    gap: 15,
   },
   skinRowInfo: {
     flex: 1,
   },
   skinRowName: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 2,
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
   },
   skinRowStatus: {
-    fontSize: 12,
+    fontSize: 13,
+    marginTop: 2,
   },
   skinLockBadge: {
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    alignItems: 'flex-end',
   },
   skinLockText: {
     fontSize: 12,
     fontWeight: "600",
   },
   skinEquippedBadge: {
-    borderRadius: 8,
-    borderWidth: 1,
+    backgroundColor: '#4ecca3',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 6,
+    alignSelf: 'flex-start',
   },
   skinEquippedText: {
-    fontSize: 12,
-    fontWeight: "700",
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: "bold",
   },
   skinGrid: {
     flexDirection: "row",
@@ -2726,16 +2803,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   skinPreviewKey: {
-    width: 44,
-    height: 44,
+    width: 60,
+    height: 60,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
     overflow: "hidden",
   },
   skinPreviewLetter: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "900",
   },
   skinName: {
@@ -2780,7 +2856,7 @@ const styles = StyleSheet.create({
   },
 
 
-  // ── Default variant selector popup ──
+  // ── Default variant selector popup (mirrors Word Builder) ──
   overlayContainer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 999,
@@ -2788,77 +2864,127 @@ const styles = StyleSheet.create({
   },
   overlayBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   variantSelector: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 32,
     paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
   },
   variantHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    marginBottom: 16,
+    marginBottom: 15,
   },
-  variantHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  variantHeaderClose: {
+  variantTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    paddingHorizontal: 6,
+    fontWeight: 'bold',
   },
-  variantPreviewContainer: {
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  variantContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+  },
+  previewSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 20,
   },
   variantPreviewKey: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   variantPreviewLetter: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
   },
-  variantSelectLabel: {
-    textAlign: 'center',
+  selectLabel: {
     fontSize: 14,
     marginBottom: 12,
   },
   variantList: {
     flexDirection: 'row',
-    paddingHorizontal: 4,
     gap: 12,
-    paddingBottom: 4,
-    marginBottom: 20,
+    paddingBottom: 5,
   },
   variantCard: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  variantCardSelected: {
+    borderColor: '#2c2416',
+  },
+  variantCardKey: {
+    width: 50,
+    height: 50,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   variantCardLetter: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
   },
-  variantEquipBtn: {
-    borderRadius: 12,
-    paddingVertical: 14,
+  variantLabel: {
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  equippedCheckmark: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  variantEquipText: {
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  equipButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 15,
+  },
+  equipButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  equipButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
   },
 });
