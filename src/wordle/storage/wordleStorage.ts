@@ -7,9 +7,20 @@ const PREFS_KEY = "wordle_prefs_v1";
 export type WordlePrefs = {
   hardMode: boolean;
   colorBlindMode: boolean;
+  keyShape: 'rounded' | 'square';
+  keyStyle: 'filled' | 'outline';
+  keySkin: string; // KeySkinName — string to avoid circular import
+  keyDefaultVariant: number; // 1–6, only used when keySkin === 'default'
 };
 
-const DEFAULT_PREFS: WordlePrefs = { hardMode: false, colorBlindMode: false };
+const DEFAULT_PREFS: WordlePrefs = {
+  hardMode: false,
+  colorBlindMode: false,
+  keyShape: 'square',
+  keyStyle: 'filled',
+  keySkin: 'default',
+  keyDefaultVariant: 1,
+};
 
 export async function loadWordlePrefs(): Promise<WordlePrefs> {
   try {
