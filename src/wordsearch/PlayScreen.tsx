@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SoundManager } from '../../src/shared/SoundManager';
@@ -25,12 +25,74 @@ interface PlayScreenProps {
   isDaily?: boolean;
 }
 
+interface Cell { row: number; col: number }
+
 interface GameState {
   score: number;
   foundWords: PlacedWord[];
   elapsedSeconds: number;
-  selectedCells: Array<{ row: number; col: number }>;
-  currentSelection: Array<{ row: number; col: number }>;
+  /** Cells permanently highlighted (found words) */
+  foundCells: Cell[];
+  /** Cells currently being dragged over */
+  currentSelection: Cell[];
+}
+
+/** Given a start and end cell, return all cells in a straight line (H, V, or diagonal). */
+function buildSelectionLine(start: Cell, end: Cell): Cell[] {
+  const dr = end.row - start.row;
+  const dc = end.col - start.col;
+
+  // Must be horizontal, vertical, or 45° diagonal
+  const absR = Math.abs(dr);
+  const absC = Math.abs(dc);
+  if (absR !== 0 && absC !== 0 && absR !== absC) {
+    // Not a valid straight line — snap to the dominant axis
+    return [start];
+  }
+
+  const steps = Math.max(absR, absC);
+  if (steps === 0) return [start];
+
+  const stepR = dr === 0 ? 0 : dr / absR;
+  const stepC = dc === 0 ? 0 : dc / absC;
+
+  const cells: Cell[] = [];
+  for (let i = 0; i <= steps; i++) {
+    cells.push({ row: start.row + stepR * i, col: start.col + stepC * i });
+  }
+  return cells;
+}
+
+/** Get cells for a placed word */
+function getWordCells(word: PlacedWord): Cell[] {
+  const vectors: Record<string, { dr: number; dc: number }> = {
+    RIGHT: { dr: 0, dc: 1 },
+    LEFT: { dr: 0, dc: -1 },
+    DOWN: { dr: 1, dc: 0 },
+    UP: { dr: -1, dc: 0 },
+    DOWNRIGHT: { dr: 1, dc: 1 },
+    DOWNLEFT: { dr: 1, dc: -1 },
+    UPRIGHT: { dr: -1, dc: 1 },
+    UPLEFT: { dr: -1, dc: -1 },
+  };
+  const { dr, dc } = vectors[word.direction];
+  const cells: Cell[] = [];
+  for (let i = 0; i < word.length; i++) {
+    cells.push({ row: word.row + dr * i, col: word.col + dc * i });
+  }
+  return cells;
+}
+
+/** Check if two cell arrays match (same cells in any order — forward or backward) */
+function selectionMatchesWord(selection: Cell[], wordCells: Cell[]): boolean {
+  if (selection.length !== wordCells.length) return false;
+  const fwd = selection.every((c, i) => c.row === wordCells[i].row && c.col === wordCells[i].col);
+  const rev = selection.every(
+    (c, i) =>
+      c.row === wordCells[wordCells.length - 1 - i].row &&
+      c.col === wordCells[wordCells.length - 1 - i].col
+  );
+  return fwd || rev;
 }
 
 const PlayScreen: React.FC<PlayScreenProps> = ({
@@ -44,157 +106,134 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     score: 0,
     foundWords: [],
     elapsedSeconds: 0,
-    selectedCells: [],
+    foundCells: [],
     currentSelection: [],
   });
-
   const [gameFinished, setGameFinished] = useState(false);
-  const [cellSize, setCellSize] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const panResponderRef = useRef<any>(null);
 
-  // Initialize sound manager
-  useEffect(() => {
-    const initSound = async () => {
-      try {
-        await SoundManager.init();
-      } catch (error) {
-        console.error('Failed to init sound:', error);
-      }
-    };
-    initSound();
-  }, []);
+  // Grid layout measured values
+  const gridRef = useRef<View>(null);
+  const gridLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const cellSize = useRef(0);
+  const numCols = puzzleData.grid[0]?.length ?? 1;
+  const numRows = puzzleData.grid.length;
+
+  // Drag state (refs, not state — don't need re-render mid-drag)
+  const dragStart = useRef<Cell | null>(null);
 
   // Timer
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (gameFinished) return;
-
     timerRef.current = setInterval(() => {
-      setGameState(prev => ({
-        ...prev,
-        elapsedSeconds: prev.elapsedSeconds + 1,
-      }));
+      setGameState(prev => ({ ...prev, elapsedSeconds: prev.elapsedSeconds + 1 }));
     }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [gameFinished]);
 
-  // Pan responder for touch/drag
+  // Sound
   useEffect(() => {
-    panResponderRef.current = PanResponder.create({
+    SoundManager.init().catch(() => {});
+  }, []);
+
+  const measureGrid = () => {
+    gridRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+      gridLayout.current = { x: pageX, y: pageY, width, height };
+      cellSize.current = width / numCols;
+    });
+  };
+
+  const getCellFromPoint = (pageX: number, pageY: number): Cell | null => {
+    const layout = gridLayout.current;
+    if (!layout || cellSize.current === 0) return null;
+
+    const col = Math.floor((pageX - layout.x) / cellSize.current);
+    const row = Math.floor((pageY - layout.y) / cellSize.current);
+
+    if (row >= 0 && row < numRows && col >= 0 && col < numCols) {
+      return { row, col };
+    }
+    return null;
+  };
+
+  // Keep a ref to gameState for use inside PanResponder closures
+  const gameStateRef = useRef(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+
+  const panResponder = useRef(
+    PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: (evt, gestureState) => {
-        if (cellSize === 0) return;
 
-        const gridX = gestureState.x0 - 16; // Account for padding
-        const gridY = gestureState.y0 - 100; // Account for header
+      onPanResponderGrant: evt => {
+        const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+        if (!cell) return;
+        dragStart.current = cell;
+        setGameState(prev => ({ ...prev, currentSelection: [cell] }));
+      },
 
-        const col = Math.floor(gridX / cellSize);
-        const row = Math.floor(gridY / cellSize);
+      onPanResponderMove: evt => {
+        if (!dragStart.current) return;
+        const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+        if (!cell) return;
+        const line = buildSelectionLine(dragStart.current, cell);
+        setGameState(prev => ({ ...prev, currentSelection: line }));
+      },
 
-        if (
-          row >= 0 &&
-          row < puzzleData.grid.length &&
-          col >= 0 &&
-          col < puzzleData.grid[0].length
-        ) {
-          setGameState(prev => ({
-            ...prev,
-            currentSelection: [{ row, col }],
-          }));
+      onPanResponderRelease: evt => {
+        if (!dragStart.current) return;
+        const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+        const line = cell ? buildSelectionLine(dragStart.current, cell) : [dragStart.current];
+        dragStart.current = null;
+
+        const state = gameStateRef.current;
+        let wordFound = false;
+
+        for (const placedWord of puzzleData.words) {
+          if (state.foundWords.some(fw => fw.word === placedWord.word)) continue;
+          const wordCells = getWordCells(placedWord);
+          if (selectionMatchesWord(line, wordCells)) {
+            SoundManager.success();
+            const scoreGain = placedWord.word.length * 10;
+            const newFoundWords = [...state.foundWords, placedWord];
+            const newFoundCells = [...state.foundCells, ...wordCells];
+            wordFound = true;
+
+            setGameState(prev => ({
+              ...prev,
+              foundWords: newFoundWords,
+              score: prev.score + scoreGain,
+              foundCells: newFoundCells,
+              currentSelection: [],
+            }));
+
+            if (newFoundWords.length === puzzleData.words.length) {
+              setTimeout(() => triggerFinish(), 500);
+            }
+            break;
+          }
+        }
+
+        if (!wordFound) {
+          SoundManager.error();
+          setGameState(prev => ({ ...prev, currentSelection: [] }));
         }
       },
-      onPanResponderRelease: () => {
-        checkWord();
+
+      onPanResponderTerminate: () => {
+        dragStart.current = null;
+        setGameState(prev => ({ ...prev, currentSelection: [] }));
       },
-    });
-  }, [cellSize, puzzleData, gameState.foundWords]);
+    })
+  ).current;
 
-  const checkWord = () => {
-    // Check if current selection matches any unfound word
-    const selection = gameState.currentSelection;
-    if (selection.length < 2) {
-      setGameState(prev => ({
-        ...prev,
-        currentSelection: [],
-      }));
-      return;
-    }
-
-    // Simplified word checking - check against unfound words
-    for (const placedWord of puzzleData.words) {
-      if (gameState.foundWords.some(fw => fw.word === placedWord.word)) continue;
-
-      // Check if selection matches this word
-      const wordCells = getWordCells(placedWord);
-      if (cellsMatch(selection, wordCells)) {
-        // Word found!
-        SoundManager.success();
-        const scoreGain = placedWord.word.length * 10;
-        setGameState(prev => ({
-          ...prev,
-          foundWords: [...prev.foundWords, placedWord],
-          score: prev.score + scoreGain,
-          currentSelection: [],
-          selectedCells: [...prev.selectedCells, ...wordCells],
-        }));
-
-        // Check if all words found
-        if (gameState.foundWords.length + 1 === puzzleData.words.length) {
-          setTimeout(handleFinishGame, 500);
-        }
-        return;
-      }
-    }
-
-    // Not a valid word
-    SoundManager.error();
-    setGameState(prev => ({
-      ...prev,
-      currentSelection: [],
-    }));
-  };
-
-  const getWordCells = (word: PlacedWord) => {
-    const cells: Array<{ row: number; col: number }> = [];
-    const directions: Record<string, { dr: number; dc: number }> = {
-      RIGHT: { dr: 0, dc: 1 },
-      LEFT: { dr: 0, dc: -1 },
-      DOWN: { dr: 1, dc: 0 },
-      UP: { dr: -1, dc: 0 },
-      DOWNRIGHT: { dr: 1, dc: 1 },
-      DOWNLEFT: { dr: 1, dc: -1 },
-      UPRIGHT: { dr: -1, dc: 1 },
-      UPLEFT: { dr: -1, dc: -1 },
-    };
-
-    const dir = directions[word.direction];
-    for (let i = 0; i < word.length; i++) {
-      cells.push({
-        row: word.row + dir.dr * i,
-        col: word.col + dir.dc * i,
-      });
-    }
-    return cells;
-  };
-
-  const cellsMatch = (
-    selection: Array<{ row: number; col: number }>,
-    wordCells: Array<{ row: number; col: number }>
-  ) => {
-    if (selection.length !== wordCells.length) return false;
-    return selection.every((cell, i) => cell.row === wordCells[i].row && cell.col === wordCells[i].col);
-  };
-
-  const handleFinishGame = async () => {
+  const triggerFinish = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
 
-    const timeBonus = Math.max(0, Math.floor(300 / Math.max(gameState.elapsedSeconds, 1)));
-    const finalScore = gameState.score + timeBonus;
-    const allWordsFound = gameState.foundWords.length === puzzleData.words.length;
+    const state = gameStateRef.current;
+    const timeBonus = Math.max(0, Math.floor(300 / Math.max(state.elapsedSeconds, 1)));
+    const finalScore = state.score + timeBonus;
+    const allWordsFound = state.foundWords.length === puzzleData.words.length;
 
     try {
       if (isDaily) {
@@ -208,15 +247,15 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
     setGameFinished(true);
 
-    const mins = Math.floor(gameState.elapsedSeconds / 60);
-    const secs = gameState.elapsedSeconds % 60;
+    const mins = Math.floor(state.elapsedSeconds / 60);
+    const secs = state.elapsedSeconds % 60;
     const timeString = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
     router.push({
       pathname: '/wordsearch/results',
       params: {
         score: finalScore.toString(),
-        foundWords: gameState.foundWords.length.toString(),
+        foundWords: state.foundWords.length.toString(),
         totalWords: puzzleData.words.length.toString(),
         allFound: allWordsFound ? 'true' : 'false',
         isDaily: isDaily ? 'true' : 'false',
@@ -224,6 +263,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       },
     });
   };
+
+  const handleManualFinish = () => triggerFinish();
 
   const handleBack = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -255,36 +296,59 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </View>
       </View>
 
-      {/* Found words */}
-      <View style={styles.foundWordsContainer}>
-        <Text style={[styles.foundWordsLabel, { color: background.secondaryText }]}>
-          Found: {gameState.foundWords.length}/{puzzleData.words.length}
-        </Text>
-        <View style={styles.foundWordsList}>
-          {gameState.foundWords.map((word, idx) => (
-            <Text key={idx} style={[styles.foundWord, { color: COLORS.accent }]}>
-              {word.word}
-            </Text>
-          ))}
+      {/* Word list */}
+      <View style={styles.wordListContainer}>
+        <View style={styles.wordList}>
+          {puzzleData.words.map((word, idx) => {
+            const found = gameState.foundWords.some(fw => fw.word === word.word);
+            return (
+              <Text
+                key={idx}
+                style={[
+                  styles.wordChip,
+                  {
+                    color: found ? background.cardColor : background.textColor,
+                    backgroundColor: found ? COLORS.accent : background.cardColor,
+                    borderColor: found ? COLORS.accent : background.borderColor,
+                    textDecorationLine: found ? 'line-through' : 'none',
+                    opacity: found ? 0.85 : 1,
+                  },
+                ]}
+              >
+                {word.word}
+              </Text>
+            );
+          })}
         </View>
+        <Text style={[styles.foundCount, { color: background.secondaryText }]}>
+          {gameState.foundWords.length}/{puzzleData.words.length} found
+        </Text>
       </View>
 
       {/* Grid */}
       <View
+        ref={gridRef}
         style={[styles.gridContainer, { backgroundColor: background.cardColor }]}
-        onLayout={evt => {
-          const size = (evt.nativeEvent.layout.width - 32) / puzzleData.grid[0].length;
-          setCellSize(size);
-        }}
-        {...(panResponderRef.current?.panHandlers || {})}
+        onLayout={measureGrid}
+        {...panResponder.panHandlers}
       >
         {puzzleData.grid.map((row: string[], rIdx: number) => (
           <View key={rIdx} style={styles.gridRow}>
-            {row.map((cell: string, cIdx: number) => {
-              const isFound = gameState.selectedCells.some(c => c.row === rIdx && c.col === cIdx);
+            {row.map((letter: string, cIdx: number) => {
+              const isFound = gameState.foundCells.some(c => c.row === rIdx && c.col === cIdx);
               const isSelected = gameState.currentSelection.some(
                 c => c.row === rIdx && c.col === cIdx
               );
+
+              let cellBg = background.cardColor;
+              let textColor = background.textColor;
+              if (isFound) {
+                cellBg = COLORS.accent;
+                textColor = '#fff';
+              } else if (isSelected) {
+                cellBg = COLORS.accent + '55';
+                textColor = background.textColor;
+              }
 
               return (
                 <View
@@ -292,27 +356,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                   style={[
                     styles.gridCell,
                     {
-                      width: cellSize || 40,
-                      height: cellSize || 40,
-                      backgroundColor: isFound
-                        ? COLORS.accent
-                        : isSelected
-                        ? background.borderColor
-                        : background.cardColor,
-                      borderColor: background.borderColor,
+                      backgroundColor: cellBg,
+                      borderColor: isSelected ? COLORS.accent : background.borderColor,
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.cellText,
-                      {
-                        color: isFound ? background.cardColor : background.textColor,
-                      },
-                    ]}
-                  >
-                    {cell}
-                  </Text>
+                  <Text style={[styles.cellText, { color: textColor }]}>{letter}</Text>
                 </View>
               );
             })}
@@ -320,38 +369,17 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         ))}
       </View>
 
-      {/* All words list */}
-      <View style={styles.allWordsContainer}>
-        <Text style={[styles.allWordsLabel, { color: background.secondaryText }]}>All Words:</Text>
-        <View style={styles.allWordsList}>
-          {puzzleData.words.map((word: PlacedWord, idx: number) => (
-            <Text
-              key={idx}
-              style={[
-                styles.wordItem,
-                {
-                  color: gameState.foundWords.some(fw => fw.word === word.word)
-                    ? COLORS.accent
-                    : background.textColor,
-                  textDecorationLine: gameState.foundWords.some(fw => fw.word === word.word)
-                    ? 'line-through'
-                    : 'none',
-                },
-              ]}
-            >
-              {word.word}
-            </Text>
-          ))}
-        </View>
-      </View>
-
       {/* Finish button */}
       {gameState.foundWords.length > 0 && (
         <TouchableOpacity
           style={[styles.finishButton, { backgroundColor: COLORS.accent }]}
-          onPress={handleFinishGame}
+          onPress={handleManualFinish}
         >
-          <Text style={styles.finishButtonText}>Finish Game</Text>
+          <Text style={styles.finishButtonText}>
+            {gameState.foundWords.length === puzzleData.words.length
+              ? 'See Results'
+              : 'Finish Early'}
+          </Text>
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -366,7 +394,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   backText: { fontSize: 16, fontWeight: '600' },
   statsContainer: {
@@ -374,50 +401,57 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   stat: { fontSize: 14, fontWeight: '600' },
-  foundWordsContainer: {
+  wordListContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 8,
   },
-  foundWordsLabel: { fontSize: 12, marginBottom: 4 },
-  foundWordsList: {
+  wordList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  foundWord: { fontSize: 12, fontWeight: '700' },
-  gridContainer: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    padding: 16,
+  wordChip: {
+    fontSize: 11,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 12,
-    alignItems: 'center',
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  gridRow: { flexDirection: 'row' },
+  foundCount: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  gridContainer: {
+    marginHorizontal: 12,
+    marginVertical: 8,
+    padding: 8,
+    borderRadius: 12,
+    alignSelf: 'stretch',
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
   gridCell: {
+    flex: 1,
+    aspectRatio: 1,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 2,
-    borderRadius: 4,
+    margin: 1,
+    borderRadius: 3,
   },
-  cellText: { fontSize: 14, fontWeight: '600' },
-  allWordsContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+  cellText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
-  allWordsLabel: { fontSize: 12, marginBottom: 8 },
-  allWordsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  wordItem: { fontSize: 12, fontWeight: '500' },
   finishButton: {
     marginHorizontal: 16,
     marginBottom: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   finishButtonText: {
