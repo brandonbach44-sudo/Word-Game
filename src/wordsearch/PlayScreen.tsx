@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   PanResponder,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -388,33 +389,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </View>
       </View>
 
-      {/* Word list */}
-      <View style={styles.wordListContainer}>
-        <View style={styles.wordList}>
-          {puzzleData.words.map((word, idx) => {
-            const found = gameState.foundWords.some(fw => fw.word === word.word);
-            return (
-              <Text
-                key={idx}
-                style={[
-                  styles.wordChip,
-                  {
-                    color: found ? background.cardColor : background.textColor,
-                    backgroundColor: found ? COLORS.accent : background.cardColor,
-                    borderColor: found ? COLORS.accent : background.borderColor,
-                    textDecorationLine: found ? 'line-through' : 'none',
-                    opacity: found ? 0.85 : 1,
-                  },
-                ]}
-              >
-                {word.word}
-              </Text>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Grid */}
+      {/* Grid — PanResponder captures touches here, preventing ScrollView interference */}
       <View
         ref={gridRef}
         style={[styles.gridContainer, { backgroundColor: background.cardColor }]}
@@ -458,19 +433,48 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         ))}
       </View>
 
-      {/* Finish button */}
-      {gameState.foundWords.length > 0 && (
-        <TouchableOpacity
-          style={[styles.finishButton, { backgroundColor: COLORS.accent }]}
-          onPress={handleManualFinish}
-        >
-          <Text style={styles.finishButtonText}>
-            {gameState.foundWords.length === puzzleData.words.length
-              ? 'See Results'
-              : 'Finish Early'}
-          </Text>
-        </TouchableOpacity>
-      )}
+      {/* Word list + finish button — scrollable below the grid */}
+      <ScrollView
+        style={styles.bottomScroll}
+        contentContainerStyle={styles.bottomScrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.wordGrid}>
+          {puzzleData.words.map((word, idx) => {
+            const found = gameState.foundWords.some(fw => fw.word === word.word);
+            return (
+              <View key={idx} style={styles.wordRow}>
+                <Text
+                  style={[
+                    styles.wordText,
+                    {
+                      color: found ? COLORS.accent : background.textColor,
+                      textDecorationLine: found ? 'line-through' : 'none',
+                      opacity: found ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  {word.word}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {gameState.foundWords.length > 0 && (
+          <TouchableOpacity
+            style={[styles.finishButton, { backgroundColor: COLORS.accent }]}
+            onPress={handleManualFinish}
+          >
+            <Text style={styles.finishButtonText}>
+              {gameState.foundWords.length === puzzleData.words.length
+                ? 'See Results'
+                : 'Finish Early'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -501,31 +505,10 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 12, marginBottom: 4 },
   infoValue: { fontSize: 16, fontWeight: 'bold' },
   infoDivider: { width: 1, marginHorizontal: 8 },
-  wordListContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  wordList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  wordChip: {
-    fontSize: 11,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  foundCount: {
-    fontSize: 11,
-    marginTop: 6,
-  },
   gridContainer: {
     marginHorizontal: 12,
-    marginVertical: 8,
+    marginTop: 8,
+    marginBottom: 0,
     padding: 8,
     borderRadius: 12,
     alignSelf: 'stretch',
@@ -547,9 +530,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  bottomScroll: {
+    flex: 1,
+  },
+  bottomScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+  wordGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 0,
+  },
+  wordRow: {
+    width: '33.33%',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+  },
+  wordText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   finishButton: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 14,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',

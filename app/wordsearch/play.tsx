@@ -3,71 +3,19 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
-import { generatePuzzle } from '../../src/wordsearch/utils/generator';
-
-type Difficulty = 'easy' | 'challenge' | 'extreme';
-
-interface DifficultyConfig {
-  label: string;
-  description: string;
-  rows: number;
-  cols: number;
-  wordsPerPuzzle: number;
-  allowBackwards: boolean;
-  allowDiagonal: boolean;
-  maxWordLength: number;
-  multiplier: number;
-}
-
-const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
-  easy: {
-    label: 'Easy',
-    description: '10×10 · 8 words · Left & Down only',
-    rows: 10,
-    cols: 10,
-    wordsPerPuzzle: 8,
-    allowBackwards: false,
-    allowDiagonal: false,
-    maxWordLength: 8,
-    multiplier: 1,
-  },
-  challenge: {
-    label: 'Challenge',
-    description: '12×12 · 10 words · All directions, no diagonals',
-    rows: 12,
-    cols: 12,
-    wordsPerPuzzle: 10,
-    allowBackwards: true,
-    allowDiagonal: false,
-    maxWordLength: 10,
-    multiplier: 2,
-  },
-  extreme: {
-    label: 'Extreme',
-    description: '15×15 · 14 words · All 8 directions',
-    rows: 15,
-    cols: 15,
-    wordsPerPuzzle: 14,
-    allowBackwards: true,
-    allowDiagonal: true,
-    maxWordLength: 12,
-    multiplier: 3,
-  },
-};
+import { DIFFICULTY_CONFIG, type Difficulty, type DifficultyConfig } from '../../src/wordsearch/utils/difficultyConfig';
 
 type Screen = 'categories' | 'difficulty';
 
@@ -76,50 +24,19 @@ const WordSearchPlayScreen: React.FC = () => {
 
   const [currentScreen, setCurrentScreen] = useState<Screen>('categories');
   const [selectedCategory, setSelectedCategory] = useState<WordSearchThemeId | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleSelectCategory = (themeId: WordSearchThemeId) => {
     setSelectedCategory(themeId);
     setCurrentScreen('difficulty');
   };
 
-  const handleSelectDifficulty = async (difficulty: Difficulty) => {
+  const handleSelectDifficulty = (difficulty: Difficulty) => {
     if (!selectedCategory) return;
-
-    setSelectedDifficulty(difficulty);
-    setIsGenerating(true);
-
-    try {
-      // Find the theme
-      const theme = WORD_SEARCH_THEMES.find(t => t.id === selectedCategory);
-      if (!theme) throw new Error('Theme not found');
-
-      const config = DIFFICULTY_CONFIG[difficulty];
-
-      // Generate puzzle
-      const puzzle = generatePuzzle(theme, {
-        rows: config.rows,
-        cols: config.cols,
-        wordsPerPuzzle: config.wordsPerPuzzle,
-        allowBackwards: config.allowBackwards,
-        allowDiagonal: config.allowDiagonal,
-        maxWordLength: config.maxWordLength,
-      });
-
-      // Navigate to play screen with puzzle data
-      router.push({
-        pathname: '/wordsearch/game',
-        params: {
-          themeId: selectedCategory,
-          difficulty,
-          puzzleData: JSON.stringify(puzzle),
-        },
-      });
-    } catch (error) {
-      console.error('Failed to generate puzzle:', error);
-      setIsGenerating(false);
-    }
+    // Puzzle is generated in game.tsx — just pass themeId + difficulty
+    router.push({
+      pathname: '/wordsearch/game',
+      params: { themeId: selectedCategory, difficulty },
+    });
   };
 
   const handleBackToCategories = () => {
@@ -140,17 +57,13 @@ const WordSearchPlayScreen: React.FC = () => {
     : null;
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: background.backgroundColor }]}
-    >
-      <StatusBar
-        barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'}
-      />
+    <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
+      <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>
           {currentScreen === 'categories' ? 'Choose Category' : 'Choose Difficulty'}
@@ -164,74 +77,31 @@ const WordSearchPlayScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         {currentScreen === 'categories' ? (
-          <>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: background.secondaryText },
-              ]}
-            >
-              Select a word category to begin
-            </Text>
-
-            <View style={styles.categoriesGrid}>
-              {WORD_SEARCH_THEMES.map(theme => (
-                <TouchableOpacity
-                  key={theme.id}
-                  style={[
-                    styles.categoryCard,
-                    {
-                      backgroundColor: background.cardColor,
-                      borderColor: background.borderColor,
-                    },
-                  ]}
-                  onPress={() => handleSelectCategory(theme.id)}
-                >
-                  <Text style={[styles.categoryName, { color: background.textColor }]}>
-                    {theme.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.categoryWordCount,
-                      { color: background.secondaryText },
-                    ]}
-                  >
-                    {theme.words.length} words
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
+          <View style={styles.categoriesGrid}>
+            {WORD_SEARCH_THEMES.map(theme => (
+              <TouchableOpacity
+                key={theme.id}
+                style={[
+                  styles.categoryCard,
+                  { backgroundColor: background.cardColor, borderColor: background.borderColor },
+                ]}
+                onPress={() => handleSelectCategory(theme.id)}
+              >
+                <Text style={[styles.categoryName, { color: background.textColor }]}>
+                  {theme.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         ) : (
           <>
-            <View
-              style={[
-                styles.selectedCard,
-                {
-                  backgroundColor: background.cardColor,
-                  borderColor: COLORS.accent,
-                },
-              ]}
-            >
+            <View style={[styles.selectedCard, { backgroundColor: background.cardColor, borderColor: COLORS.accent }]}>
               <Text style={[styles.selectedName, { color: background.textColor }]}>
                 {categoryTheme?.name}
               </Text>
-              <Text
-                style={[
-                  styles.selectedDescription,
-                  { color: background.secondaryText },
-                ]}
-              >
-                Find {categoryTheme?.words.length || 0} words in the grid
-              </Text>
             </View>
 
-            <Text
-              style={[
-                styles.difficultyTitle,
-                { color: background.textColor },
-              ]}
-            >
+            <Text style={[styles.difficultyTitle, { color: background.textColor }]}>
               Select Difficulty
             </Text>
 
@@ -242,13 +112,9 @@ const WordSearchPlayScreen: React.FC = () => {
                     key={diffKey}
                     style={[
                       styles.difficultyButton,
-                      {
-                        backgroundColor: background.cardColor,
-                        borderColor: background.borderColor,
-                      },
+                      { backgroundColor: background.cardColor, borderColor: background.borderColor },
                     ]}
                     onPress={() => handleSelectDifficulty(diffKey)}
-                    disabled={isGenerating}
                   >
                     <Text style={[styles.difficultyLabel, { color: background.textColor }]}>
                       {config.label}
@@ -266,28 +132,6 @@ const WordSearchPlayScreen: React.FC = () => {
           </>
         )}
       </ScrollView>
-
-      {/* Loading modal */}
-      <Modal transparent visible={isGenerating} animationType="fade">
-        <View style={styles.loadingOverlay}>
-          <View
-            style={[
-              styles.loadingBox,
-              { backgroundColor: background.cardColor },
-            ]}
-          >
-            <ActivityIndicator color={COLORS.accent} size="large" />
-            <Text
-              style={[
-                styles.loadingText,
-                { color: background.textColor, marginTop: 12 },
-              ]}
-            >
-              Generating Puzzle...
-            </Text>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -312,7 +156,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingTop: 12,
   },
-  subtitle: { fontSize: 14, textAlign: 'center', marginBottom: 20 },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -328,8 +171,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 80,
   },
-  categoryName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4, textAlign: 'left' },
-  categoryWordCount: { fontSize: 12, textAlign: 'left' },
+  categoryName: { fontSize: 16, fontWeight: 'bold', textAlign: 'left' },
   selectedCard: {
     borderRadius: 15,
     borderWidth: 2,
@@ -337,8 +179,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignItems: 'center',
   },
-  selectedName: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  selectedDescription: { fontSize: 14 },
+  selectedName: { fontSize: 20, fontWeight: 'bold' },
   difficultyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
   difficultiesContainer: { gap: 12, width: '100%' },
   difficultyButton: {
@@ -349,19 +190,6 @@ const styles = StyleSheet.create({
   difficultyLabel: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
   boardSize: { fontSize: 14, marginBottom: 2 },
   pointsMultiplier: { fontSize: 13, fontWeight: '600' },
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingBox: {
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    minWidth: 200,
-  },
-  loadingText: { fontSize: 14, fontWeight: '500' },
 });
 
 export default WordSearchPlayScreen;
