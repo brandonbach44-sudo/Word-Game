@@ -55,6 +55,7 @@ const DEFAULT_STYLES: Record<number, { background: string; border: string; text:
   4: { background: '#D4A574', border: '#C19460', text: '#ffffff' }, // Warm Tan
   5: { background: '#E8A0A0', border: '#D68F8F', text: '#ffffff' }, // Dusty Rose
   6: { background: '#6AACB8', border: '#5899A5', text: '#ffffff' }, // Soft Teal
+  7: { background: '#ffffff', border: '#d1d5db', text: '#111827' },       // White
 };
 
 const ROWS = 6;
@@ -1323,8 +1324,8 @@ export default function WordleGame() {
       { id: "skin_emerald", emoji: "💚", name: "Emerald Keys", description: "Reach a 50-day streak to unlock Emerald keys", unlocked: bestStreak >= 50, progress: Math.min(bestStreak / 50, 1) },
       { id: "skin_diamond", emoji: "💎", name: "Diamond Keys", description: "Reach a 75-day streak to unlock Diamond keys", unlocked: bestStreak >= 75, progress: Math.min(bestStreak / 75, 1) },
       { id: "skin_legendary", emoji: "🌟", name: "Legendary Keys", description: "Reach a 100-day streak to unlock Legendary keys", unlocked: bestStreak >= 100, progress: Math.min(bestStreak / 100, 1) },
-      { id: "skin_iridescence", emoji: "🌈", name: "Iridescence Keys", description: "Reach a 150-day streak to unlock Iridescence keys", unlocked: bestStreak >= 150, progress: Math.min(bestStreak / 150, 1) },
-      { id: "skin_rose_quartz", emoji: "🌸", name: "Rose Quartz Keys", description: "Reach a 200-day streak to unlock Rose Quartz keys", unlocked: bestStreak >= 200, progress: Math.min(bestStreak / 200, 1) },
+      { id: "skin_iridescence", emoji: "🪩", name: "Iridescence Keys", description: "Reach a 150-day streak to unlock Iridescence keys", unlocked: bestStreak >= 150, progress: Math.min(bestStreak / 150, 1) },
+      { id: "skin_rose_quartz", emoji: "🌸", name: "Rose Quartz Keys", description: "Reach a 300-day streak to unlock Rose Quartz keys", unlocked: bestStreak >= 300, progress: Math.min(bestStreak / 300, 1) },
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
 
@@ -1567,7 +1568,7 @@ export default function WordleGame() {
                   const skinCfg = KEY_SKINS[activeSkin];
                   const isGem = skinCfg.isGem && (GEM_PREVIEW_IMAGES as any)[activeSkin];
                   const isMetal = !skinCfg.isGem && skinCfg.gradient !== null;
-                  const isOutline = (prefs.keyStyle ?? 'filled') === 'outline';
+                  const isOutline = false;
                   const isRounded = (prefs.keyShape ?? 'square') === 'rounded';
                   const br = isRounded ? 28 : 8;
                   const variantStyle = DEFAULT_STYLES[prefs.keyDefaultVariant ?? 1] ?? DEFAULT_STYLES[1];
@@ -1626,28 +1627,6 @@ export default function WordleGame() {
                       value={(prefs.keyShape ?? 'square') === 'rounded'}
                       onValueChange={(val) => {
                         const updated = { ...prefs, keyShape: val ? 'rounded' : 'square' } as typeof prefs;
-                        setPrefs(updated);
-                        saveWordlePrefs(updated);
-                      }}
-                      trackColor={{ false: '#d1d5db', true: COLOR_CORRECT }}
-                      thumbColor="#ffffff"
-                    />
-                  </View>
-                </View>
-
-                {/* ── KEY STYLE toggle ── */}
-                <View style={[styles.toggleCard, { backgroundColor: CARD, borderColor: BORDER }]}>
-                  <View style={styles.toggleRow}>
-                    <View style={styles.toggleInfo}>
-                      <Text style={[styles.toggleLabel, { color: TEXT }]}>Outline Keys</Text>
-                      <Text style={[styles.toggleSub, { color: SUBTEXT }]}>
-                        {(prefs.keyStyle ?? 'filled') === 'outline' ? 'Transparent with border' : 'Solid filled background'}
-                      </Text>
-                    </View>
-                    <Switch
-                      value={(prefs.keyStyle ?? 'filled') === 'outline'}
-                      onValueChange={(val) => {
-                        const updated = { ...prefs, keyStyle: val ? 'outline' : 'filled' } as typeof prefs;
                         setPrefs(updated);
                         saveWordlePrefs(updated);
                       }}
@@ -2027,7 +2006,7 @@ export default function WordleGame() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.variantList}
             >
-              {[1, 2, 3, 4, 5, 6].map((v) => {
+              {[1, 2, 3, 4, 5, 6, 7].map((v) => {
                 const vs = DEFAULT_STYLES[v];
                 const isSelected = popupVariant === v;
                 const isEquipped = (prefs.keyDefaultVariant ?? 1) === v && prefs.keySkin === 'classic';
@@ -2104,22 +2083,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 5,
+    paddingBottom: 10,
   },
   backToGamesButton: {
     padding: 8,
-    width: 90,
+    width: 60,
   },
   backToGamesText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "500",
   },
   appTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
   },
   headerSpacer: {
-    width: 90,
+    width: 60,
   },
 
   // Segment Switcher (Pill Slider)
