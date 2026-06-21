@@ -35,6 +35,7 @@ export interface GenerateOptions {
   wordsPerPuzzle?: number;
   allowBackwards?: boolean;
   allowDiagonal?: boolean;
+  maxWordLength?: number;
 }
 
 export function generatePuzzle(
@@ -46,10 +47,11 @@ export function generatePuzzle(
   const wordsPerPuzzle = options.wordsPerPuzzle ?? 12;
   const allowBackwards = options.allowBackwards ?? true;
   const allowDiagonal = options.allowDiagonal ?? true;
+  const maxWordLength = options.maxWordLength ?? Math.max(rows, cols);
 
   const cleanedWords = theme.words
     .map(w => w.trim().toUpperCase())
-    .filter(w => w.length >= 3 && w.length <= Math.max(rows, cols));
+    .filter(w => w.length >= 3 && w.length <= maxWordLength);
 
   const candidateWords =
     cleanedWords.length > 0 ? cleanedWords : ['WORD', 'GAME', 'PUZZLE', 'SEARCH'];
@@ -89,10 +91,11 @@ export function generatePuzzleWithSeed(
   const wordsPerPuzzle = options.wordsPerPuzzle ?? 12;
   const allowBackwards = options.allowBackwards ?? true;
   const allowDiagonal = options.allowDiagonal ?? true;
+  const maxWordLength = options.maxWordLength ?? Math.max(rows, cols);
 
   const cleanedWords = theme.words
     .map(w => w.trim().toUpperCase())
-    .filter(w => w.length >= 3 && w.length <= Math.max(rows, cols));
+    .filter(w => w.length >= 3 && w.length <= maxWordLength);
 
   const candidateWords =
     cleanedWords.length > 0 ? cleanedWords : ['WORD', 'GAME', 'PUZZLE', 'SEARCH'];

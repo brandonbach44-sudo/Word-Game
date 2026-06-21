@@ -23,15 +23,50 @@ type Difficulty = 'easy' | 'challenge' | 'extreme';
 
 interface DifficultyConfig {
   label: string;
+  description: string;
   rows: number;
   cols: number;
+  wordsPerPuzzle: number;
+  allowBackwards: boolean;
+  allowDiagonal: boolean;
+  maxWordLength: number;
   multiplier: number;
 }
 
 const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
-  easy: { label: 'Easy', rows: 10, cols: 10, multiplier: 1 },
-  challenge: { label: 'Challenge', rows: 12, cols: 12, multiplier: 2 },
-  extreme: { label: 'Extreme', rows: 14, cols: 14, multiplier: 3 },
+  easy: {
+    label: 'Easy',
+    description: '10×10 · 8 words · Left & Down only',
+    rows: 10,
+    cols: 10,
+    wordsPerPuzzle: 8,
+    allowBackwards: false,
+    allowDiagonal: false,
+    maxWordLength: 8,
+    multiplier: 1,
+  },
+  challenge: {
+    label: 'Challenge',
+    description: '12×12 · 10 words · All directions, no diagonals',
+    rows: 12,
+    cols: 12,
+    wordsPerPuzzle: 10,
+    allowBackwards: true,
+    allowDiagonal: false,
+    maxWordLength: 10,
+    multiplier: 2,
+  },
+  extreme: {
+    label: 'Extreme',
+    description: '15×15 · 14 words · All 8 directions',
+    rows: 15,
+    cols: 15,
+    wordsPerPuzzle: 14,
+    allowBackwards: true,
+    allowDiagonal: true,
+    maxWordLength: 12,
+    multiplier: 3,
+  },
 };
 
 type Screen = 'categories' | 'difficulty';
@@ -66,9 +101,10 @@ const WordSearchPlayScreen: React.FC = () => {
       const puzzle = generatePuzzle(theme, {
         rows: config.rows,
         cols: config.cols,
-        wordsPerPuzzle: Math.min(theme.words.length, Math.floor((config.rows + config.cols) / 2)),
-        allowBackwards: true,
-        allowDiagonal: true,
+        wordsPerPuzzle: config.wordsPerPuzzle,
+        allowBackwards: config.allowBackwards,
+        allowDiagonal: config.allowDiagonal,
+        maxWordLength: config.maxWordLength,
       });
 
       // Navigate to play screen with puzzle data
@@ -151,6 +187,7 @@ const WordSearchPlayScreen: React.FC = () => {
                   ]}
                   onPress={() => handleSelectCategory(theme.id)}
                 >
+                  <Text style={styles.categoryEmoji}>{theme.emoji}</Text>
                   <Text style={[styles.categoryName, { color: background.textColor }]}>
                     {theme.name}
                   </Text>
@@ -218,7 +255,7 @@ const WordSearchPlayScreen: React.FC = () => {
                       {config.label}
                     </Text>
                     <Text style={[styles.boardSize, { color: background.secondaryText }]}>
-                      {config.rows}×{config.cols}
+                      {config.description}
                     </Text>
                     <Text style={[styles.pointsMultiplier, { color: COLORS.accent }]}>
                       {config.multiplier}x Points
@@ -292,6 +329,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 80,
   },
+  categoryEmoji: { fontSize: 24, marginBottom: 6 },
   categoryName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4, textAlign: 'left' },
   categoryWordCount: { fontSize: 12, textAlign: 'left' },
   selectedCard: {
