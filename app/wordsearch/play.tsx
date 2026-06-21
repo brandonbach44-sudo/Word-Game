@@ -187,7 +187,6 @@ const WordSearchPlayScreen: React.FC = () => {
                   ]}
                   onPress={() => handleSelectCategory(theme.id)}
                 >
-                  <Text style={styles.categoryEmoji}>{theme.emoji}</Text>
                   <Text style={[styles.categoryName, { color: background.textColor }]}>
                     {theme.name}
                   </Text>
@@ -329,7 +328,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 80,
   },
-  categoryEmoji: { fontSize: 24, marginBottom: 6 },
   categoryName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4, textAlign: 'left' },
   categoryWordCount: { fontSize: 12, textAlign: 'left' },
   selectedCard: {
