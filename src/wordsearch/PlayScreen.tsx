@@ -283,16 +283,28 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
-        <View style={styles.statsContainer}>
-          <Text style={[styles.stat, { color: background.textColor }]}>
-            Score: {gameState.score}
-          </Text>
-          <Text style={[styles.stat, { color: background.textColor }]}>
-            {formatTime(gameState.elapsedSeconds)}
-          </Text>
+        <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
+
+      {/* Info bar */}
+      <View style={[styles.infoBar, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Score</Text>
+          <Text style={[styles.infoValue, { color: COLORS.accent }]}>{gameState.score}</Text>
+        </View>
+        <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Time</Text>
+          <Text style={[styles.infoValue, { color: background.textColor }]}>{formatTime(gameState.elapsedSeconds)}</Text>
+        </View>
+        <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Found</Text>
+          <Text style={[styles.infoValue, { color: background.textColor }]}>{gameState.foundWords.length}/{puzzleData.words.length}</Text>
         </View>
       </View>
 
@@ -320,9 +332,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
             );
           })}
         </View>
-        <Text style={[styles.foundCount, { color: background.secondaryText }]}>
-          {gameState.foundWords.length}/{puzzleData.words.length} found
-        </Text>
       </View>
 
       {/* Grid */}
@@ -396,12 +405,22 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
   },
+  backButton: { padding: 8 },
   backText: { fontSize: 16, fontWeight: '500' },
-  statsContainer: {
+  title: { fontSize: 22, fontWeight: 'bold' },
+  headerPlaceholder: { width: 60 },
+  infoBar: {
     flexDirection: 'row',
-    gap: 16,
+    marginHorizontal: 20,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
   },
-  stat: { fontSize: 14, fontWeight: '600' },
+  infoItem: { flex: 1, alignItems: 'center' },
+  infoLabel: { fontSize: 12, marginBottom: 4 },
+  infoValue: { fontSize: 16, fontWeight: 'bold' },
+  infoDivider: { width: 1, marginHorizontal: 8 },
   wordListContainer: {
     paddingHorizontal: 16,
     paddingBottom: 8,
