@@ -154,7 +154,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   // Grid layout measured values
   const gridRef = useRef<View>(null);
   const gridLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  const cellSize = useRef(0);
+  const cellWidth = useRef(0);
+  const cellHeight = useRef(0);
   const numCols = puzzleData.grid[0]?.length ?? 1;
   const numRows = puzzleData.grid.length;
 
@@ -189,20 +190,21 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   const measureGrid = () => {
     // measureInWindow gives coordinates relative to the window, which matches
     // the pageX/pageY values from touch events — more reliable than measure().
-    gridRef.current?.measureInWindow((x, y, width, _height) => {
-      gridLayout.current = { x, y, width, height: _height };
+    gridRef.current?.measureInWindow((x, y, width, height) => {
+      gridLayout.current = { x, y, width, height };
       // Cell size accounts for the container padding on both sides
-      cellSize.current = (width - GRID_PADDING * 2) / numCols;
+      cellWidth.current = (width - GRID_PADDING * 2) / numCols;
+      cellHeight.current = (height - GRID_PADDING * 2) / numRows;
     });
   };
 
   const getCellFromPoint = (pageX: number, pageY: number): Cell | null => {
     const layout = gridLayout.current;
-    if (!layout || cellSize.current === 0) return null;
+    if (!layout || cellWidth.current === 0) return null;
 
     // Subtract container origin AND inner padding before dividing by cell size
-    const col = Math.floor((pageX - layout.x - GRID_PADDING) / cellSize.current);
-    const row = Math.floor((pageY - layout.y - GRID_PADDING) / cellSize.current);
+    const col = Math.floor((pageX - layout.x - GRID_PADDING) / cellWidth.current);
+    const row = Math.floor((pageY - layout.y - GRID_PADDING) / cellHeight.current);
 
     if (row >= 0 && row < numRows && col >= 0 && col < numCols) {
       return { row, col };
@@ -224,7 +226,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         // (handles scrolling, keyboard appearing, orientation changes, etc.)
         gridRef.current?.measureInWindow((x, y, width, height) => {
           gridLayout.current = { x, y, width, height };
-          cellSize.current = (width - GRID_PADDING * 2) / numCols;
+          cellWidth.current = (width - GRID_PADDING * 2) / numCols;
+          cellHeight.current = (height - GRID_PADDING * 2) / numRows;
         });
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
