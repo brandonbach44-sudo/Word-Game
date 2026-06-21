@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SoundManager } from '../../src/shared/SoundManager';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
-import type { WordSearchThemeId } from '../../src/wordsearch/data/themes';
+import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
 import type { PlacedWord, WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 import { saveDailyResult, updateStatsAfterGame } from '../../src/wordsearch/utils/storage';
 
@@ -23,6 +23,7 @@ interface PlayScreenProps {
   difficulty: string;
   puzzleData: WordSearchPuzzle;
   isDaily?: boolean;
+  timeLimit?: number; // seconds — for daily countdown mode
 }
 
 interface Cell { row: number; col: number }
@@ -37,30 +38,63 @@ interface GameState {
   currentSelection: Cell[];
 }
 
-/** Given a start and end cell, return all cells in a straight line (H, V, or diagonal). */
-function buildSelectionLine(start: Cell, end: Cell): Cell[] {
+// All 8 valid word-search directions
+const DIRECTIONS = [
+  { dr: 0,  dc: 1  }, // RIGHT
+  { dr: 0,  dc: -1 }, // LEFT
+  { dr: 1,  dc: 0  }, // DOWN
+  { dr: -1, dc: 0  }, // UP
+  { dr: 1,  dc: 1  }, // DOWNRIGHT
+  { dr: 1,  dc: -1 }, // DOWNLEFT
+  { dr: -1, dc: 1  }, // UPRIGHT
+  { dr: -1, dc: -1 }, // UPLEFT
+];
+
+/**
+ * Given a start and end cell, snap the drag to the nearest of the 8 valid
+ * directions and return every cell along that line. Never returns empty —
+ * falls back to [start] if the drag is zero length.
+ */
+function buildSelectionLine(
+  start: Cell,
+  end: Cell,
+  numRows: number,
+  numCols: number,
+): Cell[] {
   const dr = end.row - start.row;
   const dc = end.col - start.col;
 
-  // Must be horizontal, vertical, or 45° diagonal
-  const absR = Math.abs(dr);
-  const absC = Math.abs(dc);
-  if (absR !== 0 && absC !== 0 && absR !== absC) {
-    // Not a valid straight line — snap to the dominant axis
-    return [start];
+  if (dr === 0 && dc === 0) return [start];
+
+  // Find the direction whose unit vector best matches the drag vector.
+  // Cosine similarity: largest dot product with the normalised drag = best match.
+  const dragMag = Math.sqrt(dr * dr + dc * dc);
+  let bestDir = DIRECTIONS[0];
+  let bestCos = -Infinity;
+  for (const d of DIRECTIONS) {
+    const dirMag = Math.sqrt(d.dr * d.dr + d.dc * d.dc); // 1 for cardinal, √2 for diagonal
+    const cos = (dr * d.dr + dc * d.dc) / (dragMag * dirMag);
+    if (cos > bestCos) {
+      bestCos = cos;
+      bestDir = d;
+    }
   }
 
-  const steps = Math.max(absR, absC);
-  if (steps === 0) return [start];
-
-  const stepR = dr === 0 ? 0 : dr / absR;
-  const stepC = dc === 0 ? 0 : dc / absC;
+  // Project the drag vector onto the chosen direction to get number of steps.
+  // lenSq = 1 for cardinal, 2 for diagonal — this correctly scales the projection.
+  const lenSq = bestDir.dr * bestDir.dr + bestDir.dc * bestDir.dc;
+  const steps = Math.max(0, Math.round((dr * bestDir.dr + dc * bestDir.dc) / lenSq));
 
   const cells: Cell[] = [];
   for (let i = 0; i <= steps; i++) {
-    cells.push({ row: start.row + stepR * i, col: start.col + stepC * i });
+    const r = start.row + bestDir.dr * i;
+    const c = start.col + bestDir.dc * i;
+    // Clamp to grid bounds
+    if (r >= 0 && r < numRows && c >= 0 && c < numCols) {
+      cells.push({ row: r, col: c });
+    }
   }
-  return cells;
+  return cells.length > 0 ? cells : [start];
 }
 
 /** Get cells for a placed word */
@@ -95,12 +129,17 @@ function selectionMatchesWord(selection: Cell[], wordCells: Cell[]): boolean {
   return fwd || rev;
 }
 
+// Padding inside the grid container — must stay in sync with styles.gridContainer
+const GRID_PADDING = 8;
+
 const PlayScreen: React.FC<PlayScreenProps> = ({
   themeId,
   difficulty,
   puzzleData,
   isDaily = false,
+  timeLimit,
 }) => {
+  const themeName = WORD_SEARCH_THEMES.find(t => t.id === themeId)?.name ?? themeId;
   const { background } = useTheme();
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
@@ -123,10 +162,20 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
   // Timer
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeLimitRef = useRef(timeLimit);
+  const triggerFinishRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (gameFinished) return;
     timerRef.current = setInterval(() => {
-      setGameState(prev => ({ ...prev, elapsedSeconds: prev.elapsedSeconds + 1 }));
+      setGameState(prev => {
+        const next = prev.elapsedSeconds + 1;
+        // Auto-finish when countdown expires
+        if (timeLimitRef.current && next >= timeLimitRef.current) {
+          setTimeout(() => triggerFinishRef.current?.(), 0);
+        }
+        return { ...prev, elapsedSeconds: next };
+      });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [gameFinished]);
@@ -137,9 +186,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   }, []);
 
   const measureGrid = () => {
-    gridRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      gridLayout.current = { x: pageX, y: pageY, width, height };
-      cellSize.current = width / numCols;
+    // measureInWindow gives coordinates relative to the window, which matches
+    // the pageX/pageY values from touch events — more reliable than measure().
+    gridRef.current?.measureInWindow((x, y, width, _height) => {
+      gridLayout.current = { x, y, width, height: _height };
+      // Cell size accounts for the container padding on both sides
+      cellSize.current = (width - GRID_PADDING * 2) / numCols;
     });
   };
 
@@ -147,8 +199,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     const layout = gridLayout.current;
     if (!layout || cellSize.current === 0) return null;
 
-    const col = Math.floor((pageX - layout.x) / cellSize.current);
-    const row = Math.floor((pageY - layout.y) / cellSize.current);
+    // Subtract container origin AND inner padding before dividing by cell size
+    const col = Math.floor((pageX - layout.x - GRID_PADDING) / cellSize.current);
+    const row = Math.floor((pageY - layout.y - GRID_PADDING) / cellSize.current);
 
     if (row >= 0 && row < numRows && col >= 0 && col < numCols) {
       return { row, col };
@@ -166,6 +219,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       onMoveShouldSetPanResponder: () => true,
 
       onPanResponderGrant: evt => {
+        // Re-measure every touch so the grid position is always fresh
+        // (handles scrolling, keyboard appearing, orientation changes, etc.)
+        gridRef.current?.measureInWindow((x, y, width, height) => {
+          gridLayout.current = { x, y, width, height };
+          cellSize.current = (width - GRID_PADDING * 2) / numCols;
+        });
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
         dragStart.current = cell;
@@ -176,14 +235,16 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         if (!dragStart.current) return;
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
-        const line = buildSelectionLine(dragStart.current, cell);
+        const line = buildSelectionLine(dragStart.current, cell, numRows, numCols);
         setGameState(prev => ({ ...prev, currentSelection: line }));
       },
 
       onPanResponderRelease: evt => {
         if (!dragStart.current) return;
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
-        const line = cell ? buildSelectionLine(dragStart.current, cell) : [dragStart.current];
+        const line = cell
+          ? buildSelectionLine(dragStart.current, cell, numRows, numCols)
+          : [dragStart.current];
         dragStart.current = null;
 
         const state = gameStateRef.current;
@@ -228,6 +289,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   ).current;
 
   const triggerFinish = async () => {
+    if (gameFinished) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
     const state = gameStateRef.current;
@@ -260,9 +322,16 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         allFound: allWordsFound ? 'true' : 'false',
         isDaily: isDaily ? 'true' : 'false',
         time: timeString,
+        themeName,
+        difficulty,
       },
     });
   };
+
+  // Register triggerFinish in ref so the timer interval can call it
+  useEffect(() => {
+    triggerFinishRef.current = triggerFinish;
+  });
 
   const handleManualFinish = () => triggerFinish();
 
@@ -276,6 +345,13 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
+
+  // Countdown display — only when isDaily and timeLimit is set
+  const remainingSeconds = timeLimit ? Math.max(0, timeLimit - gameState.elapsedSeconds) : null;
+  const isLowTime = remainingSeconds !== null && remainingSeconds <= 30;
+  const timerDisplay = remainingSeconds !== null
+    ? formatTime(remainingSeconds)
+    : formatTime(gameState.elapsedSeconds);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -298,8 +374,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </View>
         <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
         <View style={styles.infoItem}>
-          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Time</Text>
-          <Text style={[styles.infoValue, { color: background.textColor }]}>{formatTime(gameState.elapsedSeconds)}</Text>
+          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>
+            {remainingSeconds !== null ? 'Time Left' : 'Time'}
+          </Text>
+          <Text style={[styles.infoValue, { color: isLowTime ? '#ef4444' : background.textColor }]}>
+            {timerDisplay}
+          </Text>
         </View>
         <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
         <View style={styles.infoItem}>
