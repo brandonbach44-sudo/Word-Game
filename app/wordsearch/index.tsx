@@ -3,19 +3,21 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   PanResponder,
   Pressable,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Flame, Share2, Trophy } from 'lucide-react-native';
 
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
@@ -23,16 +25,43 @@ import {
   formatDisplayDate,
   getWinRate,
   hasPlayedTodayDaily,
+  loadDailyStats,
   loadGameStats,
   useCountdownToMidnight,
+  type DailyChallengeStats,
   type GameStats,
 } from '../../src/wordsearch/utils/storage';
 
 const { width } = Dimensions.get('window');
-
 type Tab = 'play' | 'stats';
 const TABS: Tab[] = ['play', 'stats'];
 
+// ── Streak pill (matches Word Builder exactly) ──────────────────────────────
+const DailyStatPill = ({
+  label,
+  value,
+  icon: Icon,
+  iconColor,
+  highlight = false,
+  secondaryText,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  iconColor: string;
+  highlight?: boolean;
+  secondaryText: string;
+}) => (
+  <View style={[styles.dailyStatPill, highlight && styles.dailyStatPillHighlight]}>
+    <Text style={[styles.dailyStatPillLabel, { color: secondaryText }]}>{label}</Text>
+    <View style={styles.dailyStatPillValueRow}>
+      <Icon size={18} color={iconColor} />
+      <Text style={styles.dailyStatPillValue}>{value}</Text>
+    </View>
+  </View>
+);
+
+// ── Main screen ─────────────────────────────────────────────────────────────
 const WordSearchEntryScreen: React.FC = () => {
   const { background } = useTheme();
 
@@ -43,23 +72,21 @@ const WordSearchEntryScreen: React.FC = () => {
 
   const [stats, setStats] = useState<GameStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [dailyPlayed, setDailyPlayed] = useState<boolean | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
+  const [dailyPlayed, setDailyPlayed] = useState(false);
   const countdown = useCountdownToMidnight();
 
   useEffect(() => {
     const init = async () => {
-      try {
-        const s = await loadGameStats();
-        setStats(s);
-      } finally {
-        setLoadingStats(false);
-      }
-      try {
-        const played = await hasPlayedTodayDaily();
-        setDailyPlayed(played);
-      } catch {
-        setDailyPlayed(false);
-      }
+      const [s, ds, played] = await Promise.all([
+        loadGameStats().catch(() => null),
+        loadDailyStats().catch(() => null),
+        hasPlayedTodayDaily().catch(() => false),
+      ]);
+      setStats(s);
+      setDailyStats(ds);
+      setDailyPlayed(played);
+      setLoadingStats(false);
     };
     init();
   }, []);
@@ -71,12 +98,7 @@ const WordSearchEntryScreen: React.FC = () => {
   const handleTabPress = (tab: Tab) => {
     const idx = TABS.indexOf(tab);
     setActiveTab(tab);
-    Animated.spring(tabAnim, {
-      toValue: idx,
-      useNativeDriver: true,
-      tension: 70,
-      friction: 12,
-    }).start();
+    Animated.spring(tabAnim, { toValue: idx, useNativeDriver: true, tension: 70, friction: 12 }).start();
   };
 
   const panResponder = useRef(
@@ -99,15 +121,17 @@ const WordSearchEntryScreen: React.FC = () => {
         else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
         currentTabIdxRef.current = newIdx;
         setActiveTab(TABS[newIdx]);
-        Animated.spring(tabAnim, {
-          toValue: newIdx,
-          useNativeDriver: true,
-          tension: 70,
-          friction: 12,
-        }).start();
+        Animated.spring(tabAnim, { toValue: newIdx, useNativeDriver: true, tension: 70, friction: 12 }).start();
       },
     })
   ).current;
+
+  const handleShare = async () => {
+    const result = dailyStats?.lastDailyResult === 'won' ? '✅' : '❌';
+    const streakLine = (dailyStats?.streak ?? 0) > 1 ? `Streak: ${dailyStats!.streak} days\n` : '';
+    const message = `Word Search Daily\n${formatDisplayDate()}\n\n${result} Score: ${dailyStats?.lastDailyScore ?? 0}\n${streakLine}\nPlay Word Fury!`;
+    try { await Share.share({ message }); } catch {}
+  };
 
   const winRate = stats ? getWinRate(stats) : 0;
 
@@ -128,7 +152,6 @@ const WordSearchEntryScreen: React.FC = () => {
       <View style={[styles.segmentSwitcher, { backgroundColor: background.cardColor }]}>
         {TABS.map((tab) => {
           const isActive = tab === activeTab;
-          const label = tab === 'play' ? 'Play' : 'Stats';
           return (
             <Pressable
               key={tab}
@@ -140,7 +163,7 @@ const WordSearchEntryScreen: React.FC = () => {
                 { color: background.secondaryText },
                 isActive && { color: background.textColor, fontWeight: '600' },
               ]}>
-                {label}
+                {tab === 'play' ? 'Play' : 'Stats'}
               </Text>
             </Pressable>
           );
@@ -150,57 +173,97 @@ const WordSearchEntryScreen: React.FC = () => {
       {/* Swipable tab strip */}
       <View style={styles.tabStripWrapper} {...panResponder.panHandlers}>
         <Animated.View style={[styles.tabStrip, {
-          transform: [{
-            translateX: tabAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -width],
-            }),
-          }],
+          transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -width] }) }],
         }]}>
 
           {/* ── PLAY TAB ── */}
-          <ScrollView
-            style={{ width }}
-            contentContainerStyle={styles.tabContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Daily Challenge Card */}
-            <View style={[styles.dailyCard, {
-              backgroundColor: background.cardColor,
-              borderColor: dailyPlayed ? COLORS.accent : background.borderColor,
-            }]}>
-              <Text style={[styles.dailyCardTitle, { color: background.textColor }]}>Daily Challenge</Text>
-              <Text style={[styles.dailyCardDate, { color: background.secondaryText }]}>{formatDisplayDate()}</Text>
-              <Text style={[styles.dailyCardDesc, { color: background.secondaryText }]}>
-                Find themed words hidden in today's grid.
-              </Text>
+          <ScrollView style={{ width }} contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
 
-              <TouchableOpacity
-                style={[styles.playButton, { backgroundColor: COLORS.accent }]}
-                onPress={() => router.push('/wordsearch/daily')}
-                disabled={dailyPlayed === null}
-              >
-                <Text style={styles.playButtonText}>
-                  {dailyPlayed ? 'View Today\'s Results' : 'Play Daily Challenge'}
-                </Text>
-              </TouchableOpacity>
+            {/* Daily Challenge Card — matches Word Builder */}
+            <View style={[
+              styles.dailyCard,
+              { backgroundColor: background.cardColor, borderColor: dailyPlayed ? COLORS.accent : background.borderColor },
+            ]}>
+              <Text style={[styles.dailyTitle, { color: background.textColor }]}>Daily Challenge</Text>
+              <Text style={[styles.dailySubtitle, { color: background.secondaryText }]}>{formatDisplayDate()}</Text>
 
+              {/* Score display — only when completed */}
+              {dailyPlayed && dailyStats && (
+                <View style={styles.dailyCompletedInfo}>
+                  <Text style={styles.dailyCompletedScore}>{dailyStats.lastDailyScore}</Text>
+                  <Text style={[styles.dailyCompletedLabel, { color: background.secondaryText }]}>
+                    {dailyStats.lastDailyResult === 'won' ? 'All words found! 🎉' : 'Better luck tomorrow'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Streak pills */}
+              <View style={styles.dailyStatPillRow}>
+                <DailyStatPill
+                  label="Current streak"
+                  value={dailyStats?.streak ?? 0}
+                  icon={Flame}
+                  iconColor="#e85d04"
+                  highlight
+                  secondaryText={background.secondaryText}
+                />
+                <DailyStatPill
+                  label="Best streak"
+                  value={dailyStats?.bestStreak ?? 0}
+                  icon={Trophy}
+                  iconColor="#d4a017"
+                  secondaryText={background.secondaryText}
+                />
+              </View>
+
+              {/* Play button — not played */}
+              {!dailyPlayed && (
+                <TouchableOpacity
+                  style={[styles.dailyButton, { backgroundColor: background.backgroundColor, borderColor: background.borderColor, borderWidth: 2 }]}
+                  onPress={() => router.push('/wordsearch/daily')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>Play Today's Challenge</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* View Results + Share — played */}
               {dailyPlayed && (
-                <View style={[styles.countdownRow, { borderTopColor: background.borderColor }]}>
-                  <Text style={[styles.countdownLabel, { color: background.secondaryText }]}>Next daily in</Text>
-                  <Text style={[styles.countdownValue, { color: COLORS.accent }]}>{countdown || '—'}</Text>
+                <View style={styles.dailyActionRow}>
+                  <TouchableOpacity
+                    style={[styles.dailyActionButton, { backgroundColor: background.backgroundColor, borderColor: background.borderColor, borderWidth: 1.5 }]}
+                    onPress={() => router.push('/wordsearch/daily')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dailyActionText, { color: background.textColor }]}>View Results</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.dailyShareIconButton, { backgroundColor: background.backgroundColor, borderColor: background.borderColor, borderWidth: 1.5 }]}
+                    onPress={handleShare}
+                    activeOpacity={0.8}
+                  >
+                    <Share2 size={18} color={background.textColor} />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Countdown — played */}
+              {dailyPlayed && (
+                <View style={[styles.dailyCountdownContainer, { borderTopColor: 'rgba(0,0,0,0.1)' }]}>
+                  <Text style={[styles.dailyCountdownLabel, { color: background.secondaryText }]}>Next challenge in</Text>
+                  <Text style={[styles.dailyCountdownTime, { color: background.textColor }]}>{countdown}</Text>
                 </View>
               )}
             </View>
 
             {/* Classic Game Card */}
             <TouchableOpacity
-              style={[styles.gameModeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+              style={[styles.modeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor, borderWidth: 2 }]}
               onPress={() => router.push('/wordsearch/play')}
               activeOpacity={0.8}
             >
-              <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Classic Game</Text>
-              <Text style={[styles.gameModeDesc, { color: background.secondaryText }]}>
+              <Text style={[styles.modeTitle, { color: background.textColor }]}>Classic Game</Text>
+              <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
                 Choose a category and difficulty, then find all hidden words
               </Text>
             </TouchableOpacity>
@@ -225,11 +288,7 @@ const WordSearchEntryScreen: React.FC = () => {
           </ScrollView>
 
           {/* ── STATS TAB ── */}
-          <ScrollView
-            style={{ width }}
-            contentContainerStyle={styles.tabContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={{ width }} contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
             {loadingStats ? (
               <ActivityIndicator color={COLORS.accent} style={{ marginTop: 20 }} />
             ) : stats && stats.gamesPlayed > 0 ? (
@@ -242,10 +301,7 @@ const WordSearchEntryScreen: React.FC = () => {
                     { label: 'Win Rate', value: `${winRate}%` },
                     { label: 'Best Streak', value: (stats.bestStreak ?? 0).toString() },
                   ].map(({ label, value }) => (
-                    <View key={label} style={[styles.statsCard, {
-                      backgroundColor: background.cardColor,
-                      borderColor: background.borderColor,
-                    }]}>
+                    <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
                       <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
                       <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
                     </View>
@@ -289,62 +345,55 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     padding: 4,
   },
-  segmentButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 999,
-  },
+  segmentButton: { paddingVertical: 8, paddingHorizontal: 24, borderRadius: 999 },
   segmentButtonText: { fontSize: 14, fontWeight: '500' },
 
   tabStripWrapper: { flex: 1, overflow: 'hidden', alignItems: 'flex-start' },
   tabStrip: { width: width * 2, flexDirection: 'row' },
   tabContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
 
-  // Daily card
+  // Daily card — mirrors Word Builder
   dailyCard: {
     borderRadius: 16,
+    padding: 20,
     borderWidth: 2,
-    padding: 20,
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  dailyCardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 2 },
-  dailyCardDate: { fontSize: 14, marginBottom: 8 },
-  dailyCardDesc: { fontSize: 14, marginBottom: 16 },
-  playButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
+  dailyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' },
+  dailySubtitle: { fontSize: 14, marginBottom: 16, textAlign: 'center' },
+  dailyCompletedInfo: { alignItems: 'center', paddingVertical: 8 },
+  dailyCompletedScore: { fontSize: 48, fontWeight: 'bold', color: COLORS.accent },
+  dailyCompletedLabel: { fontSize: 14, marginTop: 4, marginBottom: 8 },
+  dailyStatPillRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 },
+  dailyStatPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#f3e7d7',
+    minWidth: 100,
     alignItems: 'center',
-    marginBottom: 0,
   },
-  playButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  countdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  countdownLabel: { fontSize: 13 },
-  countdownValue: { fontSize: 16, fontWeight: '700' },
+  dailyStatPillHighlight: { backgroundColor: 'rgba(78, 204, 163, 0.15)' },
+  dailyStatPillLabel: { fontSize: 11, marginBottom: 2 },
+  dailyStatPillValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dailyStatPillValue: { fontSize: 18, fontWeight: '600', color: '#2c2416' },
+  dailyButton: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  dailyButtonText: { fontSize: 16, fontWeight: '600' },
+  dailyActionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  dailyActionButton: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  dailyActionText: { fontSize: 14, fontWeight: '600' },
+  dailyShareIconButton: { borderRadius: 12, padding: 10, alignItems: 'center', justifyContent: 'center' },
+  dailyCountdownContainer: { alignItems: 'center', paddingTop: 12, borderTopWidth: 1 },
+  dailyCountdownLabel: { fontSize: 12, marginBottom: 4 },
+  dailyCountdownTime: { fontSize: 20, fontWeight: '600' },
 
-  // Game mode card (matches Hangman)
-  gameModeCard: {
-    borderRadius: 16,
-    borderWidth: 2,
-    padding: 20,
-    marginBottom: 16,
-  },
-  gameModeTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  gameModeDesc: { fontSize: 14 },
+  // Mode cards
+  modeCard: { borderRadius: 16, padding: 20, marginBottom: 16 },
+  modeTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  modeDesc: { fontSize: 14 },
 
-  // Rules card (matches Hangman)
-  rulesCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 16,
-  },
+  // Rules card
+  rulesCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 16 },
   rulesTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   ruleNum: { fontSize: 18, fontWeight: 'bold', width: 28 },
@@ -352,19 +401,8 @@ const styles = StyleSheet.create({
 
   // Stats
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  statsCard: {
-    width: '48%',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 15,
-    alignItems: 'center',
-  },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
+  statsCard: { width: '48%', borderRadius: 12, borderWidth: 1, padding: 15, alignItems: 'center' },
   statsValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
   statsLabel: { fontSize: 12, textAlign: 'center' },
   emptyText: { fontSize: 14, marginTop: 8 },
