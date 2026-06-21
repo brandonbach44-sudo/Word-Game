@@ -15,6 +15,7 @@ type Props = {
   incorrectCount: number;
   maxAttempts: number;
   onBackToMenu: () => void;
+  onClose: () => void;
 };
 
 const StatPill = ({
@@ -46,6 +47,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
   incorrectCount,
   maxAttempts,
   onBackToMenu,
+  onClose,
 }) => {
   const { background } = useTheme();
   const countdown = useCountdownToMidnight();
@@ -61,7 +63,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
   const title = won ? 'Nice!' : 'Better luck tomorrow';
   const subtitle = won
     ? `You guessed it with ${incorrectCount}/${maxAttempts} wrong guesses.`
-    : `The word was ${word.toUpperCase()}.`;
+    : "Better luck next time!";
 
   const handleShare = async () => {
     const blocks: string[] = [];
@@ -173,13 +175,13 @@ export const DailyChallengePopup: React.FC<Props> = ({
           </View>
         </Pressable>
 
-        {/* Close */}
+        {/* Close — dismisses overlay, stays on game board */}
         <Pressable
           style={({ pressed }) => [
             styles.secondaryButton,
             { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
           ]}
-          onPress={onBackToMenu}
+          onPress={onClose}
         >
           <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
         </Pressable>
