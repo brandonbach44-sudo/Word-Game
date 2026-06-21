@@ -76,31 +76,27 @@ const WordSearchEntryScreen: React.FC = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerPlaceholder} />
       </View>
 
       {/* Play / Stats toggle */}
-      <View
-        style={[
-          styles.toggleContainer,
-          { backgroundColor: background.cardColor, borderColor: background.borderColor },
-        ]}
-      >
+      <View style={[styles.toggleContainer, { backgroundColor: background.cardColor }]}>
         <TouchableOpacity
           style={[
             styles.toggleButton,
-            activeTab === 'play' && { backgroundColor: COLORS.accent },
+            activeTab === 'play' && { backgroundColor: background.backgroundColor },
           ]}
           onPress={() => setActiveTab('play')}
         >
           <Text
             style={[
               styles.toggleText,
-              { color: activeTab === 'play' ? '#ffffff' : background.secondaryText },
+              { color: background.secondaryText },
+              activeTab === 'play' && { color: background.textColor, fontWeight: '600' },
             ]}
           >
             Play
@@ -110,14 +106,15 @@ const WordSearchEntryScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.toggleButton,
-            activeTab === 'stats' && { backgroundColor: COLORS.accent },
+            activeTab === 'stats' && { backgroundColor: background.backgroundColor },
           ]}
           onPress={() => setActiveTab('stats')}
         >
           <Text
             style={[
               styles.toggleText,
-              { color: activeTab === 'stats' ? '#ffffff' : background.secondaryText },
+              { color: background.secondaryText },
+              activeTab === 'stats' && { color: background.textColor, fontWeight: '600' },
             ]}
           >
             Stats
@@ -257,74 +254,23 @@ const WordSearchEntryScreen: React.FC = () => {
                 </Text>
 
                 <View style={styles.statsGrid}>
-                  <View
-                    style={[
-                      styles.statsCard,
-                      {
-                        backgroundColor: background.cardColor,
-                        borderColor: background.borderColor,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.statsIcon}>🎮</Text>
-                    <Text style={[styles.statsValue, { color: COLORS.accent }]}>
-                      {stats.gamesPlayed}
-                    </Text>
-                    <Text
+                  {[
+                    { label: 'Games Played', value: stats.gamesPlayed.toString() },
+                    { label: 'Games Won', value: stats.gamesWon.toString() },
+                    { label: 'Win Rate', value: `${winRate}%` },
+                    { label: 'Best Streak', value: (stats.bestStreak ?? 0).toString() },
+                  ].map(({ label, value }) => (
+                    <View
+                      key={label}
                       style={[
-                        styles.statsLabel,
-                        { color: background.secondaryText },
+                        styles.statsCard,
+                        { backgroundColor: background.cardColor, borderColor: background.borderColor },
                       ]}
                     >
-                      Games Played
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.statsCard,
-                      {
-                        backgroundColor: background.cardColor,
-                        borderColor: background.borderColor,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.statsIcon}>🏆</Text>
-                    <Text style={[styles.statsValue, { color: COLORS.accent }]}>
-                      {stats.gamesWon}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.statsLabel,
-                        { color: background.secondaryText },
-                      ]}
-                    >
-                      Games Won
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.statsCard,
-                      {
-                        backgroundColor: background.cardColor,
-                        borderColor: background.borderColor,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.statsIcon}>📊</Text>
-                    <Text style={[styles.statsValue, { color: COLORS.accent }]}>
-                      {winRate}%
-                    </Text>
-                    <Text
-                      style={[
-                        styles.statsLabel,
-                        { color: background.secondaryText },
-                      ]}
-                    >
-                      Win Rate
-                    </Text>
-                  </View>
+                      <Text style={[styles.statsValue, { color: COLORS.accent }]}>{value}</Text>
+                      <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
+                    </View>
+                  ))}
                 </View>
 
                 <Text
@@ -370,26 +316,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 5,
+    paddingBottom: 10,
   },
-  backText: { fontSize: 16 },
-  title: { fontSize: 24, fontWeight: 'bold' },
+  backButton: { padding: 8 },
+  backText: { fontSize: 16, fontWeight: '500' },
+  headerPlaceholder: { width: 60 },
+  title: { fontSize: 22, fontWeight: 'bold' },
   toggleContainer: {
     flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 10,
+    alignSelf: 'center',
+    marginTop: 4,
+    marginBottom: 8,
     borderRadius: 999,
-    borderWidth: 1,
     padding: 4,
   },
   toggleButton: {
-    flex: 1,
     paddingVertical: 8,
+    paddingHorizontal: 24,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toggleText: { fontSize: 14, fontWeight: '600' },
+  toggleText: { fontSize: 14, fontWeight: '500' },
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
@@ -398,7 +346,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     borderWidth: 2,
     marginBottom: 16,
   },
@@ -419,43 +367,40 @@ const styles = StyleSheet.create({
   countdownLabel: { fontSize: 12, marginBottom: 2 },
   countdownValue: { fontSize: 18, fontWeight: '700' },
   primaryButton: {
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
   primaryButtonText: {
     color: '#ffffff',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 15,
   },
   dailyNote: { fontSize: 12, marginTop: 10 },
-  classicSection: {
-    marginTop: 8,
-  },
+  classicSection: { marginTop: 8 },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  classicDescription: {
-    fontSize: 14,
-  },
+  classicDescription: { fontSize: 14 },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 10,
     marginTop: 8,
   },
   statsCard: {
-    flexBasis: '30%',
+    width: '48%',
     borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
+    padding: 15,
     alignItems: 'center',
   },
-  statsIcon: { fontSize: 22, marginBottom: 4 },
-  statsValue: { fontSize: 18, fontWeight: 'bold' },
-  statsLabel: { fontSize: 12, marginTop: 2, textAlign: 'center' },
+  statsValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  statsLabel: { fontSize: 12, textAlign: 'center' },
   achievementsPlaceholder: { fontSize: 14, marginTop: 8 },
 });
 

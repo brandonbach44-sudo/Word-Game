@@ -113,13 +113,13 @@ const WordSearchPlayScreen: React.FC = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>
           {currentScreen === 'categories' ? 'Choose Category' : 'Choose Difficulty'}
         </Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerPlaceholder} />
       </View>
 
       <ScrollView
@@ -264,9 +264,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 5,
+    paddingBottom: 10,
   },
-  backText: { fontSize: 16 },
+  backButton: { padding: 8 },
+  backText: { fontSize: 16, fontWeight: '500' },
+  headerPlaceholder: { width: 60 },
   title: { fontSize: 22, fontWeight: 'bold' },
   scrollView: { flex: 1 },
   scrollContent: {
@@ -282,34 +284,35 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: '48%',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    alignItems: 'center',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 2,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 80,
   },
-  categoryName: { fontSize: 14, fontWeight: '600', marginBottom: 4, textAlign: 'center' },
-  categoryWordCount: { fontSize: 12, textAlign: 'center' },
+  categoryName: { fontSize: 16, fontWeight: 'bold', marginBottom: 4, textAlign: 'left' },
+  categoryWordCount: { fontSize: 12, textAlign: 'left' },
   selectedCard: {
-    borderRadius: 16,
+    borderRadius: 15,
     borderWidth: 2,
     padding: 20,
     marginBottom: 20,
     alignItems: 'center',
   },
-  selectedName: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  selectedDescription: { fontSize: 13 },
-  difficultyTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  selectedName: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  selectedDescription: { fontSize: 14 },
+  difficultyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
   difficultiesContainer: { gap: 12, width: '100%' },
   difficultyButton: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 4,
+    borderRadius: 15,
+    borderWidth: 2,
+    padding: 20,
   },
-  difficultyLabel: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  boardSize: { fontSize: 13, marginBottom: 2 },
-  pointsMultiplier: { fontSize: 12, fontWeight: '600' },
+  difficultyLabel: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  boardSize: { fontSize: 14, marginBottom: 2 },
+  pointsMultiplier: { fontSize: 13, fontWeight: '600' },
   loadingOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

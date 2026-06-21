@@ -76,19 +76,25 @@ export default function WordSearchResultsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
 
+      {/* Standard header */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity style={styles.backButton} onPress={handleMainMenu}>
+          <Text style={[styles.backButtonText, { color: background.secondaryText }]}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={[styles.topHeaderTitle, { color: background.textColor }]}>
+          {isDaily ? 'Daily Challenge' : 'Word Search'}
+        </Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Results heading */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: background.textColor }]}>
-            {isDaily ? 'Daily Challenge' : 'Word Search'}
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: background.secondaryText }]}>
-            Results
-          </Text>
+          <Text style={[styles.headerTitle, { color: background.textColor }]}>Results</Text>
         </View>
 
         {/* Result Message */}
@@ -324,23 +330,31 @@ export default function WordSearchResultsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  backButton: { padding: 8 },
+  backButtonText: { fontSize: 16, fontWeight: '500' },
+  headerPlaceholder: { width: 60 },
+  topHeaderTitle: { fontSize: 22, fontWeight: 'bold' },
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingBottom: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
   },
   messageContainer: {
     alignItems: 'center',
@@ -442,7 +456,7 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
