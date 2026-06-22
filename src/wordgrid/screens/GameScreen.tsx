@@ -8,12 +8,14 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Share2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
@@ -421,39 +423,68 @@ export default function GameScreen() {
               contentContainerStyle={styles.resultsPageContent}
               showsVerticalScrollIndicator={false}
             >
+              {/* Brand */}
+              <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
+
               <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
+              <Text style={[styles.gameOverSubtitle, { color: bg.secondaryText }]}>
+                You found {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} and scored {score} points.
+              </Text>
 
-              <Text style={[styles.finalScore, { color: COLORS.accent }]}>{score}</Text>
-              <Text style={[styles.finalScoreLabel, { color: bg.secondaryText }]}>points</Text>
-
-              <View style={[styles.statsSummary, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{foundWords.length}</Text>
-                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Words</Text>
+              {/* Stat pills */}
+              <View style={styles.statsRow}>
+                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Words</Text>
+                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{foundWords.length}</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: bg.borderColor }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{bestLen}</Text>
-                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Best Length</Text>
+                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Score</Text>
+                  <Text style={[styles.statPillValue, { color: COLORS.accent }]}>{score}</Text>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: bg.borderColor }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, { color: bg.textColor }]}>{bestPts}</Text>
-                  <Text style={[styles.statLabel, { color: bg.secondaryText }]}>Best Word</Text>
+              </View>
+              <View style={styles.statsRow}>
+                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Length</Text>
+                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestLen}</Text>
+                </View>
+                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Word</Text>
+                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestPts} pts</Text>
                 </View>
               </View>
 
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.playAgainButton} onPress={handlePlayAgain}>
-                  <Text style={styles.playAgainText}>Play Again</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.menuButton, { backgroundColor: bg.backgroundColor, borderColor: bg.borderColor }]}
+              {/* Buttons */}
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
                   onPress={handleBackToMenu}
                 >
-                  <Text style={[styles.menuButtonText, { color: bg.textColor }]}>Back to Menu</Text>
-                </TouchableOpacity>
+                  <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+                  onPress={handlePlayAgain}
+                >
+                  <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
+                </Pressable>
               </View>
+
+              {/* Share */}
+              <Pressable
+                style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      message: `🔤 Word Grid\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
+                    });
+                  } catch (_) {}
+                }}
+              >
+                <View style={styles.shareButtonInner}>
+                  <Share2 size={18} color="#fff" />
+                  <Text style={styles.shareButtonText}>Share Result</Text>
+                </View>
+              </Pressable>
             </ScrollView>
           </View>
 
@@ -481,12 +512,12 @@ export default function GameScreen() {
               }
             />
 
-            <TouchableOpacity
-              style={[styles.menuButton, styles.wordsPageButton, { backgroundColor: bg.backgroundColor, borderColor: bg.borderColor }]}
+            <Pressable
+              style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1, marginTop: 12, minWidth: 160 }]}
               onPress={handleBackToMenu}
             >
-              <Text style={[styles.menuButtonText, { color: bg.textColor }]}>Back to Menu</Text>
-            </TouchableOpacity>
+              <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Back to Menu</Text>
+            </Pressable>
           </View>
         </ScrollView>
 
@@ -968,50 +999,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingBottom: 30,
   },
-  gameOverTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  finalScore: {
-    fontSize: 72,
-    fontWeight: 'bold',
-  },
-  finalScoreLabel: {
-    fontSize: 24,
-    marginBottom: 15,
-  },
-  statsSummary: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 25,
-    width: '100%',
-  },
-  statItem: { flex: 1, alignItems: 'center' },
-  statNumber: { fontSize: 24, fontWeight: 'bold' },
-  statLabel: { fontSize: 12, marginTop: 4, textAlign: 'center' },
-  statDivider: { width: 1, marginHorizontal: 15 },
-  buttonContainer: { width: '100%', alignItems: 'center' },
-  playAgainButton: {
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 25,
-    marginBottom: 15,
-    width: '100%',
-    alignItems: 'center',
-  },
-  playAgainText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  menuButton: {
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 25,
-    borderWidth: 2,
-    width: '100%',
-    alignItems: 'center',
-  },
+  // Results page — Wordle/Hangman card style
+  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
+  gameOverTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  gameOverSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 16 },
+  statsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 },
+  statPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
+  statPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },
+  statPillValue: { fontSize: 14, fontWeight: '900' },
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 16 },
+  primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+  shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
+  shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
+  menuButton: { paddingHorizontal: 40, paddingVertical: 15, borderRadius: 25, borderWidth: 2, width: '100%', alignItems: 'center' },
   menuButtonText: { fontSize: 16, fontWeight: '600' },
 
   // Words page
@@ -1031,7 +1033,6 @@ const styles = StyleSheet.create({
   },
   wordText: { fontSize: 16, fontWeight: '600' },
   wordScore: { fontSize: 12 },
-  wordsPageButton: { alignSelf: 'center', marginVertical: 15, width: 'auto' },
   noWordsText: { fontSize: 15, textAlign: 'center', marginTop: 30 },
 
   // Page indicator
