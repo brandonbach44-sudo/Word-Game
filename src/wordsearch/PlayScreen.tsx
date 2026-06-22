@@ -17,7 +17,12 @@ import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
 import type { PlacedWord, WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
-import { saveDailyResult, updateStatsAfterGame } from '../../src/wordsearch/utils/storage';
+import { DIFFICULTY_CONFIG } from '../../src/wordsearch/utils/difficultyConfig';
+import { checkWordSearchAchievements } from '../../src/wordsearch/utils/wsAchievements';
+import {
+  saveWordSearchDailyResult,
+  updateWordSearchStats,
+} from '../../src/wordsearch/utils/wsStorage';
 
 interface PlayScreenProps {
   themeId: WordSearchThemeId;
@@ -259,7 +264,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           const wordCells = getWordCells(placedWord);
           if (selectionMatchesWord(line, wordCells)) {
             SoundManager.success();
-            const scoreGain = placedWord.word.length * 10;
+            const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
+            const multiplier = diffConfig?.multiplier ?? 1;
+            const scoreGain = placedWord.word.length * 10 * multiplier;
             const newFoundWords = [...state.foundWords, placedWord];
             const newFoundCells = [...state.foundCells, ...wordCells];
             wordFound = true;
@@ -297,16 +304,49 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     if (timerRef.current) clearInterval(timerRef.current);
 
     const state = gameStateRef.current;
-    const timeBonus = Math.max(0, Math.floor(300 / Math.max(state.elapsedSeconds, 1)));
+    const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
+    const multiplier = diffConfig?.multiplier ?? 1;
+    const timeBonus = Math.max(0, Math.floor((300 / Math.max(state.elapsedSeconds, 1)) * multiplier));
     const finalScore = state.score + timeBonus;
     const allWordsFound = state.foundWords.length === puzzleData.words.length;
 
+    let dailyStreak = 0;
+    let newlyUnlockedIds: string[] = [];
+
     try {
+      // Load prev best before updating
+      const { loadWordSearchStats } = await import('../../src/wordsearch/utils/wsStorage');
+      const prevStats = await loadWordSearchStats();
+      const prevBestScore = prevStats.bestScore;
+
       if (isDaily) {
-        await saveDailyResult(allWordsFound ? 'won' : 'lost', finalScore);
-      } else {
-        await updateStatsAfterGame(allWordsFound, finalScore);
+        const dailyStats = await saveWordSearchDailyResult(
+          allWordsFound ? 'won' : 'lost',
+          finalScore
+        );
+        dailyStreak = dailyStats.streak;
       }
+
+      const updatedStats = await updateWordSearchStats({
+        won: allWordsFound,
+        score: finalScore,
+        elapsedSeconds: state.elapsedSeconds,
+        difficulty,
+        wordsFound: state.foundWords.length,
+        isDaily,
+      });
+
+      const newAchievements = await checkWordSearchAchievements({
+        stats: updatedStats,
+        prevBestScore,
+        currentGameScore: finalScore,
+        currentGameSeconds: state.elapsedSeconds,
+        currentGameDifficulty: difficulty,
+        currentGameWon: allWordsFound,
+        dailyStreak,
+      });
+
+      newlyUnlockedIds = newAchievements.map(a => a.id);
     } catch (error) {
       console.error('Failed to update stats:', error);
     }
@@ -328,6 +368,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         time: timeString,
         themeName,
         difficulty,
+        multiplier: multiplier.toString(),
+        timeBonus: timeBonus.toString(),
+        newAchievements: newlyUnlockedIds.join(','),
       },
     });
   };
