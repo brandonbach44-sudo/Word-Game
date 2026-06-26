@@ -142,7 +142,7 @@ const WordSearchEntryScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
         <View style={styles.headerPlaceholder} />
