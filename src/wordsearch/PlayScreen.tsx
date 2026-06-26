@@ -793,8 +793,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
       {/* ── Results overlay (replaces separate results route) ── */}
       {resultData && (
-        <Modal visible animationType="slide" statusBarTranslucent>
-          <SafeAreaView style={[overlayStyles.container, { backgroundColor: background.backgroundColor }]}>
+        <Modal visible animationType="slide">
+          <SafeAreaView style={[overlayStyles.container, { backgroundColor: background.backgroundColor }]} edges={['top', 'bottom']}>
             <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
             <ScrollView contentContainerStyle={overlayStyles.scroll} showsVerticalScrollIndicator={false}>
               <View style={[overlayStyles.card, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
 
 const overlayStyles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { alignItems: 'center', paddingHorizontal: 18, paddingVertical: 24 },
+  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24 },
   card: { width: '100%', maxWidth: 420, borderRadius: 18, borderWidth: 2, padding: 16 },
   brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
   title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
