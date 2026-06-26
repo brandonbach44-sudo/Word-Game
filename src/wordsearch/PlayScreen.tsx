@@ -3,6 +3,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   PanResponder,
   ScrollView,
   StatusBar,
@@ -156,6 +157,19 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   });
   const [gameFinished, setGameFinished] = useState(false);
 
+  // Combo system
+  const lastWordFoundAt = useRef<number>(0);
+  const comboCount = useRef<number>(0);
+  const [comboDisplay, setComboDisplay] = useState<{ multiplier: number; count: number } | null>(null);
+  const comboClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hints (Easy only)
+  const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
+  const [hintsRemaining, setHintsRemaining] = useState(diffConfig?.hints ?? 0);
+  const [hintCell, setHintCell] = useState<Cell | null>(null);
+  const hintClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintAnim = useRef(new Animated.Value(1)).current;
+
   // Grid layout measured values
   const gridRef = useRef<View>(null);
   const gridLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -166,6 +180,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
   // Drag state (refs, not state — don't need re-render mid-drag)
   const dragStart = useRef<Cell | null>(null);
+  const lastValidCell = useRef<Cell | null>(null);
 
   // Timer
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -237,6 +252,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
         dragStart.current = cell;
+        lastValidCell.current = cell;
         setGameState(prev => ({ ...prev, currentSelection: [cell] }));
       },
 
@@ -244,16 +260,20 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         if (!dragStart.current) return;
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
+        lastValidCell.current = cell;
         const line = buildSelectionLine(dragStart.current, cell, numRows, numCols);
         setGameState(prev => ({ ...prev, currentSelection: line }));
       },
 
       onPanResponderRelease: evt => {
         if (!dragStart.current) return;
-        const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
+        // Use last valid cell as fallback when finger lifts outside the grid
+        const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY)
+          ?? lastValidCell.current;
         const line = cell
           ? buildSelectionLine(dragStart.current, cell, numRows, numCols)
           : [dragStart.current];
+        lastValidCell.current = null;
         dragStart.current = null;
 
         const state = gameStateRef.current;
@@ -264,9 +284,32 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           const wordCells = getWordCells(placedWord);
           if (selectionMatchesWord(line, wordCells)) {
             SoundManager.success();
-            const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
-            const multiplier = diffConfig?.multiplier ?? 1;
-            const scoreGain = placedWord.word.length * 10 * multiplier;
+            const dc = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
+            const diffMult = dc?.multiplier ?? 1;
+
+            // Combo: word found within 5s of previous = streak
+            const now = Date.now();
+            const gap = lastWordFoundAt.current > 0
+              ? (now - lastWordFoundAt.current) / 1000
+              : 999;
+            if (gap <= 5 && lastWordFoundAt.current > 0) {
+              comboCount.current = Math.min(comboCount.current + 1, 4);
+            } else {
+              comboCount.current = 1;
+            }
+            lastWordFoundAt.current = now;
+
+            const combo = comboCount.current;
+            const comboMult = combo >= 4 ? 3 : combo >= 3 ? 2 : combo >= 2 ? 1.5 : 1;
+            const scoreGain = Math.round(placedWord.word.length * 10 * diffMult * comboMult);
+
+            // Show combo badge if multiplier is active
+            if (combo >= 2) {
+              if (comboClearTimer.current) clearTimeout(comboClearTimer.current);
+              setComboDisplay({ multiplier: comboMult, count: combo });
+              comboClearTimer.current = setTimeout(() => setComboDisplay(null), 1500);
+            }
+
             const newFoundWords = [...state.foundWords, placedWord];
             const newFoundCells = [...state.foundCells, ...wordCells];
             wordFound = true;
@@ -382,6 +425,25 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
   const handleManualFinish = () => triggerFinish();
 
+  const handleHint = (word: typeof puzzleData.words[0]) => {
+    if (hintsRemaining <= 0) return;
+    if (gameState.foundWords.some(fw => fw.word === word.word)) return;
+    // Highlight the word's starting cell
+    const startCell = { row: word.row, col: word.col };
+    setHintCell(startCell);
+    setHintsRemaining(h => h - 1);
+    // Flash animation
+    hintAnim.setValue(1);
+    Animated.sequence([
+      Animated.timing(hintAnim, { toValue: 0.2, duration: 300, useNativeDriver: true }),
+      Animated.timing(hintAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(hintAnim, { toValue: 0.2, duration: 300, useNativeDriver: true }),
+      Animated.timing(hintAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+    if (hintClearTimer.current) clearTimeout(hintClearTimer.current);
+    hintClearTimer.current = setTimeout(() => setHintCell(null), 2000);
+  };
+
   const handleBack = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     router.back();
@@ -393,8 +455,10 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Countdown display — only when isDaily and timeLimit is set
-  const remainingSeconds = timeLimit ? Math.max(0, timeLimit - gameState.elapsedSeconds) : null;
+  // All games are timed — always show countdown
+  const remainingSeconds = timeLimit != null
+    ? Math.max(0, timeLimit - gameState.elapsedSeconds)
+    : null;
   const isLowTime = remainingSeconds !== null && remainingSeconds <= 30;
   const timerDisplay = remainingSeconds !== null
     ? formatTime(remainingSeconds)
@@ -421,9 +485,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </View>
         <View style={[styles.infoDivider, { backgroundColor: background.borderColor }]} />
         <View style={styles.infoItem}>
-          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>
-            {remainingSeconds !== null ? 'Time Left' : 'Time'}
-          </Text>
+          <Text style={[styles.infoLabel, { color: background.secondaryText }]}>Time Left</Text>
           <Text style={[styles.infoValue, { color: isLowTime ? '#ef4444' : background.textColor }]}>
             {timerDisplay}
           </Text>
@@ -435,48 +497,72 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </View>
       </View>
 
-      {/* Grid — PanResponder captures touches here, preventing ScrollView interference */}
-      <View
-        ref={gridRef}
-        style={[styles.gridContainer, { backgroundColor: background.cardColor }]}
-        onLayout={measureGrid}
-        {...panResponder.panHandlers}
-      >
-        {puzzleData.grid.map((row: string[], rIdx: number) => (
-          <View key={rIdx} style={styles.gridRow}>
-            {row.map((letter: string, cIdx: number) => {
-              const isFound = gameState.foundCells.some(c => c.row === rIdx && c.col === cIdx);
-              const isSelected = gameState.currentSelection.some(
-                c => c.row === rIdx && c.col === cIdx
-              );
-
-              let cellBg = background.cardColor;
-              let textColor = background.textColor;
-              if (isFound) {
-                cellBg = COLORS.accent;
-                textColor = '#fff';
-              } else if (isSelected) {
-                cellBg = COLORS.accent + '55';
-                textColor = background.textColor;
-              }
-
-              return (
-                <View
-                  key={`${rIdx}-${cIdx}`}
-                  style={[
-                    styles.gridCell,
-                    {
-                      backgroundColor: cellBg,
-                      borderColor: isSelected ? COLORS.accent : background.borderColor,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.cellText, { color: textColor }]}>{letter}</Text>
-                </View>
-              );
-            })}
+      {/* Grid wrapper — position:relative for combo badge overlay */}
+      <View style={styles.gridWrapper}>
+        {/* Combo badge */}
+        {comboDisplay && (
+          <View style={styles.comboBadge} pointerEvents="none">
+            <Text style={styles.comboBadgeText}>
+              🔥 {comboDisplay.multiplier}× COMBO!
+            </Text>
           </View>
-        ))}
+        )}
+
+        {/* Grid — PanResponder captures touches here */}
+        <View
+          ref={gridRef}
+          style={[styles.gridContainer, { backgroundColor: background.cardColor }]}
+          onLayout={measureGrid}
+          {...panResponder.panHandlers}
+        >
+          {puzzleData.grid.map((row: string[], rIdx: number) => (
+            <View key={rIdx} style={styles.gridRow}>
+              {row.map((letter: string, cIdx: number) => {
+                const isFound = gameState.foundCells.some(c => c.row === rIdx && c.col === cIdx);
+                const isSelected = gameState.currentSelection.some(
+                  c => c.row === rIdx && c.col === cIdx
+                );
+                const isHint = hintCell?.row === rIdx && hintCell?.col === cIdx;
+
+                let cellBg = background.cardColor;
+                let textColor = background.textColor;
+                if (isFound) {
+                  cellBg = COLORS.accent;
+                  textColor = '#fff';
+                } else if (isHint) {
+                  cellBg = '#facc15'; // yellow hint
+                  textColor = '#000';
+                } else if (isSelected) {
+                  cellBg = COLORS.accent + '55';
+                  textColor = background.textColor;
+                }
+
+                const cellView = (
+                  <View
+                    key={`${rIdx}-${cIdx}`}
+                    style={[
+                      styles.gridCell,
+                      {
+                        backgroundColor: cellBg,
+                        borderColor: isSelected ? COLORS.accent : isHint ? '#f59e0b' : background.borderColor,
+                      },
+                    ]}
+                  >
+                    {isHint ? (
+                      <Animated.Text style={[styles.cellText, { color: textColor, opacity: hintAnim }]}>
+                        {letter}
+                      </Animated.Text>
+                    ) : (
+                      <Text style={[styles.cellText, { color: textColor }]}>{letter}</Text>
+                    )}
+                  </View>
+                );
+
+                return cellView;
+              })}
+            </View>
+          ))}
+        </View>
       </View>
 
       {/* Word list + finish button — scrollable below the grid */}
@@ -486,23 +572,40 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Hints remaining indicator (Easy only) */}
+        {difficulty === 'easy' && hintsRemaining > 0 && (
+          <Text style={[styles.hintsLabel, { color: background.secondaryText }]}>
+            💡 {hintsRemaining} hint{hintsRemaining !== 1 ? 's' : ''} — tap a word to reveal its start
+          </Text>
+        )}
+
         <View style={styles.wordGrid}>
           {puzzleData.words.map((word, idx) => {
             const found = gameState.foundWords.some(fw => fw.word === word.word);
-            return (
+            const canHint = difficulty === 'easy' && !found && hintsRemaining > 0;
+
+            const inner = (
+              <Text
+                style={[
+                  styles.wordText,
+                  {
+                    color: found ? COLORS.accent : background.textColor,
+                    textDecorationLine: found ? 'line-through' : 'none',
+                    opacity: found ? 0.6 : 1,
+                  },
+                ]}
+              >
+                {word.word}
+              </Text>
+            );
+
+            return canHint ? (
+              <TouchableOpacity key={idx} style={styles.wordRow} onPress={() => handleHint(word)}>
+                {inner}
+              </TouchableOpacity>
+            ) : (
               <View key={idx} style={styles.wordRow}>
-                <Text
-                  style={[
-                    styles.wordText,
-                    {
-                      color: found ? COLORS.accent : background.textColor,
-                      textDecorationLine: found ? 'line-through' : 'none',
-                      opacity: found ? 0.6 : 1,
-                    },
-                  ]}
-                >
-                  {word.word}
-                </Text>
+                {inner}
               </View>
             );
           })}
@@ -516,7 +619,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
             <Text style={styles.finishButtonText}>
               {gameState.foundWords.length === puzzleData.words.length
                 ? 'See Results'
-                : 'Finish Early'}
+                : "I'm Done"}
             </Text>
           </TouchableOpacity>
         )}
@@ -552,9 +655,6 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 16, fontWeight: 'bold' },
   infoDivider: { width: 1, marginHorizontal: 8 },
   gridContainer: {
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 0,
     padding: 8,
     borderRadius: 12,
     alignSelf: 'stretch',
@@ -583,6 +683,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 20,
+  },
+  gridWrapper: {
+    position: 'relative',
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 0,
+  },
+  comboBadge: {
+    position: 'absolute',
+    top: -14,
+    alignSelf: 'center',
+    zIndex: 10,
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  comboBadgeText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  hintsLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 6,
+    fontStyle: 'italic',
   },
   wordGrid: {
     flexDirection: 'row',

@@ -1,4 +1,5 @@
 // app/wordsearch/results.tsx
+// Matches the Wordle / Word Builder daily results card style exactly.
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { Share2 } from 'lucide-react-native';
@@ -26,7 +27,7 @@ import { loadWordSearchStats, WordSearchStats } from '../../src/wordsearch/utils
 
 const { width } = Dimensions.get('window');
 
-// ── Animated achievement popup (slides from top, like Word Builder) ──────────
+// ── Achievement popup (slides from top) ──────────────────────────────────────
 function AchievementPopup({
   achievement,
   onDismiss,
@@ -47,7 +48,6 @@ function AchievementPopup({
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 8 }),
         Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
-
       const timer = setTimeout(() => dismiss(), 3000);
       return () => clearTimeout(timer);
     }
@@ -87,62 +87,83 @@ function AchievementPopup({
   );
 }
 
-// ── Stat cell for the horizontal summary bar ─────────────────────────────────
-function StatCell({ label, value, color, border }: { label: string; value: string; color: string; border: string }) {
+// ── StatPill (matches Wordle exactly) ────────────────────────────────────────
+function StatPill({
+  label,
+  value,
+  textColor,
+  borderColor,
+  backgroundColor,
+}: {
+  label: string;
+  value: string;
+  textColor: string;
+  borderColor: string;
+  backgroundColor: string;
+}) {
   return (
-    <View style={styles.statCell}>
-      <Text style={[styles.statNumber, { color }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: border }]}>{label}</Text>
+    <View style={[styles.statPill, { borderColor, backgroundColor }]}>
+      <Text style={[styles.statPillLabel, { color: textColor }]}>{label}</Text>
+      <Text style={[styles.statPillValue, { color: textColor }]}>{value}</Text>
     </View>
   );
 }
 
-// ── Stats card (grid) ─────────────────────────────────────────────────────────
-function StatsCard({
+// ── PrimaryButton (matches Wordle exactly) ───────────────────────────────────
+function PrimaryButton({
   label,
-  value,
-  wide = false,
-  textColor,
-  secondaryText,
-  cardColor,
+  onPress,
   borderColor,
+  textColor,
+  backgroundColor,
 }: {
   label: string;
-  value: string;
-  wide?: boolean;
-  textColor: string;
-  secondaryText: string;
-  cardColor: string;
+  onPress: () => void;
   borderColor: string;
+  textColor: string;
+  backgroundColor: string;
 }) {
   return (
-    <View style={[styles.statsCard, wide && styles.statsCardWide, { backgroundColor: cardColor, borderColor }]}>
-      <Text style={[styles.statsValue, { color: textColor }]}>{value}</Text>
-      <Text style={[styles.statsLabel2, { color: secondaryText }]}>{label}</Text>
-    </View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.primaryButton,
+        { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.primaryButtonText, { color: textColor }]}>{label}</Text>
+    </Pressable>
   );
+}
+
+function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m ${sec.toString().padStart(2, '0')}s`;
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function WordSearchResultsScreen() {
   const { background } = useTheme();
   const params = useLocalSearchParams();
-  const countdown = useCountdownToMidnight();
+  const countdownRaw = useCountdownToMidnight(); // e.g. "05:32:11"
   const [lifetimeStats, setLifetimeStats] = useState<WordSearchStats | null>(null);
   const [pendingAchievements, setPendingAchievements] = useState<WSAchievement[]>([]);
   const [currentPopup, setCurrentPopup] = useState<WSAchievement | null>(null);
 
-  const score = parseInt(params.score as string) || 0;
-  const foundWords = parseInt(params.foundWords as string) || 0;
-  const totalWords = parseInt(params.totalWords as string) || 0;
-  const allFound = params.allFound === 'true';
-  const isDaily = params.isDaily === 'true';
-  const timeString = (params.time as string) || '0:00';
-  const themeName = (params.themeName as string) || 'Word Search';
-  const difficulty = (params.difficulty as string) || '';
-  const multiplier = parseInt(params.multiplier as string) || 1;
-  const timeBonus = parseInt(params.timeBonus as string) || 0;
-  const wordPoints = score - timeBonus;
+  const score        = parseInt(params.score as string) || 0;
+  const foundWords   = parseInt(params.foundWords as string) || 0;
+  const totalWords   = parseInt(params.totalWords as string) || 0;
+  const allFound     = params.allFound === 'true';
+  const isDaily      = params.isDaily === 'true';
+  const timeString   = (params.time as string) || '0:00';
+  const themeName    = (params.themeName as string) || 'Word Search';
+  const difficulty   = (params.difficulty as string) || '';
+  const multiplier   = parseInt(params.multiplier as string) || 1;
+  const timeBonus    = parseInt(params.timeBonus as string) || 0;
+  const wordPoints   = score - timeBonus;
 
   const newAchievementIds = ((params.newAchievements as string) || '').split(',').filter(Boolean);
   const newAchievements: WSAchievement[] = newAchievementIds
@@ -152,12 +173,9 @@ export default function WordSearchResultsScreen() {
   useEffect(() => {
     SoundManager.gameOver();
     loadWordSearchStats().then(setLifetimeStats);
-    if (newAchievements.length > 0) {
-      setPendingAchievements(newAchievements);
-    }
+    if (newAchievements.length > 0) setPendingAchievements(newAchievements);
   }, []);
 
-  // Show achievement popups one at a time
   useEffect(() => {
     if (pendingAchievements.length > 0 && !currentPopup) {
       setCurrentPopup(pendingAchievements[0]);
@@ -165,168 +183,171 @@ export default function WordSearchResultsScreen() {
     }
   }, [pendingAchievements, currentPopup]);
 
-  const handlePopupDismiss = () => setCurrentPopup(null);
-
   const getTitle = () => {
-    if (allFound) return 'Perfect!';
+    if (allFound) return 'Nice!';
     const pct = totalWords > 0 ? foundWords / totalWords : 0;
     if (pct >= 0.75) return 'Great Job!';
-    if (pct >= 0.5) return 'Good Effort!';
-    if (isDaily) return "Time's Up!";
-    return 'Nice Try!';
+    if (pct >= 0.5)  return 'Good Effort!';
+    return "Time's Up!";
   };
 
-  const getDifficultyLabel = () => {
+  const getSubtitle = () => {
+    const result = `${foundWords}/${totalWords} words in ${timeString}`;
+    if (isDaily) {
+      return allFound
+        ? `You found all ${totalWords} words in ${timeString}!`
+        : `You found ${result}.`;
+    }
+    return allFound
+      ? `You found all ${totalWords} words in ${timeString}!`
+      : `You found ${result}.`;
+  };
+
+  const getDiffLabel = () => {
     const d = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-    return multiplier > 1 ? `${d} (${multiplier}×)` : d;
+    return multiplier > 1 ? `${d} · ${multiplier}×` : d;
   };
-
-  const formatDate = () =>
-    new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   const handleShare = async () => {
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const result = allFound ? `${foundWords}/${totalWords} ✅` : `${foundWords}/${totalWords}`;
     const text = isDaily
-      ? `🔍 Word Search Daily\n${themeName} • ${dateStr}\n${result} words in ${timeString}\nScore: ${score}\n#WordFury`
-      : `🔍 Word Search\nTheme: ${themeName} • ${getDifficultyLabel()}\nFound ${result} words in ${timeString}\nScore: ${score}\n#WordFury`;
-    try {
-      await Share.share({ message: text });
-    } catch (e) {
-      console.warn('Share failed', e);
-    }
+      ? `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${timeString}\nScore: ${score}\n#WordFury`
+      : `🔍 Word Search · ${getDiffLabel()}\nTheme: ${themeName}\nFound ${result} words · ${timeString}\nScore: ${score}\n#WordFury`;
+    try { await Share.share({ message: text }); } catch (e) { console.warn('Share failed', e); }
   };
 
-  const BG = background.backgroundColor;
-  const TEXT = background.textColor;
+  const BG     = background.backgroundColor;
+  const TEXT   = background.textColor;
   const SUBTEXT = background.secondaryText;
-  const CARD = background.cardColor;
+  const CARD   = background.cardColor;
   const BORDER = background.borderColor;
+
+  // Parse countdown string "HH:MM:SS" → seconds for formatCountdown
+  const countdownParts = countdownRaw.split(':').map(Number);
+  const countdownSeconds = (countdownParts[0] || 0) * 3600 + (countdownParts[1] || 0) * 60 + (countdownParts[2] || 0);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: BG }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
 
-      {/* Achievement popup */}
       <AchievementPopup
         achievement={currentPopup}
-        onDismiss={handlePopupDismiss}
+        onDismiss={() => setCurrentPopup(null)}
         cardColor={CARD}
         textColor={TEXT}
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.push('/wordsearch')}>
-          <Text style={[styles.backText, { color: SUBTEXT }]}>← Back</Text>
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: TEXT }]}>
-          {isDaily ? 'Daily Challenge' : 'Word Search'}
-        </Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Brand */}
+          <Text style={[styles.brand, { color: SUBTEXT }]}>WORD SEARCH</Text>
 
-        {/* ── Title ── */}
-        <Text style={[styles.gameOverTitle, { color: TEXT }]}>{getTitle()}</Text>
-        {isDaily && <Text style={[styles.dateText, { color: SUBTEXT }]}>{formatDate()}</Text>}
+          {/* Title + subtitle */}
+          <Text style={[styles.title, { color: TEXT }]}>{getTitle()}</Text>
+          <Text style={[styles.subtitle, { color: SUBTEXT }]}>{getSubtitle()}</Text>
 
-        {/* ── Big score ── */}
-        <Text style={styles.finalScore}>{score}</Text>
-        <Text style={[styles.finalScoreLabel, { color: SUBTEXT }]}>points</Text>
+          {/* Theme + difficulty pill */}
+          <View style={[styles.themePill, { borderColor: COLORS.accent }]}>
+            <Text style={[styles.themePillText, { color: COLORS.accent }]}>
+              {themeName}{difficulty ? ` · ${getDiffLabel()}` : ''}
+            </Text>
+          </View>
 
-        {/* Theme pill */}
-        <View style={[styles.themePill, { borderColor: COLORS.accent }]}>
-          <Text style={[styles.themePillText, { color: COLORS.accent }]}>
-            {themeName}{difficulty ? ` · ${getDifficultyLabel()}` : ''}
-          </Text>
-        </View>
+          {/* ── This Game ── */}
+          <View style={[styles.divider, { backgroundColor: BORDER }]} />
+          <Text style={[styles.sectionTitle, { color: TEXT }]}>THIS GAME</Text>
+          <View style={styles.statsRow}>
+            <StatPill label="Found" value={`${foundWords}/${totalWords}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Time" value={timeString} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatPill label="Score" value={score.toLocaleString()} textColor={COLORS.accent} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill
+              label="Complete"
+              value={`${Math.round((foundWords / Math.max(totalWords, 1)) * 100)}%`}
+              textColor={allFound ? COLORS.accent : TEXT}
+              borderColor={BORDER}
+              backgroundColor={BG}
+            />
+          </View>
 
-        {/* ── Horizontal stat summary ── */}
-        <View style={[styles.statsSummary, { backgroundColor: CARD, borderColor: BORDER }]}>
-          <StatCell label="Found" value={`${foundWords}/${totalWords}`} color={TEXT} border={SUBTEXT} />
-          <View style={[styles.statDivider, { backgroundColor: BORDER }]} />
-          <StatCell label="Time" value={timeString} color={TEXT} border={SUBTEXT} />
-          <View style={[styles.statDivider, { backgroundColor: BORDER }]} />
-          <StatCell
-            label="Complete"
-            value={totalWords > 0 ? `${Math.round((foundWords / totalWords) * 100)}%` : '0%'}
-            color={allFound ? COLORS.accent : TEXT}
-            border={SUBTEXT}
-          />
-        </View>
-
-        {/* ── Score breakdown (only when all found) ── */}
-        {allFound && (
-          <View style={[styles.breakdownCard, { backgroundColor: CARD, borderColor: BORDER }]}>
-            <Text style={[styles.breakdownTitle, { color: SUBTEXT }]}>SCORE BREAKDOWN</Text>
-            <View style={styles.breakdownRow}>
-              <Text style={[styles.breakdownLabel, { color: SUBTEXT }]}>Words found</Text>
-              <Text style={[styles.breakdownValue, { color: TEXT }]}>{wordPoints}</Text>
-            </View>
-            <View style={styles.breakdownRow}>
-              <Text style={[styles.breakdownLabel, { color: SUBTEXT }]}>Time bonus</Text>
-              <Text style={[styles.breakdownValue, { color: COLORS.accent }]}>+{timeBonus}</Text>
-            </View>
-            {multiplier > 1 && (
-              <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, { color: SUBTEXT }]}>Difficulty multiplier</Text>
-                <Text style={[styles.breakdownValue, { color: '#f59e0b' }]}>{multiplier}×</Text>
+          {/* ── Score Breakdown (when all found) ── */}
+          {allFound && (
+            <>
+              <View style={[styles.divider, { backgroundColor: BORDER }]} />
+              <Text style={[styles.sectionTitle, { color: TEXT }]}>SCORE BREAKDOWN</Text>
+              <View style={styles.statsRow}>
+                <StatPill label="Words" value={`${wordPoints} pts`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+                <StatPill label="Time Bonus" value={`+${timeBonus}`} textColor={COLORS.accent} borderColor={BORDER} backgroundColor={BG} />
               </View>
-            )}
-            <View style={[styles.breakdownDivider, { backgroundColor: BORDER }]} />
-            <View style={styles.breakdownRow}>
-              <Text style={[styles.breakdownLabelBold, { color: TEXT }]}>Total</Text>
-              <Text style={[styles.breakdownValueBold, { color: COLORS.accent }]}>{score}</Text>
-            </View>
+              {multiplier > 1 && (
+                <View style={styles.statsRow}>
+                  <StatPill label="Multiplier" value={`${multiplier}×`} textColor="#f59e0b" borderColor={BORDER} backgroundColor={BG} />
+                </View>
+              )}
+            </>
+          )}
+
+          {/* ── Lifetime Stats ── */}
+          {lifetimeStats && lifetimeStats.gamesPlayed > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: BORDER }]} />
+              <Text style={[styles.sectionTitle, { color: TEXT }]}>YOUR STATS</Text>
+              <View style={styles.statsRow}>
+                <StatPill label="Best Score" value={lifetimeStats.bestScore.toLocaleString()} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+                <StatPill label="Streak" value={`${lifetimeStats.currentStreak}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              </View>
+              <View style={styles.statsRow}>
+                <StatPill label="Games" value={`${lifetimeStats.gamesPlayed}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+                <StatPill label="Words Found" value={lifetimeStats.totalWordsFound.toLocaleString()} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              </View>
+            </>
+          )}
+
+          {/* ── Daily Countdown ── */}
+          {isDaily && countdownSeconds > 0 && (
+            <>
+              <View style={[styles.divider, { backgroundColor: BORDER }]} />
+              <Text style={[styles.countdownLabel, { color: SUBTEXT }]}>Next Daily in</Text>
+              <Text style={[styles.countdownValue, { color: TEXT }]}>{formatCountdown(countdownSeconds)}</Text>
+            </>
+          )}
+
+          {/* ── Buttons ── */}
+          <View style={styles.buttonRow}>
+            <PrimaryButton
+              label="Main Menu"
+              onPress={() => router.navigate('/wordsearch')}
+              borderColor={BORDER}
+              textColor={TEXT}
+              backgroundColor={BG}
+            />
+            <PrimaryButton
+              label={isDaily ? 'Play' : 'Play Again'}
+              onPress={() => router.push('/wordsearch/play')}
+              borderColor={BORDER}
+              textColor={TEXT}
+              backgroundColor={BG}
+            />
           </View>
-        )}
 
-        {/* ── Lifetime stats ── */}
-        {lifetimeStats && lifetimeStats.gamesPlayed > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: TEXT }]}>Your Stats</Text>
-            <View style={styles.statsGrid}>
-              <StatsCard label="Best Score" value={lifetimeStats.bestScore.toLocaleString()} textColor={COLORS.accent} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-              <StatsCard label="Games Played" value={lifetimeStats.gamesPlayed.toString()} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-              <StatsCard label="Win Streak" value={lifetimeStats.currentStreak.toString()} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-              <StatsCard label="Best Streak" value={lifetimeStats.bestStreak.toString()} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-              <StatsCard label="Lifetime Score" value={lifetimeStats.lifetimeScore.toLocaleString()} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
-              <StatsCard label="Words Found" value={lifetimeStats.totalWordsFound.toLocaleString()} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+          {/* ── Share (green, Wordle style) ── */}
+          <Pressable
+            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={handleShare}
+          >
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
             </View>
-          </>
-        )}
-
-        {/* ── Daily countdown ── */}
-        {isDaily && (
-          <View style={[styles.countdownCard, { backgroundColor: CARD, borderColor: BORDER }]}>
-            <Text style={[styles.countdownLabel, { color: SUBTEXT }]}>Next Daily in</Text>
-            <Text style={[styles.countdownValue, { color: TEXT }]}>{countdown}</Text>
-          </View>
-        )}
-
-        {/* ── Buttons ── */}
-        <View style={styles.buttonRow}>
-          <Pressable
-            style={({ pressed }) => [styles.pill, { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => router.push('/wordsearch')}
-          >
-            <Text style={[styles.pillText, { color: TEXT }]}>Main Menu</Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.pill, { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.7 : 1 }]}
-            onPress={() => router.push('/wordsearch/play')}
-          >
-            <Text style={[styles.pillText, { color: TEXT }]}>Play Again</Text>
-          </Pressable>
+
         </View>
-
-        {/* ── Green share button (Word Builder style) ── */}
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-          <Share2 size={18} color="#fff" />
-          <Text style={styles.shareButtonText}>Share Result</Text>
-        </TouchableOpacity>
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -336,167 +357,112 @@ export default function WordSearchResultsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  backButton: { padding: 8 },
-  backText: { fontSize: 16, fontWeight: '500' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  headerPlaceholder: { width: 60 },
 
-  scrollContent: {
+  scroll: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
 
-  // Title + score
-  gameOverTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  // Card (Wordle style)
+  card: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
+  },
+
+  // Brand
+  brand: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
     marginBottom: 6,
-    textAlign: 'center',
   },
-  dateText: {
-    fontSize: 15,
-    marginBottom: 8,
+
+  // Title / subtitle
+  title: {
     textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  finalScore: {
-    fontSize: 72,
-    fontWeight: 'bold',
-    color: COLORS.accent,
+  subtitle: {
     textAlign: 'center',
-  },
-  finalScoreLabel: {
-    fontSize: 20,
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 12,
-    textAlign: 'center',
   },
 
   // Theme pill
   themePill: {
+    alignSelf: 'center',
     borderWidth: 2,
     borderRadius: 999,
     paddingVertical: 5,
     paddingHorizontal: 16,
-    marginBottom: 18,
+    marginBottom: 4,
   },
   themePillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
 
-  // Horizontal stat summary
-  statsSummary: {
-    flexDirection: 'row',
-    width: '100%',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 8,
-    marginBottom: 14,
+  // Section divider
+  divider: {
+    height: 1,
+    marginVertical: 12,
+    opacity: 0.35,
   },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statDivider: {
-    width: 1,
-    marginHorizontal: 8,
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 1,
   },
 
-  // Score breakdown
-  breakdownCard: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-  },
-  breakdownTitle: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  breakdownRow: {
+  // Stat pills row
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
     marginBottom: 6,
   },
-  breakdownLabel: { fontSize: 14, fontWeight: '500' },
-  breakdownValue: { fontSize: 14, fontWeight: '700' },
-  breakdownLabelBold: { fontSize: 15, fontWeight: '900' },
-  breakdownValueBold: { fontSize: 15, fontWeight: '900' },
-  breakdownDivider: { height: 1, marginVertical: 8, opacity: 0.2 },
-
-  // Lifetime stats grid
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-    width: '100%',
-    marginBottom: 20,
-  },
-  statsCard: {
-    width: '48%',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  statPill: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
     alignItems: 'center',
   },
-  statsCardWide: { width: '100%' },
-  statsValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  statPillLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    opacity: 0.8,
+    marginBottom: 2,
   },
-  statsLabel2: {
-    fontSize: 12,
-    textAlign: 'center',
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: '900',
   },
 
   // Countdown
-  countdownCard: {
-    width: '100%',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
   countdownLabel: {
+    textAlign: 'center',
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 1,
     marginBottom: 4,
+    letterSpacing: 1,
   },
   countdownValue: {
-    fontSize: 22,
+    textAlign: 'center',
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1,
   },
@@ -506,38 +472,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
-    width: '100%',
-    marginBottom: 12,
+    marginTop: 12,
   },
-  pill: {
+  primaryButton: {
     borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  // Share button (green, Wordle style)
+  shareButton: {
+    marginTop: 10,
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    minWidth: 130,
     alignItems: 'center',
+    backgroundColor: '#22c55e',
   },
-  pillText: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-
-  // Share button (green, Word Builder style)
-  shareButton: {
+  shareButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    width: '100%',
-    backgroundColor: '#22c55e',
-    borderRadius: 999,
-    paddingVertical: 14,
   },
   shareButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
+    color: '#fff',
     letterSpacing: 0.5,
   },
 
