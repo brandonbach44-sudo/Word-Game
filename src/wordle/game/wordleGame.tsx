@@ -1362,7 +1362,7 @@ export default function WordleGame() {
             {/* Header (matches other games) */}
             <View style={styles.appHeader}>
               <Pressable style={styles.backToGamesButton} onPress={backToGames} hitSlop={8}>
-                <Text style={[styles.backToGamesText, { color: SUBTEXT }]}>← Games</Text>
+                <Text style={[styles.backToGamesText, { color: SUBTEXT }]} numberOfLines={1}>← Games</Text>
               </Pressable>
 
               <Text style={[styles.appTitle, { color: TEXT }]}>Wordle</Text>
@@ -2087,7 +2087,7 @@ const styles = StyleSheet.create({
   },
   backToGamesButton: {
     padding: 8,
-    width: 60,
+    minWidth: 60,
   },
   backToGamesText: {
     fontSize: 16,

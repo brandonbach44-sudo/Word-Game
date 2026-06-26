@@ -557,6 +557,30 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
   const handleManualFinish = () => triggerFinish();
 
+  const handlePlayAgain = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    dragStart.current = null;
+    lastValidCell.current = null;
+    comboCount.current = 0;
+    lastWordFoundAt.current = 0;
+    setResultData(null);
+    setLifetimeStats(null);
+    setPendingAchievements([]);
+    setCurrentPopup(null);
+    setGameFinished(false);
+    setGameState({
+      score: 0,
+      foundWords: [],
+      elapsedSeconds: 0,
+      foundCells: [],
+      currentSelection: [],
+    });
+    const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
+    setHintsRemaining(diffConfig?.hints ?? 0);
+    setHintCell(null);
+    setComboDisplay(null);
+  };
+
   const handleHint = (word: typeof puzzleData.words[0]) => {
     if (hintsRemaining <= 0) return;
     if (gameState.foundWords.some(fw => fw.word === word.word)) return;
@@ -603,7 +627,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
         <View style={styles.headerPlaceholder} />
@@ -867,7 +891,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                   />
                   <PrimaryButton
                     label={isDaily ? 'Play' : 'Play Again'}
-                    onPress={() => router.back()}
+                    onPress={isDaily ? () => router.navigate('/wordsearch') : handlePlayAgain}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
                     backgroundColor={background.backgroundColor}
