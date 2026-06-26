@@ -311,6 +311,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   // Drag state (refs, not state — don't need re-render mid-drag)
   const dragStart = useRef<Cell | null>(null);
   const lastValidCell = useRef<Cell | null>(null);
+  const gameFinishedRef = useRef(false);
 
   // Timer
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -362,14 +363,15 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     return null;
   };
 
-  // Keep a ref to gameState for use inside PanResponder closures
+  // Keep refs in sync for use inside PanResponder closures
   const gameStateRef = useRef(gameState);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { gameFinishedRef.current = gameFinished; }, [gameFinished]);
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => !gameFinishedRef.current,
+      onMoveShouldSetPanResponder: () => !gameFinishedRef.current,
 
       onPanResponderGrant: evt => {
         // Re-measure every touch so the grid position is always fresh
