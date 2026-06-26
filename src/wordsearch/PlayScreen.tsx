@@ -559,30 +559,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
   const handleManualFinish = () => triggerFinish();
 
-  const handlePlayAgain = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    dragStart.current = null;
-    lastValidCell.current = null;
-    comboCount.current = 0;
-    lastWordFoundAt.current = 0;
-    setResultData(null);
-    setLifetimeStats(null);
-    setPendingAchievements([]);
-    setCurrentPopup(null);
-    setGameFinished(false);
-    setGameState({
-      score: 0,
-      foundWords: [],
-      elapsedSeconds: 0,
-      foundCells: [],
-      currentSelection: [],
-    });
-    const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
-    setHintsRemaining(diffConfig?.hints ?? 0);
-    setHintCell(null);
-    setComboDisplay(null);
-  };
-
   const handleHint = (word: typeof puzzleData.words[0]) => {
     if (hintsRemaining <= 0) return;
     if (gameState.foundWords.some(fw => fw.word === word.word)) return;
@@ -886,14 +862,14 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                 <View style={overlayStyles.buttonRow}>
                   <PrimaryButton
                     label="Main Menu"
-                    onPress={() => router.navigate('/wordsearch')}
+                    onPress={() => router.navigate('/')}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
                     backgroundColor={background.backgroundColor}
                   />
                   <PrimaryButton
-                    label={isDaily ? 'Play' : 'Play Again'}
-                    onPress={isDaily ? () => router.navigate('/wordsearch') : handlePlayAgain}
+                    label="Play Again"
+                    onPress={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
                     backgroundColor={background.backgroundColor}
