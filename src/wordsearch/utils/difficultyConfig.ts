@@ -20,12 +20,12 @@ export interface DifficultyConfig {
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   easy: {
     label: 'Easy',
-    description: '10×10 · 8 words · Left & Down only · 3:00',
+    description: '10×10 · 8 words · No backwards · 3:00',
     rows: 10,
     cols: 10,
     wordsPerPuzzle: 8,
     allowBackwards: false,
-    allowDiagonal: false,
+    allowDiagonal: true,
     maxWordLength: 8,
     multiplier: 1,
     timeLimit: 180,
@@ -38,7 +38,7 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
     cols: 12,
     wordsPerPuzzle: 10,
     allowBackwards: true,
-    allowDiagonal: false,
+    allowDiagonal: true,
     maxWordLength: 10,
     multiplier: 2,
     timeLimit: 240,
