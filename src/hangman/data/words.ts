@@ -521,14 +521,6 @@ export const songTitles = [
 
 // Alias for HangmanScreen imports
 export const WORD_CATEGORIES = categories;
-
-// Exported after arrays are defined so they can be referenced correctly
-export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
-  "Idioms": categories["Idioms"],
-  "Movie Titles": movieTitles,
-  "Song Titles": songTitles,
-  "TV Show Titles": tvShowTitles,
-};
 export const movieTitles = [
 
   "The Godfather",
@@ -1023,3 +1015,11 @@ export const tvShowTitles = [
   "You",
   "Dirty John",
 ];
+
+// Defined after all arrays so movieTitles, songTitles, tvShowTitles are not undefined
+export const PHRASE_CATEGORIES: { [key: string]: string[] } = {
+  "Idioms": categories["Idioms"],
+  "Movie Titles": movieTitles,
+  "Song Titles": songTitles,
+  "TV Show Titles": tvShowTitles,
+};
