@@ -46,6 +46,7 @@ export default function WordSearchGameRoute() {
       themeId={themeId as any}
       difficulty={difficulty}
       puzzleData={puzzle}
+      timeLimit={DIFFICULTY_CONFIG[difficulty].timeLimit}
     />
   );
 }

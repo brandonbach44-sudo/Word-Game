@@ -89,6 +89,7 @@ const DEFAULT_STYLES: Record<number, { background: string; border: string; text:
   4: { background: '#D4A574', border: '#C19460', text: '#ffffff' },  // Warm Tan
   5: { background: '#E8A0A0', border: '#D68F8F', text: '#ffffff' },  // Dusty Rose
   6: { background: '#6AACB8', border: '#5899A5', text: '#ffffff' },  // Soft Teal
+  7: { background: '#ffffff', border: '#d1d5db', text: '#111827' },      // White
 };
 
 interface GameTileProps {
@@ -100,6 +101,7 @@ interface GameTileProps {
   tileSize: number;
   tierName: TierName;
   variant: number; // 1 = static, 2 = glow (for non-default), 1-6 = styles (for default)
+  appBg?: string; // page background color — used for 'default' tier
 }
 
 // ===== MAIN COMPONENT =====
@@ -112,6 +114,7 @@ export const GameTile = ({
   tileSize,
   tierName,
   variant,
+  appBg,
 }: GameTileProps) => {
   // Dynamic font size - letter takes up ~55% of tile
   const fontSize = Math.round(tileSize * 0.55);
@@ -361,7 +364,20 @@ export const GameTile = ({
     );
   }
 
-  // ===== DEFAULT TIER (6 style colors) =====
+  // ===== DEFAULT / CLASSIC TIER =====
+  // 'default' uses app background; 'classic' uses the 6 color styles
+  if (tierName === 'default') {
+    const bg = appBg ?? '#f5f0e6';
+    return (
+      <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
+        <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
+          <View style={[styles.tile, { width: tileSize, height: tileSize, backgroundColor: bg, borderColor: 'rgba(0,0,0,0.12)', borderWidth: 1.5 }]}>
+            <Text style={[styles.letterText, { fontSize: Math.round(tileSize * 0.55), color: '#ffffff' }]}>{letter}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
   const defaultStyle = DEFAULT_STYLES[variant] || DEFAULT_STYLES[1];
   
   return (

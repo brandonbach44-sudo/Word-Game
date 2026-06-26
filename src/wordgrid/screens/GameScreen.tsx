@@ -423,68 +423,102 @@ export default function GameScreen() {
               contentContainerStyle={styles.resultsPageContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Brand */}
-              <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
+              <View style={[styles.resultsCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
 
-              <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
-              <Text style={[styles.gameOverSubtitle, { color: bg.secondaryText }]}>
-                You found {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} and scored {score} points.
-              </Text>
+                {/* Brand */}
+                <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
 
-              {/* Stat pills */}
-              <View style={styles.statsRow}>
-                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
-                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Words</Text>
-                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{foundWords.length}</Text>
-                </View>
-                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
-                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Score</Text>
-                  <Text style={[styles.statPillValue, { color: COLORS.accent }]}>{score}</Text>
-                </View>
-              </View>
-              <View style={styles.statsRow}>
-                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
-                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Length</Text>
-                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestLen}</Text>
-                </View>
-                <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
-                  <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Word</Text>
-                  <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestPts} pts</Text>
-                </View>
-              </View>
+                <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
+                <Text style={[styles.gameOverSubtitle, { color: bg.secondaryText }]}>
+                  {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} · {score} points
+                </Text>
 
-              {/* Buttons */}
-              <View style={styles.buttonRow}>
+                {/* ── This Game ── */}
+                <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
+                <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>THIS GAME</Text>
+                <View style={styles.statsRow}>
+                  <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Words</Text>
+                    <Text style={[styles.statPillValue, { color: bg.textColor }]}>{foundWords.length}</Text>
+                  </View>
+                  <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Score</Text>
+                    <Text style={[styles.statPillValue, { color: COLORS.accent }]}>{score}</Text>
+                  </View>
+                </View>
+                <View style={styles.statsRow}>
+                  <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Length</Text>
+                    <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestLen}</Text>
+                  </View>
+                  <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Word</Text>
+                    <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestPts} pts</Text>
+                  </View>
+                </View>
+
+                {/* ── Lifetime Stats ── */}
+                {stats && stats.gamesPlayed > 0 && (
+                  <>
+                    <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
+                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>YOUR STATS</Text>
+                    <View style={styles.statsRow}>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>High Score</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{stats.highScore.toLocaleString()}</Text>
+                      </View>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Games</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{stats.gamesPlayed}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.statsRow}>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Total Words</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{stats.totalWordsFound.toLocaleString()}</Text>
+                      </View>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best/Game</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{stats.bestWordsInGame}</Text>
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* Buttons */}
+                <View style={styles.buttonRow}>
+                  <Pressable
+                    style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+                    onPress={handleBackToMenu}
+                  >
+                    <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+                    onPress={handlePlayAgain}
+                  >
+                    <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
+                  </Pressable>
+                </View>
+
+                {/* Share */}
                 <Pressable
-                  style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                  onPress={handleBackToMenu}
+                  style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+                  onPress={async () => {
+                    try {
+                      await Share.share({
+                        message: `🔤 Word Grid\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
+                      });
+                    } catch (_) {}
+                  }}
                 >
-                  <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
+                  <View style={styles.shareButtonInner}>
+                    <Share2 size={18} color="#fff" />
+                    <Text style={styles.shareButtonText}>Share Result</Text>
+                  </View>
                 </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                  onPress={handlePlayAgain}
-                >
-                  <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
-                </Pressable>
-              </View>
 
-              {/* Share */}
-              <Pressable
-                style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                onPress={async () => {
-                  try {
-                    await Share.share({
-                      message: `🔤 Word Grid\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
-                    });
-                  } catch (_) {}
-                }}
-              >
-                <View style={styles.shareButtonInner}>
-                  <Share2 size={18} color="#fff" />
-                  <Text style={styles.shareButtonText}>Share Result</Text>
-                </View>
-              </Pressable>
+              </View>
             </ScrollView>
           </View>
 
@@ -992,17 +1026,26 @@ const styles = StyleSheet.create({
   // ── Results screen ──
   carouselPage: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 12,
   },
   resultsPageContent: {
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 18,
     paddingBottom: 30,
   },
+  resultsCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
+  },
+  resultsDivider: { height: 1, marginVertical: 12, opacity: 0.35 },
+  resultsSectionTitle: { fontSize: 14, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
   // Results page — Wordle/Hangman card style
   brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
   gameOverTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
-  gameOverSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 16 },
+  gameOverSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 4 },
   statsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 },
   statPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
   statPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },

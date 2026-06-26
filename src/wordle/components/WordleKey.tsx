@@ -27,6 +27,7 @@ const DEFAULT_STYLES: Record<number, { background: string; border: string; text:
   4: { background: '#D4A574', border: '#C19460', text: '#ffffff' }, // Warm Tan
   5: { background: '#E8A0A0', border: '#D68F8F', text: '#ffffff' }, // Dusty Rose
   6: { background: '#6AACB8', border: '#5899A5', text: '#ffffff' }, // Soft Teal
+  7: { background: '#ffffff', border: '#d1d5db', text: '#111827' },       // White
 };
 
 const RAINBOW_COLORS    = ['#ff0000', '#ff8000', '#ffff00', '#00ff00', '#0080ff', '#8000ff'];
@@ -199,7 +200,6 @@ export const WordleKey: React.FC<WordleKeyProps> = ({
   // ── GEM TIER (ImageBackground) ──
   if (isGem) {
     const gemImage = GEM_IMAGES[skin];
-    const borderColor = animatedBorderColor ?? skinConfig.glowColor ?? defaultBorder;
     return (
       <Pressable
         onPress={onPress}
@@ -210,7 +210,7 @@ export const WordleKey: React.FC<WordleKeyProps> = ({
             marginHorizontal,
             borderRadius,
             overflow: 'hidden',
-            borderColor,
+            borderWidth: 0,
             transform: [{ scale: pressed ? 0.88 : 1 }],
           },
         ]}
@@ -225,11 +225,30 @@ export const WordleKey: React.FC<WordleKeyProps> = ({
     );
   }
 
-  // ── DEFAULT (with variant color) ──
-  const variant = DEFAULT_STYLES[defaultVariant] ?? DEFAULT_STYLES[1];
-  const defBg = variant.background;
-  const defBorder = variant.border;
-  const defText = variant.text;
+  // ── CLASSIC (6 color variants) ──
+  if (skin === 'classic') {
+    const variant = DEFAULT_STYLES[defaultVariant] ?? DEFAULT_STYLES[1];
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.key,
+          {
+            width,
+            marginHorizontal,
+            borderRadius,
+            backgroundColor: variant.background,
+            borderColor: variant.border,
+            transform: [{ scale: pressed ? 0.88 : 1 }],
+          },
+        ]}
+      >
+        <Text style={[styles.keyText, { color: variant.text }]}>{keyLabel}</Text>
+      </Pressable>
+    );
+  }
+
+  // ── DEFAULT (plain app theme colors) ──
   return (
     <Pressable
       onPress={onPress}
@@ -239,13 +258,13 @@ export const WordleKey: React.FC<WordleKeyProps> = ({
           width,
           marginHorizontal,
           borderRadius,
-          backgroundColor: defBg,
-          borderColor: defBorder,
+          backgroundColor: defaultBg,
+          borderColor: defaultBorder,
           transform: [{ scale: pressed ? 0.88 : 1 }],
         },
       ]}
     >
-      <Text style={[styles.keyText, { color: defText }]}>{keyLabel}</Text>
+      <Text style={[styles.keyText, { color: defaultText }]}>{keyLabel}</Text>
     </Pressable>
   );
 };

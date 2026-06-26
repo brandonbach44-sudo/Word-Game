@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import {
     Animated,
     Dimensions,
+    Modal,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -85,44 +86,51 @@ export const AchievementPopup:  React.FC<AchievementPopupProps> = ({
   if (!achievement) return null;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateY: slideAnim }],
-          opacity: opacityAnim,
-        },
-      ]}
+    <Modal
+      transparent
+      visible={!!achievement}
+      animationType="none"
+      statusBarTranslucent
     >
-      <TouchableOpacity
-        style={[styles.popup, { backgroundColor }]}
-        onPress={dismissPopup}
-        activeOpacity={0.9}
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            transform: [{ translateY: slideAnim }],
+            opacity: opacityAnim,
+          },
+        ]}
+        pointerEvents="box-none"
       >
-        <View style={styles.content}>
-          <Text style={styles.emoji}>{achievement.emoji}</Text>
-          <View style={styles.textContainer}>
-            <Text style={styles.unlocked}>Achievement Unlocked!</Text>
-            <Text style={[styles.name, { color: textColor }]}>
-              {achievement.name}
-            </Text>
-            <Text style={[styles.description, { color: textColor, opacity: 0.7 }]}>
-              {achievement.description}
-            </Text>
+        <TouchableOpacity
+          style={[styles.popup, { backgroundColor }]}
+          onPress={dismissPopup}
+          activeOpacity={0.9}
+        >
+          <View style={styles.content}>
+            <Text style={styles.emoji}>{achievement.emoji}</Text>
+            <View style={styles.textContainer}>
+              <Text style={styles.unlocked}>Achievement Unlocked!</Text>
+              <Text style={[styles.name, { color: textColor }]}>
+                {achievement.name}
+              </Text>
+              <Text style={[styles.description, { color: textColor, opacity: 0.7 }]}>
+                {achievement.description}
+              </Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    </Animated. View>
+        </TouchableOpacity>
+      </Animated.View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50,
+    top: 60,
     left: 0,
     right: 0,
-    zIndex: 1000,
     alignItems: 'center',
     paddingHorizontal: 20,
   },

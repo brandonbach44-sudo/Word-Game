@@ -1,6 +1,6 @@
 // Tile tier definitions and configurations
 
-export type TierName = 'default' | 'copper' | 'bronze' | 'silver' | 'gold' | 'ruby' | 'emerald' | 'platinum' | 'diamond' | 'legendary' | 'iridescence' | 'rose_quartz';
+export type TierName = 'default' | 'classic' | 'copper' | 'bronze' | 'silver' | 'gold' | 'ruby' | 'emerald' | 'platinum' | 'diamond' | 'legendary' | 'iridescence' | 'rose_quartz';
 
 export interface TierVariant {
   backgroundColor: string;
@@ -22,7 +22,7 @@ export interface TierConfig {
 
 // Tier order for timeline display
 export const TIER_ORDER: TierName[] = [
-  'default', 'copper', 'bronze', 'silver', 'gold',
+  'default', 'classic', 'copper', 'bronze', 'silver', 'gold',
   'platinum', 'ruby', 'emerald', 'diamond', 'legendary', 'iridescence', 'rose_quartz'
 ];
 
@@ -46,6 +46,16 @@ export const TIERS: Record<TierName, TierConfig> = {
         textColor: '#fff',
         hasGlow: false, 
       },
+    }
+  },
+  classic: {
+    name: 'classic',
+    displayName: 'Classic',
+    baseThreshold: 0,
+    v2ScoreThreshold: 0,
+    variants: {
+      1: { backgroundColor: '#5B8FB9', borderColor: '#4A7A9E', textColor: '#ffffff', hasGlow: false },
+      2: { backgroundColor: '#5B8FB9', borderColor: '#4A7A9E', textColor: '#ffffff', hasGlow: false },
     }
   },
   copper: {

@@ -292,7 +292,7 @@ const WordleResultOverlay = ({
                 backgroundColor={BG}
               />
               <PrimaryButton
-                label="Practice"
+                label="Play"
                 onPress={onGoPractice}
                 borderColor={BORDER}
                 textColor={TEXT}

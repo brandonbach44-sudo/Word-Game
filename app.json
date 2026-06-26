@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "WordGame",
-    "slug": "WordGame",
+    "name": "WordFury",
+    "slug": "WordFury",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bachapps.wordgames"
+      "bundleIdentifier": "com.bachapps.wordfury"
     },
     "android": {
       "adaptiveIcon": {
@@ -45,7 +45,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "28b704c1-a924-4832-960a-f7ac13f4902b"
+        "projectId": "76ab8f96-ff69-4cff-bda1-bb279f62f30d"
       }
     },
     "experiments": {

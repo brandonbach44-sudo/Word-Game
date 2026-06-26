@@ -29,9 +29,10 @@ export default function WordSearchDailyScreen() {
         const generatedPuzzle = generatePuzzleWithSeed(dailyTheme, seed, {
           rows: 12,
           cols: 12,
-          wordsPerPuzzle: 15,
+          wordsPerPuzzle: 10,
           allowBackwards: true,
-          allowDiagonal: true,
+          allowDiagonal: false, // no diagonals for daily — fairer with time pressure
+          maxWordLength: 10,
         });
 
         setPuzzle(generatedPuzzle);
@@ -67,6 +68,7 @@ export default function WordSearchDailyScreen() {
       difficulty="challenge"
       puzzleData={puzzle}
       isDaily={true}
+      timeLimit={240} // 4-minute countdown for daily (Challenge settings)
     />
   );
 }

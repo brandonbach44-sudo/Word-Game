@@ -245,9 +245,12 @@ export const equipTile = async (tier: TierName, variant: number): Promise<boolea
       return false;
     }
     
-    const progress = tiles.tierProgress[tier];
-    if (variant > progress.highestVariantUnlocked) {
-      return false;
+    // default and classic are always fully unlocked — skip variant check
+    if (tier !== 'default' && tier !== 'classic') {
+      const progress = tiles.tierProgress[tier];
+      if (!progress || variant > progress.highestVariantUnlocked) {
+        return false;
+      }
     }
     
     tiles.equippedTier = tier;

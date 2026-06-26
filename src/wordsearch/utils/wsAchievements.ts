@@ -318,17 +318,17 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
 
   // ── LIFETIME SCORE ───────────────────────────────────────────────────────
   {
-    id: 'ws_lifetime_1000',
+    id: 'ws_lifetime_500',
     emoji: '🪙',
     name: 'Copper',
-    description: 'Reach 1,000 lifetime score',
+    description: 'Reach 500 lifetime score',
     category: 'lifetime',
   },
   {
-    id: 'ws_lifetime_5000',
+    id: 'ws_lifetime_2500',
     emoji: '🥉',
     name: 'Bronze',
-    description: 'Reach 5,000 lifetime score',
+    description: 'Reach 2,500 lifetime score',
     category: 'lifetime',
   },
   {
@@ -339,17 +339,31 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
     category: 'lifetime',
   },
   {
-    id: 'ws_lifetime_50000',
+    id: 'ws_lifetime_25000',
     emoji: '🥇',
     name: 'Gold',
+    description: 'Reach 25,000 lifetime score',
+    category: 'lifetime',
+  },
+  {
+    id: 'ws_lifetime_50000',
+    emoji: '❤️',
+    name: 'Ruby',
     description: 'Reach 50,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_100000',
-    emoji: '❤️',
-    name: 'Ruby',
+    emoji: '💚',
+    name: 'Emerald',
     description: 'Reach 100,000 lifetime score',
+    category: 'lifetime',
+  },
+  {
+    id: 'ws_lifetime_250000',
+    emoji: '💠',
+    name: 'Platinum',
+    description: 'Reach 250,000 lifetime score',
     category: 'lifetime',
   },
   {
@@ -361,9 +375,23 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   },
   {
     id: 'ws_lifetime_1000000',
-    emoji: '✨',
+    emoji: '👑',
     name: 'Legendary',
     description: 'Reach 1,000,000 lifetime score',
+    category: 'lifetime',
+  },
+  {
+    id: 'ws_lifetime_2500000',
+    emoji: '✨',
+    name: 'Iridescence',
+    description: 'Reach 2,500,000 lifetime score',
+    category: 'lifetime',
+  },
+  {
+    id: 'ws_lifetime_5000000',
+    emoji: '🌸',
+    name: 'Rose Quartz',
+    description: 'Reach 5,000,000 lifetime score',
     category: 'lifetime',
   },
 
@@ -480,13 +508,17 @@ export function getWSAchievementProgress(
     case 'ws_score_1500':   return clamp(bs, 1500);
     case 'ws_score_2000':   return clamp(bs, 2000);
     // Lifetime score
-    case 'ws_lifetime_1000':    return clamp(ls, 1000);
-    case 'ws_lifetime_5000':    return clamp(ls, 5000);
+    case 'ws_lifetime_500':     return clamp(ls, 500);
+    case 'ws_lifetime_2500':    return clamp(ls, 2500);
     case 'ws_lifetime_10000':   return clamp(ls, 10000);
+    case 'ws_lifetime_25000':   return clamp(ls, 25000);
     case 'ws_lifetime_50000':   return clamp(ls, 50000);
     case 'ws_lifetime_100000':  return clamp(ls, 100000);
+    case 'ws_lifetime_250000':  return clamp(ls, 250000);
     case 'ws_lifetime_500000':  return clamp(ls, 500000);
     case 'ws_lifetime_1000000': return clamp(ls, 1000000);
+    case 'ws_lifetime_2500000': return clamp(ls, 2500000);
+    case 'ws_lifetime_5000000': return clamp(ls, 5000000);
     // Words found
     case 'ws_words_50':     return clamp(tw, 50);
     case 'ws_words_200':    return clamp(tw, 200);
@@ -634,13 +666,17 @@ export async function checkWordSearchAchievements(
   }
 
   // ── Lifetime score ────────────────────────────────────────────────────
-  if (stats.lifetimeScore >= 1000)    await tryUnlock('ws_lifetime_1000');
-  if (stats.lifetimeScore >= 5000)    await tryUnlock('ws_lifetime_5000');
+  if (stats.lifetimeScore >= 500)     await tryUnlock('ws_lifetime_500');
+  if (stats.lifetimeScore >= 2500)    await tryUnlock('ws_lifetime_2500');
   if (stats.lifetimeScore >= 10000)   await tryUnlock('ws_lifetime_10000');
+  if (stats.lifetimeScore >= 25000)   await tryUnlock('ws_lifetime_25000');
   if (stats.lifetimeScore >= 50000)   await tryUnlock('ws_lifetime_50000');
   if (stats.lifetimeScore >= 100000)  await tryUnlock('ws_lifetime_100000');
+  if (stats.lifetimeScore >= 250000)  await tryUnlock('ws_lifetime_250000');
   if (stats.lifetimeScore >= 500000)  await tryUnlock('ws_lifetime_500000');
   if (stats.lifetimeScore >= 1000000) await tryUnlock('ws_lifetime_1000000');
+  if (stats.lifetimeScore >= 2500000) await tryUnlock('ws_lifetime_2500000');
+  if (stats.lifetimeScore >= 5000000) await tryUnlock('ws_lifetime_5000000');
 
   // ── Total words found ─────────────────────────────────────────────────
   if (stats.totalWordsFound >= 50)   await tryUnlock('ws_words_50');

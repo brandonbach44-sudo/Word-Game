@@ -797,11 +797,14 @@ export default function WordBuilder() {
               
               {/* Share Button - Daily Only */}
               {isDaily && (
-                <TouchableOpacity 
-                  style={styles.shareButton} 
+                <TouchableOpacity
+                  style={styles.shareButton}
                   onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
                 >
-                  <Text style={styles.shareButtonText}>Share Result</Text>
+                  <View style={styles.shareButtonInner}>
+                    <Share2 size={18} color="#fff" />
+                    <Text style={styles.shareButtonText}>Share Result</Text>
+                  </View>
                 </TouchableOpacity>
               )}
               
@@ -981,6 +984,7 @@ export default function WordBuilder() {
                   tileSize={tileSize}
                   tierName={equippedTier}
                   variant={equippedVariant}
+                  appBg={background.backgroundColor}
                 />
               ))}
             </View>
@@ -1253,6 +1257,7 @@ export default function WordBuilder() {
           embedded
           onTileChange={refreshPlayerData}
           onPopupChange={setPanLocked}
+          appBg={background.backgroundColor}
         />
       </View>
 
@@ -2140,16 +2145,23 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   shareButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#22c55e',
     paddingHorizontal: 30,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 999,
     marginBottom: 20,
+    alignItems: 'center',
+  },
+  shareButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   shareButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '900',
     color: '#fff',
+    letterSpacing: 0.5,
   },
   statsSummary: {
     flexDirection: 'row',

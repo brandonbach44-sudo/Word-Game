@@ -16,7 +16,11 @@ export type WordSearchThemeId =
   | 'cities'
   | 'technology'
   | 'body'
-  | 'movies';
+  | 'movies'
+  | 'tv_shows'
+  | 'video_games'
+  | 'music_artists'
+  | 'superheroes';
 
 export interface WordSearchTheme {
   id: WordSearchThemeId;
@@ -189,9 +193,57 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
     words: [
       'AVATAR', 'TITANIC', 'JAWS', 'ALIEN', 'GREASE',
       'ROCKY', 'PSYCHO', 'CASABLANCA', 'GLADIATOR', 'INCEPTION',
-      'INTERSTELLAR', 'SPOTLIGHT', 'PARASITE', 'NOMADLAND', 'MOONLIGHT',
-      'JOKER', 'DUNKIRK', 'GRAVITY', 'FROZEN', 'COCO',
-      'UP', 'WALL', 'SHREK', 'BOLT', 'RATATOUILLE',
+      'INTERSTELLAR', 'SPOTLIGHT', 'PARASITE', 'MOONLIGHT', 'JOKER',
+      'DUNKIRK', 'GRAVITY', 'FROZEN', 'COCO', 'SHREK',
+      'RATATOUILLE', 'BRAVEHEART', 'SCARFACE', 'GOODFELLAS', 'BEETLEJUICE',
+    ],
+  },
+  {
+    id: 'tv_shows',
+    name: 'TV Shows',
+    emoji: '📺',
+    words: [
+      'FRIENDS', 'SEINFELD', 'LOST', 'DEXTER', 'SUITS',
+      'BILLIONS', 'SUCCESSION', 'OZARK', 'HOMELAND', 'SCRUBS',
+      'MONK', 'HOUSE', 'ROME', 'VEEP', 'FARGO',
+      'LUTHER', 'FLEABAG', 'WESTWORLD', 'BLACKLIST', 'MINDHUNTER',
+      'SHAMELESS', 'DEADWOOD', 'JUSTIFIED', 'BREAKING', 'PEAKY',
+    ],
+  },
+  {
+    id: 'video_games',
+    name: 'Video Games',
+    emoji: '🎮',
+    words: [
+      'MINECRAFT', 'FORTNITE', 'ZELDA', 'POKEMON', 'MARIO',
+      'TETRIS', 'HALO', 'ROBLOX', 'OVERWATCH', 'VALORANT',
+      'SKYRIM', 'FALLOUT', 'PORTAL', 'DOOM', 'SONIC',
+      'KIRBY', 'METROID', 'CELESTE', 'UNDERTALE', 'STARDEW',
+      'CUPHEAD', 'HOLLOW', 'SHOVEL', 'HOTLINE', 'BATTLEFRONT',
+    ],
+  },
+  {
+    id: 'music_artists',
+    name: 'Music Artists',
+    emoji: '🎤',
+    words: [
+      'BEYONCE', 'ADELE', 'RIHANNA', 'DRAKE', 'EMINEM',
+      'MADONNA', 'SHAKIRA', 'BOWIE', 'NIRVANA', 'METALLICA',
+      'RADIOHEAD', 'COLDPLAY', 'QUEEN', 'JOURNEY', 'EAGLES',
+      'PINK', 'ELTON', 'USHER', 'MARIAH', 'SANTANA',
+      'STING', 'PRINCE', 'LIZZO', 'HALSEY', 'DOJA',
+    ],
+  },
+  {
+    id: 'superheroes',
+    name: 'Superheroes',
+    emoji: '🦸',
+    words: [
+      'BATMAN', 'SUPERMAN', 'SPIDERMAN', 'THOR', 'HULK',
+      'WOLVERINE', 'CYCLOPS', 'DEADPOOL', 'AQUAMAN', 'FLASH',
+      'PUNISHER', 'DAREDEVIL', 'HAWKEYE', 'ANTMAN', 'VENOM',
+      'GAMBIT', 'MYSTIQUE', 'MAGNETO', 'THANOS', 'LOKI',
+      'VISION', 'ROGUE', 'STORM', 'NIGHTCRAWLER', 'COLOSSUS',
     ],
   },
 ];

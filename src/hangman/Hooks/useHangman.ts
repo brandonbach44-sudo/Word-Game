@@ -84,6 +84,19 @@ export const useHangman = () => {
     setIsPhrase(false);
   }, []);
 
+  // Guess the whole word — win if correct, instant loss if wrong
+  const guessWord = useCallback(
+    (guess: string) => {
+      if (status !== 'playing') return;
+      if (guess.trim().toLowerCase() === word.toLowerCase()) {
+        setStatus('won');
+      } else {
+        setStatus('lost');
+      }
+    },
+    [status, word]
+  );
+
   // Guess a letter (case-insensitive, whitespace-safe)
   const guessLetter = useCallback(
     (letter: string) => {
@@ -190,6 +203,7 @@ export const useHangman = () => {
     startGameWithWord,  // NEW
     resetGame,          // NEW
     guessLetter,
+    guessWord,
 
     // Helpers
     getDisplayWord,

@@ -13,12 +13,14 @@ export interface DifficultyConfig {
   allowDiagonal: boolean;
   maxWordLength: number;
   multiplier: number;
+  timeLimit: number;  // seconds
+  hints: number;      // hints available per game (0 = none)
 }
 
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   easy: {
     label: 'Easy',
-    description: '10×10 · 8 words · Left & Down only',
+    description: '10×10 · 8 words · Left & Down only · 3:00',
     rows: 10,
     cols: 10,
     wordsPerPuzzle: 8,
@@ -26,10 +28,12 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
     allowDiagonal: false,
     maxWordLength: 8,
     multiplier: 1,
+    timeLimit: 180,
+    hints: 3,
   },
   challenge: {
     label: 'Challenge',
-    description: '12×12 · 10 words · All directions, no diagonals',
+    description: '12×12 · 10 words · All directions · 4:00',
     rows: 12,
     cols: 12,
     wordsPerPuzzle: 10,
@@ -37,10 +41,12 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
     allowDiagonal: false,
     maxWordLength: 10,
     multiplier: 2,
+    timeLimit: 240,
+    hints: 0,
   },
   extreme: {
     label: 'Extreme',
-    description: '15×15 · 14 words · All 8 directions',
+    description: '15×15 · 14 words · All 8 directions · 6:00',
     rows: 15,
     cols: 15,
     wordsPerPuzzle: 14,
@@ -48,5 +54,7 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
     allowDiagonal: true,
     maxWordLength: 12,
     multiplier: 3,
+    timeLimit: 360,
+    hints: 0,
   },
 };

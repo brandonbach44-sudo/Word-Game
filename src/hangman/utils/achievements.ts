@@ -243,7 +243,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'superhero',
-    name: 'Super Sleuth',
+    name: 'Superhero',
     description: 'Win 10 games in Superheroes category',
     emoji: '🦸',
     category: 'categories',

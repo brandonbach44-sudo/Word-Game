@@ -25,9 +25,10 @@ interface CustomizeScreenProps {
   embedded?: boolean;
   onTileChange?: () => void;
   onPopupChange?: (open: boolean) => void;
+  appBg?: string;
 }
 
-export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false, onTileChange, onPopupChange }) => {
+export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedded = false, onTileChange, onPopupChange, appBg = '#f5f0e6' }) => {
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const [tiles, setTiles] = useState<PlayerTiles | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,8 +68,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
   const getTierStatus = (tierName: TierName) => {
     if (!tiles || !stats) return { unlocked: false, highestVariant: 0 };
     
-    if (tierName === 'default') {
-      return { unlocked: true, highestVariant: 6 };
+    if (tierName === 'default' || tierName === 'classic') {
+      return { unlocked: true, highestVariant: 7 };
     }
     
     const progress = tiles.tierProgress[tierName];
@@ -76,7 +77,7 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     
     return {
       unlocked: stats.totalScore >= tier.baseThreshold,
-      highestVariant: Math.min(progress.highestVariantUnlocked, 2),
+      highestVariant: Math.min(progress?.highestVariantUnlocked ?? 0, 2),
     };
   };
 
@@ -131,7 +132,14 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
           styles.tierCard,
           equipped && styles.tierCardEquipped,
         ]}
-        onPress={() => openTierPreview(tierName)}
+        onPress={async () => {
+          if (!status.unlocked) return;
+          if (tierName === 'default') {
+            await handleEquip('default', 1);
+            return;
+          }
+          openTierPreview(tierName);
+        }}
         disabled={!status.unlocked}
         activeOpacity={0.7}
       >
@@ -150,7 +158,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
               onPress={() => openTierPreview(tierName)}
               tileSize={60}
               tierName={tierName}
-              variant={status.highestVariant || 1}
+              variant={isEquipped(tierName) && tiles ? tiles.equippedVariant : (status.highestVariant || 1)}
+              appBg={appBg}
             />
           </View>
         </Pressable>
@@ -201,10 +210,11 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     const tier = TIERS[selectedTier];
     const status = getTierStatus(selectedTier);
     const isDefault = selectedTier === 'default';
-    const maxVariant = isDefault ? 6 : 2;
+    const isClassic = selectedTier === 'classic';
+    const maxVariant = (isDefault || isClassic) ? 7 : 2;
     
     // V2 progress data
-    const v2Progress = tiles.tierProgress[selectedTier]?.scoreWithTier || 0;
+    const v2Progress = tiles.tierProgress[selectedTier]?.scoreWithTier ?? 0;
     const v2Required = tier.v2ScoreThreshold;
     const v2ProgressPercent = Math.min((v2Progress / v2Required) * 100, 100);
     const v2Unlocked = status.highestVariant >= 2;
@@ -239,8 +249,8 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
               />
             </View>
             
-            {/* Right side - V2 Progress (non-default tiers only) */}
-            {!isDefault && (
+            {/* Right side - V2 Progress (non-default/classic tiers only) */}
+            {!isDefault && !isClassic && (
               <View style={styles.v2ProgressSection}>
                 {v2Unlocked ? (
                   <Text style={styles.v2UnlockedText}>V2 Unlocked!</Text>
@@ -312,6 +322,7 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
                     tileSize={50}
                     tierName={selectedTier}
                     variant={variant}
+                    appBg={appBg}
                   />
                   <Text style={[styles.variantLabel, !isUnlocked && styles.variantLabelLocked]}>
                     {isDefault ? `Style ${variant}` : `V${variant}`}
@@ -355,6 +366,27 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
 
   const content = (
     <>
+      {/* ── BIG LIVE PREVIEW TILE ── */}
+      {tiles && (
+        <View style={styles.bigPreviewContainer}>
+          <GameTile
+            letter="A"
+            index={0}
+            isSelected={false}
+            selectionOrder={null}
+            onPress={() => {}}
+            tileSize={80}
+            tierName={tiles.equippedTier}
+            variant={tiles.equippedVariant}
+            appBg={appBg}
+          />
+          <Text style={styles.bigPreviewLabel}>
+            {TIERS[tiles.equippedTier]?.displayName ?? 'Default'}
+            {(tiles.equippedTier === 'classic') ? ` · Style ${tiles.equippedVariant}` : tiles.equippedTier !== 'default' ? ` · V${tiles.equippedVariant}` : ''}
+          </Text>
+        </View>
+      )}
+
       {stats && (
         <View style={styles.scoreContainer}>
           <Text style={styles.scoreLabel}>Lifetime Score</Text>
@@ -433,6 +465,19 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 60,
+  },
+  bigPreviewContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+    marginBottom: 4,
+  },
+  bigPreviewLabel: {
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b5c4a',
   },
   scoreContainer: {
     alignItems: 'center',
