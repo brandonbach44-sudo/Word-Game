@@ -5,6 +5,14 @@ import { COLORS } from '../../shared/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const DEFAULT_SLOT_WIDTH = 38;
+const DEFAULT_SLOT_MARGIN = 4; // marginHorizontal each side
+const DEFAULT_SLOT_TOTAL = DEFAULT_SLOT_WIDTH + DEFAULT_SLOT_MARGIN * 2; // 46
+const DEFAULT_FONT_SIZE = 26;
+const MIN_SLOT_WIDTH = 18;
+const MIN_SLOT_MARGIN = 1;
+const MIN_FONT_SIZE = 12;
+
 type WordDisplayProps = {
   displayWord: string[];
   isWon?: boolean;
@@ -28,7 +36,18 @@ function buildLines(letters: string[], maxPerLine: number): number[][] {
       lines.push(currentLine);
       currentLine = [];
     }
-    currentLine.push(...currentWordIndices);
+    // Break a single word that's longer than maxPerLine across multiple lines
+    let remaining = [...currentWordIndices];
+    while (remaining.length > 0) {
+      const lineCount = currentLine.filter(i => i !== -1).length;
+      const spaceLeft = maxPerLine - lineCount;
+      const chunk = remaining.splice(0, spaceLeft);
+      currentLine.push(...chunk);
+      if (remaining.length > 0) {
+        lines.push(currentLine);
+        currentLine = [];
+      }
+    }
     currentWordIndices = [];
   };
 
@@ -56,14 +75,28 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
 }) => {
   const { background } = useTheme();
 
-  // 38px slot + 8px margin = 46px per slot
-  const maxPerLine = Math.max(5, Math.floor((SCREEN_WIDTH - 32) / 46));
+  const availableWidth = SCREEN_WIDTH - 32; // paddingHorizontal 16 each side
+  const maxPerLine = Math.max(5, Math.floor(availableWidth / DEFAULT_SLOT_TOTAL));
 
   // Always use actualWord characters so text content never changes — only color changes
   const source = actualWord || displayWord.map(c => (c === '_' ? 'W' : c)).join('');
   const sourceChars = source.split('');
 
   const lines = buildLines(sourceChars, maxPerLine);
+
+  // Scale slot size down if the longest line is too wide to fit at default size
+  const longestLineLength = lines.reduce(
+    (max, line) => Math.max(max, line.filter(i => i !== -1).length),
+    0
+  );
+  const fitsDefault = longestLineLength * DEFAULT_SLOT_TOTAL <= availableWidth;
+  const slotTotal = fitsDefault
+    ? DEFAULT_SLOT_TOTAL
+    : Math.max(MIN_SLOT_WIDTH + MIN_SLOT_MARGIN * 2, availableWidth / longestLineLength);
+  const ratio = slotTotal / DEFAULT_SLOT_TOTAL;
+  const slotWidth = Math.max(MIN_SLOT_WIDTH, Math.floor(DEFAULT_SLOT_WIDTH * ratio));
+  const slotMargin = Math.max(MIN_SLOT_MARGIN, Math.floor(DEFAULT_SLOT_MARGIN * ratio));
+  const fontSize = Math.max(MIN_FONT_SIZE, Math.floor(DEFAULT_FONT_SIZE * ratio));
 
   const letterColor = (idx: number): string => {
     if (isWon) return COLORS.accent;
@@ -93,8 +126,8 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
 
             if (isPunctuation(char)) {
               return (
-                <View key={`pu${posIdx}`} style={[styles.slot, { borderBottomColor: 'transparent' }]}>
-                  <Text style={[styles.letter, { color: background.textColor }]}>{char}</Text>
+                <View key={`pu${posIdx}`} style={[styles.slot, { width: slotWidth, marginHorizontal: slotMargin, borderBottomColor: 'transparent' }]}>
+                  <Text style={[styles.letter, { fontSize, color: background.textColor }]}>{char}</Text>
                 </View>
               );
             }
@@ -105,12 +138,12 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
             return (
               <View
                 key={`sl${posIdx}`}
-                style={[styles.slot, { borderBottomColor: dashColor(charIdx) }]}
+                style={[styles.slot, { width: slotWidth, marginHorizontal: slotMargin, borderBottomColor: dashColor(charIdx) }]}
               >
                 <Text
                   style={[
                     styles.letter,
-                    { color: revealed ? letterColor(charIdx) : 'transparent' },
+                    { fontSize, color: revealed ? letterColor(charIdx) : 'transparent' },
                   ]}
                 >
                   {char}
@@ -139,16 +172,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   slot: {
-    width: 38,
     height: 54,
-    marginHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 7,
     borderBottomWidth: 3,
   },
   letter: {
-    fontSize: 26,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     textAlign: 'center',
