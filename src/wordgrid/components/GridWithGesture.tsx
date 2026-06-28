@@ -15,10 +15,14 @@ const CELL_SIZE = Math.floor(
 const CELL_STEP = CELL_SIZE + CELL_GAP;
 const GRID_DIM = GRID_SIZE * CELL_SIZE + CELL_GAP * (GRID_SIZE - 1);
 
-// Dead zone: minimum travel from current cell center before a snap fires.
-// Also the threshold for "returned to anchor" in the backtrack gate.
-// 0.35 (was 0.40) — slightly more responsive without causing accidental snaps.
-const DEAD_ZONE = CELL_STEP * 0.35;
+// Anti-trembling: ignore finger movement within this radius of the current cell center.
+// Kept small — the Voronoi midpoint is the real boundary; this just prevents jitter.
+const DEAD_ZONE = CELL_STEP * 0.15;
+
+// Extra clearance required before a backtrack fires.
+// The finger must be BACKTRACK_GAP px CLOSER to the previous cell than to the current one.
+// Forces a genuine reversal past the midpoint rather than a micro-wobble.
+const BACKTRACK_GAP = CELL_STEP * 0.20;
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
@@ -43,17 +47,18 @@ function cellCenter(pos: Position) {
   };
 }
 
-// Find the nearest cell to a raw touch coordinate (used for initial tap).
-function getNearestCell(x: number, y: number): Position {
-  let bestDist = Infinity;
+// Voronoi assignment: which of the 16 cells is the finger physically closest to?
+// This is more robust than angle-sector math — the finger lands where it is,
+// not where a 45° sector says it should be.
+function getClosestCell(touchX: number, touchY: number): Position {
+  let bestDistSq = Infinity;
   let bestCell: Position = { row: 0, col: 0 };
   for (let row = 0; row < GRID_SIZE; row++) {
     for (let col = 0; col < GRID_SIZE; col++) {
-      const cx = GRID_PADDING + col * CELL_STEP + CELL_SIZE / 2;
-      const cy = GRID_PADDING + row * CELL_STEP + CELL_SIZE / 2;
-      const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-      if (dist < bestDist) {
-        bestDist = dist;
+      const c = cellCenter({ row, col });
+      const d = (touchX - c.x) ** 2 + (touchY - c.y) ** 2;
+      if (d < bestDistSq) {
+        bestDistSq = d;
         bestCell = { row, col };
       }
     }
@@ -61,58 +66,13 @@ function getNearestCell(x: number, y: number): Position {
   return bestCell;
 }
 
-// 8-way angle-based cell detection.
-// Returns 'same' when still in the current cell's dead zone.
-// Returns null when the candidate would be out of grid bounds.
-// Returns a Position when a neighboring cell is detected.
-//
-// Flash prevention is NOT done here — it's handled by snapAnchorRef in onUpdate.
-// Using angle (not proximity) means diagonals are just as easy as straight moves:
-// every direction has an equal 45° sector.
-function getCellFromAngle(
-  lastCell: Position,
-  touchX: number,
-  touchY: number
-): Position | 'same' | null {
-  const center = cellCenter(lastCell);
-  const dx = touchX - center.x;
-  const dy = touchY - center.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-
-  if (dist < DEAD_ZONE) return 'same';
-
-  const ux = dx / dist;
-  const uy = dy / dist;
-
-  const S2 = 1 / Math.sqrt(2);
-  const DIRS = [
-    { dr: -1, dc:  0, nx:  0,  ny: -1  }, // N
-    { dr: -1, dc:  1, nx:  S2, ny: -S2 }, // NE
-    { dr:  0, dc:  1, nx:  1,  ny:  0  }, // E
-    { dr:  1, dc:  1, nx:  S2, ny:  S2 }, // SE
-    { dr:  1, dc:  0, nx:  0,  ny:  1  }, // S
-    { dr:  1, dc: -1, nx: -S2, ny:  S2 }, // SW
-    { dr:  0, dc: -1, nx: -1,  ny:  0  }, // W
-    { dr: -1, dc: -1, nx: -S2, ny: -S2 }, // NW
-  ] as const;
-
-  let bestDot = -Infinity;
-  let bestDr = 0;
-  let bestDc = 0;
-  for (const dir of DIRS) {
-    const dot = dir.nx * ux + dir.ny * uy;
-    if (dot > bestDot) {
-      bestDot = dot;
-      bestDr = dir.dr;
-      bestDc = dir.dc;
-    }
-  }
-
-  const newRow = lastCell.row + bestDr;
-  const newCol = lastCell.col + bestDc;
-  if (newRow < 0 || newRow >= GRID_SIZE || newCol < 0 || newCol >= GRID_SIZE) return null;
-
-  return { row: newRow, col: newCol };
+// True if a and b are 8-directionally adjacent (not the same cell).
+function isAdjacent(a: Position, b: Position): boolean {
+  return (
+    Math.abs(a.row - b.row) <= 1 &&
+    Math.abs(a.col - b.col) <= 1 &&
+    !(a.row === b.row && a.col === b.col)
+  );
 }
 
 interface Props {
@@ -126,83 +86,70 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [livePoint, setLivePoint] = useState<{ x: number; y: number } | null>(null);
   const pathRef = useRef<Position[]>([]);
 
-  // Snap-anchor: the cell we most recently snapped FROM.
-  //
-  // WHY THIS FIXES THE FLASH:
-  //   After snapping A→B, the angle computed FROM B immediately points back toward A
-  //   (the finger is still between A and B). Without a gate this causes instant
-  //   backtrack → re-snap → oscillation (green flash).
-  //
-  //   The fix: after snapping A→B we store A as the snap anchor. Any detected
-  //   backtrack is blocked until the finger physically returns to within DEAD_ZONE
-  //   of A. Since the finger was already outside A's dead zone when the snap fired,
-  //   it must genuinely reverse all the way back before backtrack is allowed.
-  //
-  //   WHY THIS DOESN'T HURT DIAGONALS:
-  //   The snap fires purely on angle (no proximity requirement), so diagonal cells
-  //   are as easy to hit as straight ones. The anchor only prevents BACKWARD movement
-  //   immediately after a snap — forward movement to C, D, etc. is never blocked.
-  const snapAnchorRef = useRef<Position | null>(null);
-
-  const resetGesture = () => {
-    snapAnchorRef.current = null;
-    setLivePoint(null);
-  };
-
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
     .minDistance(0)
     .onBegin((e) => {
-      const cell = getNearestCell(e.x, e.y);
+      const cell = getClosestCell(e.x, e.y);
       pathRef.current = [cell];
       setSelectedCells([cell]);
       setLivePoint({ x: e.x, y: e.y });
-      snapAnchorRef.current = null;
     })
     .onStart((_e) => {
       // onBegin already committed the starting cell — do NOT override it here.
-      // The old code re-computed the nearest cell at onStart time, which skipped
-      // the starting letter when the user began dragging immediately after touch.
     })
     .onUpdate((e) => {
-      // Always update the live finger position for the rubber-band line
       setLivePoint({ x: e.x, y: e.y });
 
       const path = pathRef.current;
       if (path.length === 0) return;
 
       const lastCell = path[path.length - 1];
-      const result = getCellFromAngle(lastCell, e.x, e.y);
+      const lastCenter = cellCenter(lastCell);
+      const dx = e.x - lastCenter.x;
+      const dy = e.y - lastCenter.y;
+      const distFromLast = Math.sqrt(dx * dx + dy * dy);
 
-      // Still in dead zone or out of grid bounds — no change
-      if (result === 'same' || result === null) return;
+      // Anti-trembling: ignore tiny movements right around the current cell center.
+      if (distFromLast < DEAD_ZONE) return;
 
-      const cell = result;
-      const existingIdx = path.findIndex((c) => c.row === cell.row && c.col === cell.col);
+      // Voronoi: which cell is the finger physically closest to?
+      const closest = getClosestCell(e.x, e.y);
+
+      // Still in the same cell's territory — nothing to do.
+      if (closest.row === lastCell.row && closest.col === lastCell.col) return;
+
+      // We only snap to cells that are adjacent to the current last cell.
+      // This prevents "jumping" across the grid on fast swipes.
+      if (!isAdjacent(lastCell, closest)) return;
+
+      const existingIdx = path.findIndex(
+        (c) => c.row === closest.row && c.col === closest.col
+      );
 
       if (existingIdx !== -1 && existingIdx !== path.length - 1) {
-        // Detected a cell already in the path — potential backtrack.
-        // Block it until the finger has physically returned to the snap-anchor's dead zone.
-        if (snapAnchorRef.current) {
-          const sac = cellCenter(snapAnchorRef.current);
-          const distFromAnchor = Math.sqrt((e.x - sac.x) ** 2 + (e.y - sac.y) ** 2);
-          if (distFromAnchor > DEAD_ZONE) return; // not back yet — hold
-          // Finger is inside anchor's dead zone → genuine reversal, allow backtrack
-          snapAnchorRef.current = null;
-        }
+        // Potential backtrack — require the finger to be convincingly past the midpoint
+        // toward the previous cell before trimming, so micro-wobbles don't revert.
+        const closestCenter = cellCenter(closest);
+        const distToClosest = Math.sqrt(
+          (e.x - closestCenter.x) ** 2 + (e.y - closestCenter.y) ** 2
+        );
+        // distFromLast - distToClosest = how much closer we are to the backtrack target
+        // than to the cell we're leaving. Must exceed BACKTRACK_GAP.
+        if (distFromLast - distToClosest < BACKTRACK_GAP) return;
+
         const trimmed = path.slice(0, existingIdx + 1);
         pathRef.current = trimmed;
         setSelectedCells(trimmed);
         return;
       }
 
-      // Already the last cell — no change
+      // Already the last cell in the path — no change.
       if (existingIdx === path.length - 1) return;
 
-      // Forward snap: record the cell we're leaving as the new snap anchor
-      snapAnchorRef.current = lastCell;
-      const next = [...path, cell];
+      // Forward: add the new adjacent cell.
+      const next = [...path, closest];
       pathRef.current = next;
       setSelectedCells(next);
     })
@@ -210,14 +157,14 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       const path = pathRef.current;
       pathRef.current = [];
       setSelectedCells([]);
-      resetGesture();
+      setLivePoint(null);
       if (path.length >= 3) onPathComplete(path);
     })
     .onFinalize(() => {
       if (pathRef.current.length > 0) {
         pathRef.current = [];
         setSelectedCells([]);
-        resetGesture();
+        setLivePoint(null);
       }
     });
 
