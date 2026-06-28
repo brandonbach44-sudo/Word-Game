@@ -48,7 +48,7 @@ export default function Home() {
       </Text>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.gamesContainer}>
-        {/* Word Builder */}
+        {/* Wordsmith */}
         <TouchableOpacity
           style={[
             styles.gameCard,
@@ -61,7 +61,7 @@ export default function Home() {
           onPress={() => router.push('/wordbuilder')}
         >
           <Text style={[styles.gameTitle, { color: background.textColor }]}>
-            Word Builder
+            Wordsmith
           </Text>
           <Text style={[styles.gameDescription, { color: background.secondaryText }]}>
             Build words from random letters before time runs out
@@ -108,7 +108,7 @@ export default function Home() {
           </Text>
         </TouchableOpacity>
 
-        {/* Word Grid */}
+        {/* Grid Rush */}
         <TouchableOpacity
           style={[
             styles.gameCard,
@@ -121,7 +121,7 @@ export default function Home() {
           onPress={() => router.push('/wordgrid')}
         >
           <Text style={[styles.gameTitle, { color: background.textColor }]}>
-            Word Grid
+            Grid Rush
           </Text>
           <Text style={[styles.gameDescription, { color: background.secondaryText }]}>
             Swipe to connect letters and find hidden words

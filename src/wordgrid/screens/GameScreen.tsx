@@ -269,7 +269,7 @@ export default function GameScreen() {
         setDailyStats(newDailyStats);
         const blocks = buildScoreBlocks(score);
         const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
-        const text = `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${score} pts · ${foundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+        const text = `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${score} pts · ${foundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
         setDailyShareText(text);
         setShowDailyPopup(true);
         setScreen('results');
@@ -507,7 +507,7 @@ export default function GameScreen() {
                   onPress={async () => {
                     try {
                       await Share.share({
-                        message: `🔤 Word Grid\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
+                        message: `🔤 Grid Rush\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
                       });
                     } catch (_) {}
                   }}
@@ -662,7 +662,7 @@ export default function GameScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={[styles.backText, { color: bg.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: bg.textColor }]}>Word Grid</Text>
+        <Text style={[styles.appTitle, { color: bg.textColor }]}>Grid Rush</Text>
         <View style={{ width: 70 }} />
       </View>
 
@@ -719,14 +719,14 @@ export default function GameScreen() {
                 if (!dailyStats) return '';
                 const blocks = buildScoreBlocks(dailyStats.lastScore);
                 const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                return `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+                return `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
               })()}
               onPlay={dailyPlayedToday
                 ? () => {
                     if (!dailyShareText && dailyStats) {
                       const blocks = buildScoreBlocks(dailyStats.lastScore);
                       const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                      setDailyShareText(`🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
+                      setDailyShareText(`🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
                     }
                     setShowDailyPopup(true);
                     setScreen('results');

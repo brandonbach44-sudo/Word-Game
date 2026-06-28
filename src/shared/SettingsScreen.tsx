@@ -33,7 +33,7 @@ const WHATS_NEW = [
     date: 'June 2026',
     changes: [
       'Initial release of Word Games',
-      'Word Builder game with Daily Challenge',
+      'Wordsmith game with Daily Challenge',
       'Customizable tile designs',
       'Achievement system with 41 badges',
       'Multiple themes and dark mode',

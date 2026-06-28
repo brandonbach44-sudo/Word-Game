@@ -711,7 +711,7 @@ export default function WordBuilder() {
     const streakText = dailyChallenge && dailyChallenge.dailyStreak > 1
       ? `Streak: ${dailyChallenge.dailyStreak} days\n`
       : '';
-    const msg = `Word Builder Daily\n${formatDate()}\n\nScore: ${dailyResult.score}\nWords: ${dailyResult.words.length}\n${streakText}\nPlay Word Fury!`;
+    const msg = `Wordsmith Daily\n${formatDate()}\n\nScore: ${dailyResult.score}\nWords: ${dailyResult.words.length}\n${streakText}\nPlay Word Fury!`;
     try { await Share.share({ message: msg }); } catch (e) {}
   };
 
@@ -720,7 +720,7 @@ export default function WordBuilder() {
       ? `Streak: ${dailyChallenge.dailyStreak} days\n` 
       : '';
     
-    const message = `Word Builder Daily\n${formatDate()}\n\nScore: ${score}\nWords: ${totalFound}/${totalPossible} (${percentFound}%)\n${streakText}\nCan you beat my score?`;
+    const message = `Wordsmith Daily\n${formatDate()}\n\nScore: ${score}\nWords: ${totalFound}/${totalPossible} (${percentFound}%)\n${streakText}\nCan you beat my score?`;
     
     try {
       await Share.share({
@@ -1041,7 +1041,7 @@ export default function WordBuilder() {
         <TouchableOpacity style={styles.backToGamesButton} onPress={backToAppMenu}>
           <Text style={[styles.backToGamesText, dynamicStyles.textSecondary]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.appTitle, dynamicStyles.text]}>Word Builder</Text>
+        <Text style={[styles.appTitle, dynamicStyles.text]}>Wordsmith</Text>
         <View style={{ width: 60 }} />
       </View>
       
