@@ -774,74 +774,101 @@ export default function WordBuilder() {
         >
           {/* ===== PAGE 1: RESULTS ===== */}
           <View style={[styles.carouselPage, { width }]}>
-            <ScrollView 
+            <ScrollView
               contentContainerStyle={styles.resultsPageContent}
               showsVerticalScrollIndicator={false}
             >
-              {isDaily ? (
-                <>
-                  <Text style={[styles.gameOverTitle, dynamicStyles.text]}>Daily Complete!</Text>
-                  <Text style={[styles.dateText, dynamicStyles.textSecondary]}>{formatDate()}</Text>
-                  {dailyChallenge && dailyChallenge.dailyStreak > 1 && (
-                    <View style={styles.streakBadge}>
-                      <Text style={styles.streakText}>{dailyChallenge.dailyStreak} Day Streak!</Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                <Text style={[styles.gameOverTitle, dynamicStyles.text]}>Time's Up!</Text>
-              )}
-              
-              <Text style={styles.finalScore}>{score}</Text>
-              <Text style={[styles.finalScoreLabel, dynamicStyles.textSecondary]}>points</Text>
-              
-              {/* Share Button - Daily Only */}
-              {isDaily && (
-                <TouchableOpacity
-                  style={styles.shareButton}
-                  onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
-                >
-                  <View style={styles.shareButtonInner}>
-                    <Share2 size={18} color="#fff" />
-                    <Text style={styles.shareButtonText}>Share Result</Text>
+              <View style={[styles.resultsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+
+                {/* Brand */}
+                <Text style={[styles.brand, { color: background.secondaryText }]}>WORDSMITH</Text>
+
+                {/* Title + subtitle */}
+                <Text style={[styles.gameOverTitle, { color: background.textColor }]}>
+                  {isDaily ? 'Daily Complete!' : 'Time\'s Up!'}
+                </Text>
+                <Text style={[styles.gameOverSubtitle, { color: background.secondaryText }]}>
+                  {isDaily
+                    ? `You scored ${score} pts with ${stats.totalFound} words.`
+                    : `You found ${stats.totalFound} of ${stats.totalPossible} possible words.`}
+                </Text>
+
+                {/* Score box */}
+                <View style={[styles.scoreBox, { borderColor: background.borderColor }]}>
+                  <Text style={[styles.scoreLabel, { color: background.secondaryText }]}>Score</Text>
+                  <Text style={[styles.scoreValue, { color: background.textColor }]}>{score}</Text>
+                  <Text style={[styles.scoreSubLabel, { color: background.secondaryText }]}>points</Text>
+                </View>
+
+                {/* This game */}
+                <View style={[styles.resultsDivider, { backgroundColor: background.borderColor, opacity: 0.35 }]} />
+                <Text style={[styles.resultsSectionTitle, { color: background.textColor }]}>This game</Text>
+                <View style={styles.statsRow}>
+                  <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: background.textColor }]}>Found</Text>
+                    <Text style={[styles.statPillValue, { color: background.textColor }]}>{stats.totalFound}</Text>
                   </View>
-                </TouchableOpacity>
-              )}
-              
-              {/* Stats Summary */}
-              <View style={[styles.statsSummary, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.totalFound}</Text>
-                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Found</Text>
+                  <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: background.textColor }]}>Possible</Text>
+                    <Text style={[styles.statPillValue, { color: background.textColor }]}>{stats.totalPossible}</Text>
+                  </View>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.totalPossible}</Text>
-                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Possible</Text>
+                <View style={styles.statsRow}>
+                  <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                    <Text style={[styles.statPillLabel, { color: background.textColor }]}>Completion</Text>
+                    <Text style={[styles.statPillValue, { color: COLORS.accent }]}>{stats.percentFound}%</Text>
+                  </View>
                 </View>
-                <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumber, dynamicStyles.text]}>{stats.percentFound}%</Text>
-                  <Text style={[styles.statLabel, dynamicStyles.textSecondary]}>Completion</Text>
-                </View>
-              </View>
-              
-              <View style={styles.buttonContainer}>
-                {!isDaily && (
-                  <TouchableOpacity 
-                    style={styles.playAgainButton} 
-                    onPress={() => startPracticeGame(gameMode as 'blitz' | 'standard', letterCount)}
-                  >
-                    <Text style={styles.playAgainText}>Play Again</Text>
-                  </TouchableOpacity>
+
+                {/* Daily streak */}
+                {isDaily && dailyChallenge && (
+                  <>
+                    <View style={[styles.resultsDivider, { backgroundColor: background.borderColor, opacity: 0.35 }]} />
+                    <Text style={[styles.resultsSectionTitle, { color: background.textColor }]}>Stats</Text>
+                    <View style={styles.statsRow}>
+                      <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: background.textColor }]}>Streak</Text>
+                        <Text style={[styles.statPillValue, { color: background.textColor }]}>{dailyChallenge.dailyStreak}</Text>
+                      </View>
+                      <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: background.textColor }]}>Best</Text>
+                        <Text style={[styles.statPillValue, { color: background.textColor }]}>{dailyChallenge.bestDailyStreak}</Text>
+                      </View>
+                    </View>
+                  </>
                 )}
-                
-                <TouchableOpacity 
-                  style={[styles.menuButton, dynamicStyles.button]} 
-                  onPress={backToMenu}
-                >
-                  <Text style={[styles.menuButtonText, dynamicStyles.text]}>Back to Menu</Text>
-                </TouchableOpacity>
+
+                {/* Buttons */}
+                <View style={styles.resultsButtonRow}>
+                  {!isDaily && (
+                    <Pressable
+                      style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+                      onPress={() => startPracticeGame(gameMode as 'blitz' | 'standard', letterCount)}
+                    >
+                      <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Play Again</Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+                    onPress={backToMenu}
+                  >
+                    <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Main Menu</Text>
+                  </Pressable>
+                </View>
+
+                {/* Share — daily only */}
+                {isDaily && (
+                  <Pressable
+                    style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+                    onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
+                  >
+                    <View style={styles.shareButtonInner}>
+                      <Share2 size={18} color="#fff" />
+                      <Text style={styles.shareButtonText}>Share Result</Text>
+                    </View>
+                  </Pressable>
+                )}
+
               </View>
             </ScrollView>
           </View>
@@ -2077,8 +2104,8 @@ const styles = StyleSheet.create({
   },
   resultsPageContent: {
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingBottom: 30,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
   pageIndicatorContainer: {
     alignItems: 'center',
@@ -2114,42 +2141,117 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontStyle: 'italic',
   },
+  // Results card (Wordle-style)
+  resultsCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
+  },
+  brand: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
   gameOverTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  dateText: {
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  streakBadge: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  streakText: {
+  gameOverSubtitle: {
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
-    color: '#92400e',
+    marginBottom: 12,
   },
-  finalScore: {
-    fontSize: 72,
-    fontWeight: 'bold',
-    color: COLORS.accent,
+  scoreBox: {
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
   },
-  finalScoreLabel: {
-    fontSize: 24,
-    marginBottom: 15,
+  scoreLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  scoreValue: {
+    fontSize: 40,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  scoreSubLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  resultsDivider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  resultsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+  statPill: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  statPillLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    opacity: 0.8,
+    marginBottom: 2,
+  },
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  resultsButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  primaryButton: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   shareButton: {
+    marginTop: 10,
     backgroundColor: '#22c55e',
-    paddingHorizontal: 30,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 999,
-    marginBottom: 20,
     alignItems: 'center',
   },
   shareButtonInner: {
@@ -2162,45 +2264,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#fff',
     letterSpacing: 0.5,
-  },
-  statsSummary: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 25,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  statDivider: {
-    width: 1,
-    marginHorizontal: 15,
-  },
-  buttonContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  playAgainButton: {
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 25,
-    marginBottom: 15,
-  },
-  playAgainText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   menuButton: {
     paddingHorizontal: 40,

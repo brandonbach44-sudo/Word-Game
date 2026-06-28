@@ -501,22 +501,6 @@ export default function GameScreen() {
                   </Pressable>
                 </View>
 
-                {/* Share */}
-                <Pressable
-                  style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                  onPress={async () => {
-                    try {
-                      await Share.share({
-                        message: `🔤 Grid Rush\nFound ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points\nBest word: ${bestPts} pts\n#WordFury`,
-                      });
-                    } catch (_) {}
-                  }}
-                >
-                  <View style={styles.shareButtonInner}>
-                    <Share2 size={18} color="#fff" />
-                    <Text style={styles.shareButtonText}>Share Result</Text>
-                  </View>
-                </Pressable>
 
               </View>
             </ScrollView>

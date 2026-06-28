@@ -1,7 +1,6 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
-import { COLORS } from '../../shared/theme';
 
 type GameStatusProps = {
   isVisible: boolean;
@@ -10,17 +9,59 @@ type GameStatusProps = {
   category: string;
   incorrectGuesses: number;
   totalGuesses: number;
+  maxAttempts?: number;
   onPlayAgain: () => void;
   onBackToMenu: () => void;
 };
 
-export const GameStatus: React. FC<GameStatusProps> = ({
+const StatPill = ({
+  label,
+  value,
+  textColor,
+  borderColor,
+  backgroundColor,
+}: {
+  label: string;
+  value: string;
+  textColor: string;
+  borderColor: string;
+  backgroundColor: string;
+}) => (
+  <View style={[styles.statPill, { borderColor, backgroundColor }]}>
+    <Text style={[styles.statPillLabel, { color: textColor }]}>{label}</Text>
+    <Text style={[styles.statPillValue, { color: textColor }]}>{value}</Text>
+  </View>
+);
+
+const PrimaryButton = ({
+  label,
+  onPress,
+  borderColor,
+  textColor,
+  backgroundColor,
+}: {
+  label: string;
+  onPress: () => void;
+  borderColor: string;
+  textColor: string;
+  backgroundColor: string;
+}) => (
+  <Pressable
+    style={({ pressed }) => [styles.primaryButton, { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+    onPress={onPress}
+  >
+    <Text style={[styles.primaryButtonText, { color: textColor }]}>{label}</Text>
+  </Pressable>
+);
+
+export const GameStatus: React.FC<GameStatusProps> = ({
   isVisible,
   isWon,
   word,
   category,
   incorrectGuesses,
   totalGuesses,
+  maxAttempts = 6,
   onPlayAgain,
   onBackToMenu,
 }) => {
@@ -28,90 +69,53 @@ export const GameStatus: React. FC<GameStatusProps> = ({
 
   if (!isVisible) return null;
 
-  const statusColor = isWon ? COLORS. accent : COLORS.danger;
-  const title = isWon ? '🎉 You Won!' : '😔 Game Over';
+  const BG = background.backgroundColor ?? '#f9f5ec';
+  const TEXT = background.textColor ?? '#111827';
+  const SUBTEXT = background.secondaryText ?? '#6b7280';
+  const CARD = background.cardColor ?? '#ffffff';
+  const BORDER = background.borderColor ?? '#e5e7eb';
+
+  const title = isWon ? 'You Got It!' : 'Game Over';
   const subtitle = isWon
-    ? 'Great job! You guessed the word!'
-    : "Better luck next time! ";
+    ? `You guessed it with ${incorrectGuesses}/${maxAttempts} wrong guesses.`
+    : `The word was revealed below.`;
 
   return (
-    <Modal
-      transparent
-      visible={isVisible}
-      animationType="fade"
-      statusBarTranslucent
-    >
+    <Modal transparent visible={isVisible} animationType="fade" statusBarTranslucent>
       <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: background.cardColor }]}>
-          {/* Title */}
-          <Text style={[styles.title, { color: statusColor }]}>{title}</Text>
-          <Text style={[styles.subtitle, { color: background.secondaryText }]}>
-            {subtitle}
-          </Text>
+        <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
 
-          {/* Word Reveal */}
-          <View style={[styles.wordRevealContainer, { borderColor: background.borderColor }]}>
-            <Text style={[styles.wordLabel, { color: background.secondaryText }]}>
-              The word was
-            </Text>
-            <Text style={[styles.word, { color: background.textColor }]}>
-              {word}
-            </Text>
-            <View style={[styles.categoryBadge, { backgroundColor: statusColor }]}>
-              <Text style={styles.categoryText}>{category}</Text>
-            </View>
+          {/* Brand */}
+          <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
+
+          {/* Title + subtitle */}
+          <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
+          <Text style={[styles.subtitle, { color: SUBTEXT }]}>{subtitle}</Text>
+
+          {/* Solution box */}
+          <View style={[styles.solutionBox, { borderColor: BORDER }]}>
+            <Text style={[styles.solutionLabel, { color: SUBTEXT }]}>The word was</Text>
+            <Text style={[styles.solutionWord, { color: TEXT }]}>{word.toUpperCase()}</Text>
+            <Text style={[styles.solutionCategory, { color: SUBTEXT }]}>{category}</Text>
           </View>
 
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={[styles. statValue, { color: background.textColor }]}>
-                {totalGuesses}
-              </Text>
-              <Text style={[styles.statLabel, { color: background.secondaryText }]}>
-                Total Guesses
-              </Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: background.textColor }]}>
-                {incorrectGuesses}
-              </Text>
-              <Text style={[styles.statLabel, { color: background.secondaryText }]}>
-                Incorrect
-              </Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: background.borderColor }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: background.textColor }]}>
-                {6 - incorrectGuesses}
-              </Text>
-              <Text style={[styles.statLabel, { color: background.secondaryText }]}>
-                Lives Left
-              </Text>
-            </View>
+          {/* This game */}
+          <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
+          <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
+          <View style={styles.statsRow}>
+            <StatPill label="Wrong" value={`${incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Total" value={`${totalGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatPill label="Lives Left" value={`${maxAttempts - incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
           </View>
 
           {/* Buttons */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.playAgainButton, { backgroundColor: statusColor }]}
-              onPress={onPlayAgain}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.playAgainText}>Play Again</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.menuButton, { borderColor: background.borderColor }]}
-              onPress={onBackToMenu}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.menuButtonText, { color: background.textColor }]}>
-                Back to Menu
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+            <PrimaryButton label="Main Menu" onPress={onBackToMenu} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
           </View>
+
         </View>
       </View>
     </Modal>
@@ -121,105 +125,115 @@ export const GameStatus: React. FC<GameStatusProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
-    alignItems:  'center',
-    padding: 20,
-  },
-  container: {
-    width:  '100%',
-    maxWidth: 340,
-    borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
+    padding: 18,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
+  },
+  brand: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle:  {
-    fontSize: 16,
-    marginBottom: 24,
     textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
   },
-  wordRevealContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    marginBottom: 20,
-  },
-  wordLabel: {
+  subtitle: {
+    textAlign: 'center',
     fontSize: 14,
-    marginBottom: 8,
-  },
-  word: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    letterSpacing: 4,
-    textTransform: 'uppercase',
+    fontWeight: '600',
     marginBottom: 12,
   },
-  categoryBadge: {
-    paddingHorizontal: 16,
-    paddingVertical:  6,
-    borderRadius: 20,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  statDivider:  {
-    width: 1,
-    height: '100%',
-  },
-  buttonContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  playAgainButton: {
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  playAgainText:  {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  menuButton: {
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 12,
+  solutionBox: {
     borderWidth: 2,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
-  menuButtonText: {
-    fontSize: 16,
+  solutionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  solutionWord: {
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  solutionCategory: {
+    fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+  statPill: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  statPillLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    opacity: 0.8,
+    marginBottom: 2,
+  },
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  primaryButton: {
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
 

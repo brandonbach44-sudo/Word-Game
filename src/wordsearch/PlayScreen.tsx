@@ -876,23 +876,23 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                   />
                 </View>
 
-                {/* Share */}
-                <Pressable
-                  style={({ pressed }) => [overlayStyles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                  onPress={async () => {
-                    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const result = resultData.allFound ? `${resultData.foundWords}/${resultData.totalWords} ✅` : `${resultData.foundWords}/${resultData.totalWords}`;
-                    const text = isDaily
-                      ? `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`
-                      : `🔍 Word Search\nTheme: ${themeName}\nFound ${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`;
-                    try { await Share.share({ message: text }); } catch {}
-                  }}
-                >
-                  <View style={overlayStyles.shareButtonInner}>
-                    <Share2 size={18} color="#fff" />
-                    <Text style={overlayStyles.shareButtonText}>Share Result</Text>
-                  </View>
-                </Pressable>
+                {/* Share — daily only */}
+                {isDaily && (
+                  <Pressable
+                    style={({ pressed }) => [overlayStyles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+                    onPress={async () => {
+                      const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                      const result = resultData.allFound ? `${resultData.foundWords}/${resultData.totalWords} ✅` : `${resultData.foundWords}/${resultData.totalWords}`;
+                      const text = `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`;
+                      try { await Share.share({ message: text }); } catch {}
+                    }}
+                  >
+                    <View style={overlayStyles.shareButtonInner}>
+                      <Share2 size={18} color="#fff" />
+                      <Text style={overlayStyles.shareButtonText}>Share Result</Text>
+                    </View>
+                  </Pressable>
+                )}
 
               </View>
               <View style={{ height: 30 }} />
