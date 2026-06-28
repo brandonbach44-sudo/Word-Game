@@ -21,15 +21,12 @@ import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
 
 import { AchievementPopup } from './Components/AchievementPopup';
-import { HangmanCustomizeScreen } from './Components/HangmanCustomizeScreen';
 import { DailyChallengeCard } from './Components/DailyChallengeCard';
 import { DailyChallengePopup } from './Components/DailyChallengePopup';
 import { GameStatus } from './Components/GameStatus';
 import { HangmanFigure } from './Components/HangmanFigure';
 import { Keyboard } from './Components/Keyboard';
 import { WordDisplay } from './Components/WordDisplay';
-import { EquippedCosmetics } from './cosmetics/types';
-import { loadEquippedCosmetics, saveEquippedCosmetics } from './cosmetics/storage';
 
 import {
   DailyChallengeStats,
@@ -112,7 +109,7 @@ const styles = StyleSheet.create({
   categoryCardText: { fontSize: 16, fontWeight: 'bold', textAlign: 'left' },
   statsContainer: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 40 },
   tabStripWrapper: { flex: 1, overflow: 'hidden', alignItems: 'flex-start' },
-  tabStrip: { width: width * 3, flexDirection: 'row', alignSelf: 'flex-start' },
+  tabStrip: { width: width * 2, flexDirection: 'row', alignSelf: 'flex-start' },
   statsSectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
   statsCard: { width: '48%', padding: 15, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
@@ -135,7 +132,7 @@ const styles = StyleSheet.create({
   dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' }
 });
 
-type SegmentKey = 'play' | 'customize' | 'stats';
+type SegmentKey = 'play' | 'stats';
 type GameMode = 'menu' | 'category-select' | 'playing';
 type GameType = 'daily' | 'custom';
 
@@ -250,7 +247,7 @@ export default function HangmanScreen() {
   const { background } = useTheme();
 
   const [segment, setSegment] = useState<SegmentKey>('play');
-  const SEGMENT_KEYS: SegmentKey[] = ['play', 'customize', 'stats'];
+  const SEGMENT_KEYS: SegmentKey[] = ['play', 'stats'];
   const tabAnim = useRef(new Animated.Value(0)).current;
   const currentTabIdxRef = useRef(0);
   const dragBase = useRef(0);
@@ -263,12 +260,6 @@ export default function HangmanScreen() {
   const [lockedAchievements, setLockedAchievements] = useState<Achievement[]>([]);
   const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
   const [currentPopupAchievement, setCurrentPopupAchievement] = useState<Achievement | null>(null);
-
-  // Cosmetics state
-  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({
-    figureSkin: 'classic',
-    gallowsSkin: 'default',
-  });
 
   // Daily Challenge state
   const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
@@ -313,16 +304,14 @@ export default function HangmanScreen() {
       // ⚠️ DEV ONLY — remove before App Store release
       await unlockAllAchievementsForDev();
 
-      const [stats, unlocked, locked, cosmetics] = await Promise.all([
+      const [stats, unlocked, locked] = await Promise.all([
         loadHangmanStats(),
         getUnlockedAchievementsWithDetails(),
         getLockedAchievements(),
-        loadEquippedCosmetics(),
       ]);
       setPlayerStats(stats);
       setUnlockedAchievements(unlocked);
       setLockedAchievements(locked);
-      setEquippedCosmetics(cosmetics);
     };
     loadData();
     loadDailyStats().then(setDailyStats);
@@ -428,11 +417,6 @@ export default function HangmanScreen() {
     setSelectedCategory('Daily Challenge');
     startGameWithWord(dailyEntry.word, dailyEntry.category);
     setGameMode('playing');
-  };
-
-  const handleEquipCosmetics = async (cosmetics: EquippedCosmetics) => {
-    setEquippedCosmetics(cosmetics);
-    await saveEquippedCosmetics(cosmetics);
   };
 
   const handleBackToMenu = () => router.back();
@@ -611,8 +595,8 @@ export default function HangmanScreen() {
             maxAttempts={maxAttempts}
             isWon={isWon}
             isLost={isLost}
-            figureSkin={equippedCosmetics.figureSkin}
-            gallowsSkin={equippedCosmetics.gallowsSkin}
+            figureSkin="classic"
+            gallowsSkin="default"
           />
         </View>
         <WordDisplay
@@ -795,9 +779,9 @@ export default function HangmanScreen() {
         <View style={styles.headerPlaceholder} />
       </View>
       <View style={[styles.segmentSwitcher, { backgroundColor: background.cardColor }]}>
-        {(['play', 'customize', 'stats'] as SegmentKey[]).map((key) => {
+        {(['play', 'stats'] as SegmentKey[]).map((key) => {
           const isActive = key === segment;
-          const label = key === 'play' ? 'Play' : key === 'customize' ? 'Customize' : 'Stats';
+          const label = key === 'play' ? 'Play' : 'Stats';
           return (
             <Pressable
               key={key}
@@ -820,8 +804,8 @@ export default function HangmanScreen() {
       </View>
       <View style={styles.tabStripWrapper} {...menuPanResponder.panHandlers}>
       <Animated.View style={[styles.tabStrip, { transform: [{ translateX: tabAnim.interpolate({
-        inputRange: [0, 1, 2],
-        outputRange: [0, -width, -width * 2],
+        inputRange: [0, 1],
+        outputRange: [0, -width],
       }) }] }]}>
 
         <ScrollView
@@ -900,15 +884,6 @@ export default function HangmanScreen() {
           </View>
           <View style={{ height: 40 }} />
         </ScrollView>
-
-        {/* ── CUSTOMIZE TAB ── */}
-        <View style={{ width, flex: 1 }}>
-          <HangmanCustomizeScreen
-            equipped={equippedCosmetics}
-            gamesPlayed={DEBUG_UNLOCK_ALL_HANGMAN ? 9999 : (playerStats?.gamesPlayed ?? 0)}
-            onEquip={handleEquipCosmetics}
-          />
-        </View>
 
         <ScrollView style={{ width, flex: 1 }} contentContainerStyle={styles.statsContainer} showsVerticalScrollIndicator={false}>
           {/* Daily Challenge Stats */}
