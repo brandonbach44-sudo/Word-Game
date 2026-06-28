@@ -20,7 +20,7 @@ export interface DifficultyConfig {
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   easy: {
     label: 'Easy',
-    description: '10×10 · 8 words · No backwards · 3:00',
+    description: '10×10 · 8 words · Diagonals · No backwards · 3:00',
     rows: 10,
     cols: 10,
     wordsPerPuzzle: 8,

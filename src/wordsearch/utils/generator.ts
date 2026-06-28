@@ -139,14 +139,13 @@ function getAllowedDirections(allowBackwards: boolean, allowDiagonal: boolean): 
   dirs.push('RIGHT', 'DOWN');
 
   if (allowDiagonal) {
-    dirs.push('DOWNRIGHT');
+    // All 4 diagonal directions are available whenever diagonals are on,
+    // regardless of allowBackwards (diagonals aren't purely "backwards").
+    dirs.push('DOWNRIGHT', 'DOWNLEFT', 'UPRIGHT', 'UPLEFT');
   }
 
   if (allowBackwards) {
     dirs.push('LEFT', 'UP');
-    if (allowDiagonal) {
-      dirs.push('DOWNLEFT', 'UPRIGHT', 'UPLEFT');
-    }
   }
 
   return dirs;
