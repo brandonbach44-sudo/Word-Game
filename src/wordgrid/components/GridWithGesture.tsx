@@ -81,16 +81,45 @@ interface Props {
   disabled?: boolean;
 }
 
+// How long the finger must be still before the path auto-submits (ms).
+const PAUSE_SUBMIT_MS = 300;
+
 export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const [livePoint, setLivePoint] = useState<{ x: number; y: number } | null>(null);
   const pathRef = useRef<Position[]>([]);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending pause-submit timer.
+  const clearPauseTimer = () => {
+    if (pauseTimerRef.current !== null) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+  };
+
+  // Submit the current path and reset state, used by both onEnd and the pause timer.
+  const submitPath = () => {
+    clearPauseTimer();
+    const path = pathRef.current;
+    pathRef.current = [];
+    setSelectedCells([]);
+    setLivePoint(null);
+    if (path.length >= 3) onPathComplete(path);
+  };
+
+  // Restart the pause-submit countdown. Called on every finger movement.
+  const resetPauseTimer = () => {
+    clearPauseTimer();
+    pauseTimerRef.current = setTimeout(submitPath, PAUSE_SUBMIT_MS);
+  };
 
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
     .minDistance(0)
     .onBegin((e) => {
+      clearPauseTimer();
       const cell = getClosestCell(e.x, e.y);
       pathRef.current = [cell];
       setSelectedCells([cell]);
@@ -101,6 +130,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
     })
     .onUpdate((e) => {
       setLivePoint({ x: e.x, y: e.y });
+      resetPauseTimer(); // restart the pause countdown on every movement
 
       const path = pathRef.current;
       if (path.length === 0) return;
@@ -154,18 +184,11 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       setSelectedCells(next);
     })
     .onEnd(() => {
-      const path = pathRef.current;
-      pathRef.current = [];
-      setSelectedCells([]);
-      setLivePoint(null);
-      if (path.length >= 3) onPathComplete(path);
+      submitPath();
     })
     .onFinalize(() => {
-      if (pathRef.current.length > 0) {
-        pathRef.current = [];
-        setSelectedCells([]);
-        setLivePoint(null);
-      }
+      // Covers cancelled gestures (e.g. incoming call interrupting the touch).
+      if (pathRef.current.length > 0) submitPath();
     });
 
   const innerSize = GRID_DIM + GRID_PADDING * 2;
