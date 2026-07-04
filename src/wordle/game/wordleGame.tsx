@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import { Flame, Share2, Trophy } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { usePreventRemove } from "@react-navigation/core";
 import type { DailyLockState } from "../storage/wordleStorage";
 
 import { useTheme } from "../../shared/ThemeContext";
@@ -1148,6 +1150,31 @@ export default function WordleGame() {
     }
     goToMenu("play");
   }, [endGame, gameMode, goToMenu, guesses.length, startTime, status]);
+
+  // Same protection as above, but for leaving the Wordle screen entirely
+  // (iOS swipe-back gesture, Android hardware back button) rather than the
+  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
+  // handleGameBackPress altogether and escape with no result recorded.
+  const navigation = useNavigation();
+  usePreventRemove(gameMode === "daily" && status === "playing", ({ data }) => {
+    Alert.alert(
+      "Leave Daily Challenge?",
+      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
+      [
+        { text: "Keep Playing", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: () => {
+            const elapsedSeconds =
+              startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
+            endGame("lost", guesses.length, elapsedSeconds);
+            navigation.dispatch(data.action);
+          },
+        },
+      ]
+    );
+  });
 
   const gridShakeX = shakeAnim.interpolate({
     inputRange: [0, 1],

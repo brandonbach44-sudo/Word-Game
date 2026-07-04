@@ -13,6 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/core';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
@@ -328,31 +330,33 @@ const LadderPlayScreen: React.FC<Props> = ({
     finishGame('gave_up', chain, hintsUsed);
   };
 
-  const handleBackPress = () => {
-    // Leaving mid-game doesn't cost anything in Quick Play (you can just
-    // start another puzzle), but Daily only allows one attempt per day —
-    // so walking away mid-attempt needs to actually count as a loss,
-    // otherwise you could dodge a bad attempt by leaving and coming back.
-    if (mode === 'daily' && status === 'playing') {
-      Alert.alert(
-        'Leave Daily Ladder?',
-        "You've only got one Daily attempt per day — leaving now will count as a loss.",
-        [
-          { text: 'Keep Playing', style: 'cancel' },
-          {
-            text: 'Leave (Loss)',
-            style: 'destructive',
-            onPress: async () => {
-              await finishGame('gave_up', chain, hintsUsed);
-              onGoHome();
-            },
+  // Daily only allows one attempt per day — leaving mid-attempt needs to
+  // actually count as a loss, otherwise you could dodge a bad run by
+  // backing out and trying again later. usePreventRemove intercepts EVERY
+  // way of leaving this screen (header back button, iOS swipe-back
+  // gesture, Android hardware back button) — not just a manual button
+  // handler, which a swipe/hardware-back would otherwise bypass entirely.
+  // Quick Play is unaffected: leaving there just resets, no confirmation.
+  const navigation = useNavigation();
+  const isMidDailyGame = mode === 'daily' && !alreadyLocked && status === 'playing';
+
+  usePreventRemove(isMidDailyGame, ({ data }) => {
+    Alert.alert(
+      'Leave Daily Ladder?',
+      "You've only got one Daily attempt per day — leaving now will count as a loss.",
+      [
+        { text: 'Keep Playing', style: 'cancel' },
+        {
+          text: 'Leave (Loss)',
+          style: 'destructive',
+          onPress: async () => {
+            await finishGame('gave_up', chain, hintsUsed);
+            navigation.dispatch(data.action);
           },
-        ]
-      );
-      return;
-    }
-    onGoHome();
-  };
+        },
+      ]
+    );
+  });
 
   const isWin = status === 'won';
   const displayChain = alreadyLocked && lockedResult ? [lockedResult.start] : chain;
@@ -382,7 +386,7 @@ const LadderPlayScreen: React.FC<Props> = ({
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={handleBackPress}>
+        <Pressable style={styles.backButton} onPress={onGoHome}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </Pressable>
         <Text style={[styles.title, { color: background.textColor }]}>

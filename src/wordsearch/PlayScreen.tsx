@@ -19,6 +19,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/core';
 import { SoundManager } from '../../src/shared/SoundManager';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
@@ -512,9 +514,14 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     const state = gameStateRef.current;
     const diffConfig = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
     const multiplier = diffConfig?.multiplier ?? 1;
-    const timeBonus = Math.max(0, Math.floor((300 / Math.max(state.elapsedSeconds, 1)) * multiplier));
-    const finalScore = state.score + timeBonus;
     const allWordsFound = state.foundWords.length === puzzleData.words.length;
+    // Time bonus rewards finishing the WHOLE puzzle quickly — it must never
+    // apply to an incomplete run, otherwise quitting early (fewer elapsed
+    // seconds) would inflate the bonus instead of penalizing the early exit.
+    const timeBonus = allWordsFound
+      ? Math.max(0, Math.floor((300 / Math.max(state.elapsedSeconds, 1)) * multiplier))
+      : 0;
+    const finalScore = state.score + timeBonus;
 
     let dailyStreak = 0;
     let newlyUnlockedIds: string[] = [];
@@ -611,30 +618,36 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   };
 
   const handleBack = () => {
-    // Daily only allows one attempt per day — leaving mid-game needs to
-    // actually lock in the attempt as-is, otherwise you could dodge a bad
-    // run by backing out and trying again later.
-    if (isDaily && !gameFinished) {
-      Alert.alert(
-        'Leave Daily Challenge?',
-        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
-        [
-          { text: 'Keep Playing', style: 'cancel' },
-          {
-            text: 'Leave',
-            style: 'destructive',
-            onPress: async () => {
-              await triggerFinish();
-              router.back();
-            },
-          },
-        ]
-      );
-      return;
-    }
     if (timerRef.current) clearInterval(timerRef.current);
     router.back();
   };
+
+  // Daily only allows one attempt per day — leaving mid-game needs to
+  // actually lock in the attempt as-is, otherwise you could dodge a bad run
+  // by backing out and trying again later. usePreventRemove intercepts
+  // EVERY way of leaving this screen (header back button, iOS swipe-back
+  // gesture, Android hardware back button), not just the manual button
+  // above, which a swipe/hardware-back would otherwise bypass entirely.
+  // Quick Play (isDaily === false) is unaffected — leaving there just
+  // discards the run, no confirmation.
+  const navigation = useNavigation();
+  usePreventRemove(isDaily && !gameFinished, ({ data }) => {
+    Alert.alert(
+      'Leave Daily Challenge?',
+      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
+      [
+        { text: 'Keep Playing', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            await triggerFinish();
+            navigation.dispatch(data.action);
+          },
+        },
+      ]
+    );
+  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

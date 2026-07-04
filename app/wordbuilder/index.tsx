@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Flame, Share2, Trophy } from 'lucide-react-native';
 
@@ -743,6 +745,20 @@ export default function WordBuilder() {
   // still running, not yet timed out) needs to actually lock in today's
   // result as-is, otherwise you could dodge a bad run by backing out and
   // trying again later.
+  const lockInDailyResultOnLeave = async () => {
+    try {
+      const updatedDaily = await saveDailyResult(score, foundWords);
+      setDailyChallenge(updatedDaily);
+      setDailyPlayed(true);
+      setDailyResult({ score, words: foundWords });
+      resumedDailyRef.current = false;
+      await clearDailyBuilderProgress();
+      await refreshPlayerData();
+    } catch (e) {
+      console.warn('Failed to lock in daily result on leave', e);
+    }
+  };
+
   const handleGameplayBackPress = () => {
     if (gameMode === 'daily' && !gameOver) {
       Alert.alert(
@@ -754,17 +770,7 @@ export default function WordBuilder() {
             text: 'Leave',
             style: 'destructive',
             onPress: async () => {
-              try {
-                const updatedDaily = await saveDailyResult(score, foundWords);
-                setDailyChallenge(updatedDaily);
-                setDailyPlayed(true);
-                setDailyResult({ score, words: foundWords });
-                resumedDailyRef.current = false;
-                await clearDailyBuilderProgress();
-                await refreshPlayerData();
-              } catch (e) {
-                console.warn('Failed to lock in daily result on leave', e);
-              }
+              await lockInDailyResultOnLeave();
               backToMenu();
             },
           },
@@ -774,6 +780,30 @@ export default function WordBuilder() {
     }
     backToMenu();
   };
+
+  // Same protection as above, but for leaving the Word Builder screen
+  // entirely (iOS swipe-back gesture, Android hardware back button) rather
+  // than the in-app "← Back" button — a gesture/hardware-back would
+  // otherwise skip handleGameplayBackPress altogether and escape with no
+  // result recorded.
+  const navigation = useNavigation();
+  usePreventRemove(gameMode === 'daily' && !gameOver, ({ data }) => {
+    Alert.alert(
+      'Leave Daily Challenge?',
+      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
+      [
+        { text: 'Keep Playing', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            await lockInDailyResultOnLeave();
+            navigation.dispatch(data.action);
+          },
+        },
+      ]
+    );
+  });
 
   const backToAppMenu = () => {
     if (timerRef.current) clearTimeout(timerRef.current);

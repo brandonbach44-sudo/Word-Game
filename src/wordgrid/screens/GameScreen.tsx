@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import { Share2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/core';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
@@ -391,6 +393,17 @@ export default function GameScreen() {
   // round is still running, not yet timed out) needs to actually lock in
   // today's result as-is, otherwise you could dodge a bad run by backing
   // out and trying again later.
+  const lockInDailyResultOnLeave = useCallback(async () => {
+    try {
+      const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
+      setDailyStats(newDailyStats);
+      resumedDailyRef.current = false;
+      await clearWordGridDailyProgress();
+    } catch (e) {
+      console.warn('Failed to lock in daily result on leave', e);
+    }
+  }, [foundWords.length, score]);
+
   const handleGameplayBackPress = useCallback(() => {
     if (gameMode === 'daily' && !gameOver) {
       Alert.alert(
@@ -402,14 +415,7 @@ export default function GameScreen() {
             text: 'Leave',
             style: 'destructive',
             onPress: async () => {
-              try {
-                const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
-                setDailyStats(newDailyStats);
-                resumedDailyRef.current = false;
-                await clearWordGridDailyProgress();
-              } catch (e) {
-                console.warn('Failed to lock in daily result on leave', e);
-              }
+              await lockInDailyResultOnLeave();
               handleBackToMenu();
             },
           },
@@ -418,7 +424,30 @@ export default function GameScreen() {
       return;
     }
     handleBackToMenu();
-  }, [foundWords.length, gameMode, gameOver, handleBackToMenu, score]);
+  }, [gameMode, gameOver, handleBackToMenu, lockInDailyResultOnLeave]);
+
+  // Same protection as above, but for leaving the Word Grid screen entirely
+  // (iOS swipe-back gesture, Android hardware back button) rather than the
+  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
+  // handleGameplayBackPress altogether and escape with no result recorded.
+  const navigation = useNavigation();
+  usePreventRemove(gameMode === 'daily' && !gameOver, ({ data }) => {
+    Alert.alert(
+      'Leave Daily Challenge?',
+      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
+      [
+        { text: 'Keep Playing', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            await lockInDailyResultOnLeave();
+            navigation.dispatch(data.action);
+          },
+        },
+      ]
+    );
+  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

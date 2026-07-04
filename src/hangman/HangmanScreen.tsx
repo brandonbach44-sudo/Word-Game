@@ -18,6 +18,8 @@ import {
 
 const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
 
@@ -494,6 +496,18 @@ export default function HangmanScreen() {
   // again later. Runs BEFORE resetGame()/handleBackToModeSelect() clears
   // the in-memory guesses, since those would otherwise wipe the state this
   // needs to save.
+  const lockInDailyResultOnLeave = async () => {
+    try {
+      await saveDailyResult('lost', dailyWord, incorrectGuesses.length);
+      resumedDailyProgressRef.current = null;
+      await clearDailyProgress();
+      const updatedDailyStats = await loadDailyStats();
+      setDailyStats(updatedDailyStats);
+    } catch (e) {
+      console.warn('Failed to lock in daily result on leave', e);
+    }
+  };
+
   const handleGameplayBackPress = () => {
     if (playingDaily && isPlaying) {
       Alert.alert(
@@ -505,15 +519,7 @@ export default function HangmanScreen() {
             text: 'Leave (Loss)',
             style: 'destructive',
             onPress: async () => {
-              try {
-                await saveDailyResult('lost', dailyWord, incorrectGuesses.length);
-                resumedDailyProgressRef.current = null;
-                await clearDailyProgress();
-                const updatedDailyStats = await loadDailyStats();
-                setDailyStats(updatedDailyStats);
-              } catch (e) {
-                console.warn('Failed to lock in daily result on leave', e);
-              }
+              await lockInDailyResultOnLeave();
               handleBackToModeSelect();
             },
           },
@@ -523,6 +529,29 @@ export default function HangmanScreen() {
     }
     handleBackToModeSelect();
   };
+
+  // Same protection as above, but for leaving the Hangman screen entirely
+  // (iOS swipe-back gesture, Android hardware back button) rather than the
+  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
+  // handleGameplayBackPress altogether and escape with no result recorded.
+  const navigation = useNavigation();
+  usePreventRemove(playingDaily && isPlaying, ({ data }) => {
+    Alert.alert(
+      'Leave Daily Challenge?',
+      "You've only got one Daily attempt per day — leaving now will end your run and count today as a loss.",
+      [
+        { text: 'Keep Playing', style: 'cancel' },
+        {
+          text: 'Leave (Loss)',
+          style: 'destructive',
+          onPress: async () => {
+            await lockInDailyResultOnLeave();
+            navigation.dispatch(data.action);
+          },
+        },
+      ]
+    );
+  });
 
   const handleBackToCategorySelect = () => setGameMode('category-select');
   
