@@ -3,6 +3,12 @@
 // Define rare letters for bonus scoring
 const RARE_LETTERS = new Set(['Q', 'Z', 'J', 'X']);
 
+// Points awarded for the longest word of the round. This is applied
+// retroactively at game end (see GameScreen's gameOver effect) to whichever
+// word(s) end up tied for longest, so it can't depend on the order words
+// were found in. Keep this in sync with the `isLongestWord` branch below.
+export const LONGEST_WORD_BONUS = 10 * 50;
+
 // Base scoring curve by word length
 function baseScore(length: number): number {
   if (length <= 4) return 1;
@@ -29,7 +35,9 @@ export function calculateWordScore(
   options?: {
     isStreak?: boolean;      // 3 words in 8 seconds
     isAllTile?: boolean;     // word uses all tiles in grid
-    isLongestWord?: boolean; // longest word of round
+    isLongestWord?: boolean; // longest word of round — must be decided once
+                             // the round is over (see LONGEST_WORD_BONUS),
+                             // never live while words are still being found
   }
 ): number {
   const length = word.length;

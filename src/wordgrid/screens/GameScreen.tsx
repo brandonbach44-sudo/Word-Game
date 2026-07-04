@@ -43,7 +43,7 @@ import {
   type WordGridDailyProgress,
 } from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
-import { calculateWordScore } from '../utils/scoring';
+import { calculateWordScore, LONGEST_WORD_BONUS } from '../utils/scoring';
 import {
   loadWordGridStats,
   updateStatsAfterGame,
@@ -261,13 +261,13 @@ export default function GameScreen() {
       const key = ++feedbackKeyRef.current;
 
       if (valid && !foundWordSet.has(word)) {
-        const longestSoFar =
-          foundWords.length > 0
-            ? foundWords.reduce((max, w) => (w.word.length > max ? w.word.length : max), 0)
-            : 0;
-        const isLongestWord = word.length > longestSoFar;
+        // NOTE: the "longest word" bonus is intentionally NOT applied here.
+        // It can only be decided once the round ends (see the gameOver
+        // effect below) — awarding it live to whichever word first reaches
+        // a new max length made two same-length words (e.g. anagrams like
+        // SLAVER/SALVER) score differently depending on which was found first.
         const isAllTile = path.length === 16;
-        const points = calculateWordScore(word, { isLongestWord, isAllTile });
+        const points = calculateWordScore(word, { isAllTile });
 
         setScore((prev) => prev + points);
         setFoundWords((prev) => [{ word, points }, ...prev]);
@@ -289,12 +289,30 @@ export default function GameScreen() {
   useEffect(() => {
     if (!gameOver) return;
     (async () => {
-      const newStats = await updateStatsAfterGame({ score, words: foundWords });
+      // Award the longest-word bonus now that the round is over, to every
+      // word tied for the longest length found (fixes live scoring giving
+      // the bonus only to whichever same-length word was found first).
+      let finalScore = score;
+      let finalFoundWords = foundWords;
+      if (foundWords.length > 0) {
+        const maxLen = foundWords.reduce((max, w) => Math.max(max, w.word.length), 0);
+        const winners = foundWords.filter((w) => w.word.length === maxLen);
+        if (winners.length > 0) {
+          finalFoundWords = foundWords.map((w) =>
+            w.word.length === maxLen ? { ...w, points: w.points + LONGEST_WORD_BONUS } : w
+          );
+          finalScore = score + LONGEST_WORD_BONUS * winners.length;
+          setFoundWords(finalFoundWords);
+          setScore(finalScore);
+        }
+      }
+
+      const newStats = await updateStatsAfterGame({ score: finalScore, words: finalFoundWords });
       setStats(newStats);
 
       const newly = await checkAchievements({
-        score,
-        words: foundWords,
+        score: finalScore,
+        words: finalFoundWords,
         gamesPlayed: newStats.gamesPlayed,
         totalWordsFound: newStats.totalWordsFound,
         totalScore: newStats.totalScore,
@@ -306,13 +324,13 @@ export default function GameScreen() {
       }
 
       if (gameMode === 'daily') {
-        const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
+        const newDailyStats = await saveDailyWordGridResult(finalScore, finalFoundWords.length);
         setDailyStats(newDailyStats);
         resumedDailyRef.current = false;
         await clearWordGridDailyProgress();
-        const blocks = buildScoreBlocks(score);
+        const blocks = buildScoreBlocks(finalScore);
         const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
-        const text = `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${score} pts · ${foundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+        const text = `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${finalScore} pts · ${finalFoundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
         setDailyShareText(text);
         setShowDailyPopup(true);
         setScreen('results');
