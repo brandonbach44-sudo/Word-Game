@@ -33,7 +33,7 @@ export default function WordSearchDailyScreen() {
           cols: 12,
           wordsPerPuzzle: 10,
           allowBackwards: true,
-          allowDiagonal: false, // no diagonals for daily — fairer with time pressure
+          allowDiagonal: true,
           maxWordLength: 10,
         });
 

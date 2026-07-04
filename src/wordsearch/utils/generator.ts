@@ -49,9 +49,11 @@ export function generatePuzzle(
   const allowDiagonal = options.allowDiagonal ?? true;
   const maxWordLength = options.maxWordLength ?? Math.max(rows, cols);
 
-  const cleanedWords = theme.words
-    .map(w => w.trim().toUpperCase())
-    .filter(w => w.length >= 3 && w.length <= maxWordLength);
+  const cleanedWords = Array.from(new Set(
+    theme.words
+      .map(w => w.trim().toUpperCase())
+      .filter(w => w.length >= 3 && w.length <= maxWordLength)
+  ));
 
   const candidateWords =
     cleanedWords.length > 0 ? cleanedWords : ['WORD', 'GAME', 'PUZZLE', 'SEARCH'];
@@ -93,9 +95,11 @@ export function generatePuzzleWithSeed(
   const allowDiagonal = options.allowDiagonal ?? true;
   const maxWordLength = options.maxWordLength ?? Math.max(rows, cols);
 
-  const cleanedWords = theme.words
-    .map(w => w.trim().toUpperCase())
-    .filter(w => w.length >= 3 && w.length <= maxWordLength);
+  const cleanedWords = Array.from(new Set(
+    theme.words
+      .map(w => w.trim().toUpperCase())
+      .filter(w => w.length >= 3 && w.length <= maxWordLength)
+  ));
 
   const candidateWords =
     cleanedWords.length > 0 ? cleanedWords : ['WORD', 'GAME', 'PUZZLE', 'SEARCH'];
