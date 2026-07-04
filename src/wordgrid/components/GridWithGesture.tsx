@@ -33,6 +33,15 @@ const BACKTRACK_GAP = CELL_STEP * 0.20;
 // uses the raw point so the visual feels responsive.
 const SMOOTHING_ALPHA = 0.55;
 
+// Absolute confidence radius for committing to a NEW cell going forward.
+// At the exact point where 4 cells meet (a grid corner), the candidate cell's
+// center is ~0.707 * CELL_STEP away — the true geometric ambiguity point.
+// Requiring the smoothed touch to be closer than this to the candidate's own
+// center (not just "closer than to the old cell", which compounds badly on
+// diagonals) means we simply wait out the corner instead of guessing there,
+// with no extra penalty once the finger is clearly heading into a cell.
+const CONFIDENT_RADIUS = CELL_STEP * 0.58;
+
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
 function SerifI({ color }: { color: string }) {
@@ -199,9 +208,18 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       // Already the last cell in the path — no change.
       if (existingIdx === path.length - 1) return;
 
-      // Forward: add the new adjacent cell. No extra hysteresis needed here —
-      // the EMA smoothing above already removes the corner jitter that used to
-      // cause wrong-letter hooks, without adding drag on genuine diagonal moves.
+      // Confidence check: don't commit to the candidate while the touch is still
+      // sitting near the ambiguous corner point shared by 4 cells. Wait until it's
+      // clearly inside the candidate's own territory. This is an absolute check
+      // (distance to the candidate's center only), so it doesn't compound across
+      // orthogonal-then-diagonal transitions the way a relative margin did.
+      const closestCenter = cellCenter(closest);
+      const distToClosest = Math.sqrt(
+        (smoothed.x - closestCenter.x) ** 2 + (smoothed.y - closestCenter.y) ** 2
+      );
+      if (distToClosest > CONFIDENT_RADIUS) return;
+
+      // Forward: add the new adjacent cell.
       const next = [...path, closest];
       pathRef.current = next;
       setSelectedCells(next);
