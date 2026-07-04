@@ -301,8 +301,10 @@ export default function HangmanScreen() {
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
-      // ⚠️ DEV ONLY — remove before App Store release
-      await unlockAllAchievementsForDev();
+      // ⚠️ DEV ONLY — gated by DEBUG_UNLOCK_ALL_HANGMAN, must be false before App Store release
+      if (DEBUG_UNLOCK_ALL_HANGMAN) {
+        await unlockAllAchievementsForDev();
+      }
 
       const [stats, unlocked, locked] = await Promise.all([
         loadHangmanStats(),

@@ -1,0 +1,199 @@
+// src/wordladder/utils/ladderStorage.ts
+// AsyncStorage-backed persistence for Word Ladder — mirrors the pattern used
+// by wordle/wordsearch (prefs, mode stats, daily lock + streak).
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import type { LadderDifficulty } from './generator';
+
+const STATS_KEY = 'wordladder_stats_v1';
+const DAILY_LOCK_KEY = 'wordladder_daily_lock_v1';
+const PREFS_KEY = 'wordladder_prefs_v1';
+
+// ── Prefs ────────────────────────────────────────────────────────────────
+export type LadderPrefs = {
+  lastDifficulty: LadderDifficulty;
+};
+
+const DEFAULT_PREFS: LadderPrefs = {
+  lastDifficulty: 'medium',
+};
+
+export async function loadLadderPrefs(): Promise<LadderPrefs> {
+  try {
+    const raw = await AsyncStorage.getItem(PREFS_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export async function saveLadderPrefs(prefs: LadderPrefs): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch (e) {
+    console.warn('saveLadderPrefs error', e);
+  }
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────
+export type LadderModeStats = {
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesGivenUp: number;
+  currentStreak: number; // daily-only
+  bestStreak: number; // daily-only
+  totalSteps: number;
+  totalParSteps: number; // sum of par for won games, for "avg over par" calc
+  bestStepsOverPar: number | null; // smallest (steps - par) ever achieved, 0 = perfect
+  totalTimeSeconds: number;
+  fastestTimeSeconds: number | null;
+  hintsUsed: number;
+  perfectSolves: number; // steps === par
+  hintFreeWins: number;
+  easyWins: number;
+  mediumWins: number;
+  hardWins: number;
+};
+
+export type LadderStats = {
+  practice: LadderModeStats;
+  daily: LadderModeStats;
+};
+
+function emptyModeStats(): LadderModeStats {
+  return {
+    gamesPlayed: 0,
+    gamesWon: 0,
+    gamesGivenUp: 0,
+    currentStreak: 0,
+    bestStreak: 0,
+    totalSteps: 0,
+    totalParSteps: 0,
+    bestStepsOverPar: null,
+    totalTimeSeconds: 0,
+    fastestTimeSeconds: null,
+    hintsUsed: 0,
+    perfectSolves: 0,
+    hintFreeWins: 0,
+    easyWins: 0,
+    mediumWins: 0,
+    hardWins: 0,
+  };
+}
+
+export function emptyLadderStats(): LadderStats {
+  return { practice: emptyModeStats(), daily: emptyModeStats() };
+}
+
+export async function loadLadderStats(): Promise<LadderStats> {
+  try {
+    const raw = await AsyncStorage.getItem(STATS_KEY);
+    if (!raw) return emptyLadderStats();
+    const parsed = JSON.parse(raw);
+    return {
+      practice: { ...emptyModeStats(), ...parsed.practice },
+      daily: { ...emptyModeStats(), ...parsed.daily },
+    };
+  } catch (e) {
+    console.warn('loadLadderStats error', e);
+    return emptyLadderStats();
+  }
+}
+
+export async function saveLadderStats(stats: LadderStats): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STATS_KEY, JSON.stringify(stats));
+  } catch (e) {
+    console.warn('saveLadderStats error', e);
+  }
+}
+
+// ── Daily lock (one attempt per calendar day) ───────────────────────────
+export type DailyLockState = {
+  dateISO: string; // YYYY-MM-DD
+  result: 'won' | 'gave_up';
+  steps: number;
+  par: number;
+  timeSeconds: number;
+  hintsUsed: number;
+  start: string;
+  end: string;
+};
+
+export async function loadDailyLock(): Promise<DailyLockState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_LOCK_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn('loadDailyLock error', e);
+    return null;
+  }
+}
+
+export async function saveDailyLock(lock: DailyLockState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_LOCK_KEY, JSON.stringify(lock));
+  } catch (e) {
+    console.warn('saveDailyLock error', e);
+  }
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────
+export function getTodayDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function getYesterdayDateString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+export function formatDisplayDate(date: Date = new Date()): string {
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+export async function hasPlayedTodayDaily(): Promise<boolean> {
+  const lock = await loadDailyLock();
+  return !!lock && lock.dateISO === getTodayDateString();
+}
+
+// Countdown-to-midnight hook, same UX as the other games' daily cards.
+export function useCountdownToMidnight(): string {
+  const [countdown, setCountdown] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const diffMs = midnight.getTime() - now.getTime();
+      const h = Math.floor(diffMs / (1000 * 60 * 60));
+      const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diffMs % (1000 * 60)) / 1000);
+      setCountdown(`${h}h ${m}m ${s}s`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return countdown;
+}
+
+// ── Streak update helper ────────────────────────────────────────────────
+// Call after a daily result is recorded to bump/reset the streak based on
+// whether yesterday's daily was also won.
+export function computeNextStreak(
+  won: boolean,
+  previousLock: DailyLockState | null,
+  currentStreak: number
+): number {
+  if (!won) return 0;
+  const yesterday = getYesterdayDateString();
+  const continuesStreak = previousLock?.dateISO === yesterday && previousLock.result === 'won';
+  return continuesStreak ? currentStreak + 1 : 1;
+}
