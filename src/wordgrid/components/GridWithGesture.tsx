@@ -24,6 +24,13 @@ const DEAD_ZONE = CELL_STEP * 0.15;
 // Forces a genuine reversal past the midpoint rather than a micro-wobble.
 const BACKTRACK_GAP = CELL_STEP * 0.20;
 
+// Extra clearance required before ANY forward snap fires (hysteresis).
+// The finger must be FORWARD_GAP px closer to the candidate cell than to the
+// cell it's leaving. Without this, a swipe that wobbles across the Voronoi
+// boundary near a 4-cell corner "hooks" onto the wrong (often diagonal) letter.
+// Smaller than BACKTRACK_GAP so forward motion still feels responsive.
+const FORWARD_GAP = CELL_STEP * 0.10;
+
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
 function SerifI({ color }: { color: string }) {
@@ -177,6 +184,15 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
 
       // Already the last cell in the path — no change.
       if (existingIdx === path.length - 1) return;
+
+      // Forward hysteresis: only snap if the finger is convincingly closer to
+      // the candidate cell than to the one it's leaving. Prevents wobble at
+      // cell-corner boundaries from hooking onto the wrong (often diagonal) letter.
+      const closestCenter = cellCenter(closest);
+      const distToClosest = Math.sqrt(
+        (e.x - closestCenter.x) ** 2 + (e.y - closestCenter.y) ** 2
+      );
+      if (distFromLast - distToClosest < FORWARD_GAP) return;
 
       // Forward: add the new adjacent cell.
       const next = [...path, closest];
