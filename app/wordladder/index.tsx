@@ -284,7 +284,7 @@ export default function WordLadderEntryScreen() {
               )}
             </View>
 
-            {/* Practice mode — difficulty picker */}
+            {/* Quick Play — difficulty picker */}
             <Text style={[styles.sectionLabel, { color: background.textColor }]}>Quick Play</Text>
             {DIFFICULTY_ORDER.map((diff) => {
               const config = DIFFICULTY_CONFIG[diff];
@@ -337,7 +337,7 @@ export default function WordLadderEntryScreen() {
                   {[
                     { label: 'Current Streak', value: (stats?.daily.currentStreak ?? 0).toString() },
                     { label: 'Best Streak', value: (stats?.daily.bestStreak ?? 0).toString() },
-                    { label: 'Played', value: (stats?.daily.gamesPlayed ?? 0).toString() },
+                    { label: 'Games Played', value: (stats?.daily.gamesPlayed ?? 0).toString() },
                     { label: 'Won', value: (stats?.daily.gamesWon ?? 0).toString() },
                     {
                       label: 'Win Rate',
@@ -360,11 +360,11 @@ export default function WordLadderEntryScreen() {
                   ))}
                 </View>
 
-                {/* ── PRACTICE MODE ── */}
+                {/* ── QUICK PLAY ── */}
                 <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
                 <View style={styles.statsGrid}>
                   {[
-                    { label: 'Played', value: (practiceStats?.gamesPlayed ?? 0).toString() },
+                    { label: 'Games Played', value: (practiceStats?.gamesPlayed ?? 0).toString() },
                     {
                       label: 'Won',
                       value: `${practiceStats?.gamesWon ?? 0} (${

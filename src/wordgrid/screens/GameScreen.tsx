@@ -870,11 +870,28 @@ export default function GameScreen() {
             contentContainerStyle={styles.statsContainer}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.statsTitle, { color: bg.textColor }]}>Statistics</Text>
+            <Text style={[styles.statsTitle, { color: bg.textColor }]}>Daily Grid Rush</Text>
+
+            {dailyStats ? (
+              <View style={styles.statsGrid}>
+                <StatsCard label="Current Streak" value={(dailyStats.streak ?? 0).toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Best Streak" value={(dailyStats.bestStreak ?? 0).toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Games Played" value={(dailyStats.gamesPlayed ?? 0).toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard label="Last Score" value={(dailyStats.lastScore ?? 0).toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+              </View>
+            ) : (
+              <Text style={[styles.loadingText, { color: bg.secondaryText }]}>Loading stats...</Text>
+            )}
+
+            <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>Quick Play</Text>
 
             {stats ? (
               <View style={styles.statsGrid}>
-                <StatsCard label="Games Played" value={stats.gamesPlayed.toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
+                <StatsCard
+                  label="Games Played"
+                  value={Math.max(0, stats.gamesPlayed - (dailyStats?.gamesPlayed ?? 0)).toString()}
+                  textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor}
+                />
                 <StatsCard label="High Score" value={stats.highScore.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
                 <StatsCard label="Total Words" value={stats.totalWordsFound.toLocaleString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />
                 <StatsCard label="Best Words/Game" value={stats.bestWordsInGame.toString()} textColor={bg.textColor} secondaryText={bg.secondaryText} cardColor={bg.cardColor} borderColor={bg.borderColor} />

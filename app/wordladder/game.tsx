@@ -1,5 +1,5 @@
 // app/wordladder/game.tsx
-// Practice mode — generates a fresh puzzle on-device for the chosen difficulty.
+// Quick Play — generates a fresh puzzle on-device for the chosen difficulty.
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';

@@ -63,7 +63,7 @@ const WordSearchPlayScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>Back</Text>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>
           {currentScreen === 'categories' ? 'Choose Category' : 'Choose Difficulty'}

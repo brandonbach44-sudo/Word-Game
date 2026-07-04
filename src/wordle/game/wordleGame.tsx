@@ -1867,7 +1867,7 @@ export default function WordleGame() {
 
                 {/* Played / Won / Lost row */}
                 <View style={styles.statsGrid}>
-                  <StatsCard label="Played" value={`${stats.daily.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Games Played" value={`${stats.daily.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Won" value={`${stats.daily.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Lost" value={`${stats.daily.gamesPlayed - stats.daily.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Avg Guesses" value={avgGuessesDaily != null ? avgGuessesDaily.toFixed(1) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
@@ -1922,7 +1922,7 @@ export default function WordleGame() {
                 {/* ── QUICK PLAY (secondary) ── */}
                 <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Quick Play</Text>
                 <View style={styles.statsGrid}>
-                  <StatsCard label="Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
+                  <StatsCard label="Games Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Won" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Lost" value={`${stats.practice.gamesPlayed - stats.practice.gamesWon}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Avg Guesses" value={avgGuessesPractice != null ? avgGuessesPractice.toFixed(1) : "--"} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />

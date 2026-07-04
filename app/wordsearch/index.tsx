@@ -1,7 +1,7 @@
 // app/wordsearch/index.tsx
 
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -23,14 +23,20 @@ import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import {
   formatDisplayDate,
-  getWinRate,
-  hasPlayedTodayDaily,
-  loadDailyStats,
-  loadGameStats,
+  getTodayDateString,
   useCountdownToMidnight,
-  type DailyChallengeStats,
-  type GameStats,
 } from '../../src/wordsearch/utils/storage';
+import {
+  loadWordSearchDailyStats,
+  loadWordSearchStats,
+  type WordSearchDailyStats,
+  type WordSearchStats,
+} from '../../src/wordsearch/utils/wsStorage';
+import {
+  getUnlockedWSAchievements,
+  WS_ACHIEVEMENTS,
+  type WSAchievement,
+} from '../../src/wordsearch/utils/wsAchievements';
 
 const { width } = Dimensions.get('window');
 type Tab = 'play' | 'stats';
@@ -70,26 +76,37 @@ const WordSearchEntryScreen: React.FC = () => {
   const currentTabIdxRef = useRef(0);
   const dragBase = useRef(0);
 
-  const [stats, setStats] = useState<GameStats | null>(null);
+  const [stats, setStats] = useState<WordSearchStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
-  const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [dailyStats, setDailyStats] = useState<WordSearchDailyStats | null>(null);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<(WSAchievement & { unlockedAt: string })[]>([]);
   const countdown = useCountdownToMidnight();
 
-  useEffect(() => {
-    const init = async () => {
-      const [s, ds, played] = await Promise.all([
-        loadGameStats().catch(() => null),
-        loadDailyStats().catch(() => null),
-        hasPlayedTodayDaily().catch(() => false),
-      ]);
-      setStats(s);
-      setDailyStats(ds);
-      setDailyPlayed(played);
-      setLoadingStats(false);
-    };
-    init();
+  const dailyPlayed = dailyStats?.lastPlayedDate === getTodayDateString();
+
+  const loadAll = useCallback(async () => {
+    const [s, ds, unlocked] = await Promise.all([
+      loadWordSearchStats().catch(() => null),
+      loadWordSearchDailyStats().catch(() => null),
+      getUnlockedWSAchievements().catch(() => []),
+    ]);
+    setStats(s);
+    setDailyStats(ds);
+    setUnlockedAchievements(unlocked);
+    setLoadingStats(false);
   }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  // Refresh every time this screen regains focus (e.g. returning from a
+  // finished game) so stats/daily state never look stale.
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
 
   useEffect(() => {
     currentTabIdxRef.current = TABS.indexOf(activeTab);
@@ -133,7 +150,12 @@ const WordSearchEntryScreen: React.FC = () => {
     try { await Share.share({ message }); } catch {}
   };
 
-  const winRate = stats ? getWinRate(stats) : 0;
+  // gamesPlayed/gamesWon on WordSearchStats are combined (daily + quick play);
+  // dailyGamesPlayed/dailyGamesWon track the daily-only subset within it, so
+  // subtracting gives the Quick-Play-only counts for the split stats below.
+  const quickPlayGamesPlayed = Math.max(0, (stats?.gamesPlayed ?? 0) - (stats?.dailyGamesPlayed ?? 0));
+  const quickPlayGamesWon = Math.max(0, (stats?.gamesWon ?? 0) - (stats?.dailyGamesWon ?? 0));
+  const quickPlayWinRate = quickPlayGamesPlayed > 0 ? Math.round((quickPlayGamesWon / quickPlayGamesPlayed) * 100) : 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -256,7 +278,7 @@ const WordSearchEntryScreen: React.FC = () => {
               )}
             </View>
 
-            {/* Classic Game Card */}
+            {/* Quick Play Card */}
             <TouchableOpacity
               style={[styles.modeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor, borderWidth: 2 }]}
               onPress={() => router.push('/wordsearch/play')}
@@ -293,13 +315,15 @@ const WordSearchEntryScreen: React.FC = () => {
               <ActivityIndicator color={COLORS.accent} style={{ marginTop: 20 }} />
             ) : stats && stats.gamesPlayed > 0 ? (
               <>
-                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Overview</Text>
+                {/* ── DAILY WORD SEARCH ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily Word Search</Text>
                 <View style={styles.statsGrid}>
                   {[
-                    { label: 'Games Played', value: stats.gamesPlayed.toString() },
-                    { label: 'Games Won', value: stats.gamesWon.toString() },
-                    { label: 'Win Rate', value: `${winRate}%` },
-                    { label: 'Best Streak', value: (stats.bestStreak ?? 0).toString() },
+                    { label: 'Current Streak', value: (dailyStats?.streak ?? 0).toString() },
+                    { label: 'Best Streak', value: (dailyStats?.bestStreak ?? 0).toString() },
+                    { label: 'Games Played', value: (dailyStats?.dailyGamesPlayed ?? 0).toString() },
+                    { label: 'Games Won', value: (stats.dailyGamesWon ?? 0).toString() },
+                    { label: 'Last Score', value: (dailyStats?.lastDailyScore ?? 0).toString() },
                   ].map(({ label, value }) => (
                     <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
                       <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
@@ -307,13 +331,71 @@ const WordSearchEntryScreen: React.FC = () => {
                     </View>
                   ))}
                 </View>
-                <View style={{ height: 40 }} />
+
+                {/* ── QUICK PLAY ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
+                <View style={styles.statsGrid}>
+                  {[
+                    { label: 'Games Played', value: quickPlayGamesPlayed.toString() },
+                    { label: 'Games Won', value: `${quickPlayGamesWon} (${quickPlayWinRate}%)` },
+                    { label: 'Best Score', value: (stats.bestScore ?? 0).toString() },
+                    { label: 'Win Streak', value: (stats.currentStreak ?? 0).toString() },
+                    { label: 'Words Found', value: (stats.totalWordsFound ?? 0).toString() },
+                  ].map(({ label, value }) => (
+                    <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                      <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
+                      <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
               </>
             ) : (
               <Text style={[styles.emptyText, { color: background.secondaryText }]}>
                 No stats yet. Play a game to get started!
               </Text>
             )}
+
+            {/* Achievements — unlocked first, then locked */}
+            <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
+              Achievements ({unlockedAchievements.length}/{WS_ACHIEVEMENTS.length})
+            </Text>
+
+            {unlockedAchievements.length > 0 && (
+              <View style={styles.achievementsGrid}>
+                {WS_ACHIEVEMENTS.filter((a) => unlockedAchievements.some((u) => u.id === a.id)).map((achievement) => (
+                  <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
+                    <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {unlockedAchievements.length > 0 && unlockedAchievements.length < WS_ACHIEVEMENTS.length && (
+              <View style={styles.lockedDivider}>
+                <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
+                <Text style={[styles.dividerText, { color: background.secondaryText }]}>Locked</Text>
+                <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
+              </View>
+            )}
+
+            {WS_ACHIEVEMENTS.filter((a) => !unlockedAchievements.some((u) => u.id === a.id)).length > 0 && (
+              <View style={styles.achievementsGrid}>
+                {WS_ACHIEVEMENTS.filter((a) => !unlockedAchievements.some((u) => u.id === a.id)).map((achievement) => (
+                  <View
+                    key={achievement.id}
+                    style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+                  >
+                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                    <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
+                    <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: 40 }} />
           </ScrollView>
 
         </Animated.View>
@@ -406,6 +488,19 @@ const styles = StyleSheet.create({
   statsValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
   statsLabel: { fontSize: 12, textAlign: 'center' },
   emptyText: { fontSize: 14, marginTop: 8 },
+
+  // Achievements
+  achievementsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  achievementCard: { width: '48%', padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  achievementEmoji: { fontSize: 32, marginBottom: 6 },
+  achievementEmojiLocked: { opacity: 0.5 },
+  achievementName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 2 },
+  achievementDesc: { fontSize: 11, textAlign: 'center' },
+  achievementCardLocked: { opacity: 0.5 },
+  achievementTextLocked: { opacity: 0.7 },
+  lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { fontSize: 11, fontWeight: '600', marginHorizontal: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
 });
 
 export default WordSearchEntryScreen;
