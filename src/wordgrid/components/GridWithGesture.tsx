@@ -24,12 +24,14 @@ const DEAD_ZONE = CELL_STEP * 0.15;
 // Forces a genuine reversal past the midpoint rather than a micro-wobble.
 const BACKTRACK_GAP = CELL_STEP * 0.20;
 
-// Extra clearance required before ANY forward snap fires (hysteresis).
-// The finger must be FORWARD_GAP px closer to the candidate cell than to the
-// cell it's leaving. Without this, a swipe that wobbles across the Voronoi
-// boundary near a 4-cell corner "hooks" onto the wrong (often diagonal) letter.
-// Smaller than BACKTRACK_GAP so forward motion still feels responsive.
-const FORWARD_GAP = CELL_STEP * 0.10;
+// Smoothing applied to the raw touch point before it's used for cell detection
+// (0 = no smoothing/raw point, 1 = frozen). At a 4-cell corner, the current cell
+// and both orthogonal neighbors and the diagonal one are all momentarily
+// equidistant — real finger jitter at that exact point is what causes "hooking"
+// the wrong letter. Smoothing removes the jitter so the touch resolves toward
+// wherever it's actually, consistently heading. The live rubber-band line still
+// uses the raw point so the visual feels responsive.
+const SMOOTHING_ALPHA = 0.55;
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
@@ -96,6 +98,8 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const [livePoint, setLivePoint] = useState<{ x: number; y: number } | null>(null);
   const pathRef = useRef<Position[]>([]);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Smoothed touch point used for cell-detection math (see SMOOTHING_ALPHA above).
+  const smoothedRef = useRef<{ x: number; y: number } | null>(null);
 
   // Clear any pending pause-submit timer.
   const clearPauseTimer = () => {
@@ -131,6 +135,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       pathRef.current = [cell];
       setSelectedCells([cell]);
       setLivePoint({ x: e.x, y: e.y });
+      smoothedRef.current = { x: e.x, y: e.y };
     })
     .onStart((_e) => {
       // onBegin already committed the starting cell — do NOT override it here.
@@ -139,20 +144,29 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       setLivePoint({ x: e.x, y: e.y });
       resetPauseTimer(); // restart the pause countdown on every movement
 
+      // Update the smoothed point (EMA) used for all cell-detection math below.
+      // This is what removes corner jitter without penalizing genuine diagonal moves.
+      const prevSmoothed = smoothedRef.current ?? { x: e.x, y: e.y };
+      const smoothed = {
+        x: prevSmoothed.x + (e.x - prevSmoothed.x) * (1 - SMOOTHING_ALPHA),
+        y: prevSmoothed.y + (e.y - prevSmoothed.y) * (1 - SMOOTHING_ALPHA),
+      };
+      smoothedRef.current = smoothed;
+
       const path = pathRef.current;
       if (path.length === 0) return;
 
       const lastCell = path[path.length - 1];
       const lastCenter = cellCenter(lastCell);
-      const dx = e.x - lastCenter.x;
-      const dy = e.y - lastCenter.y;
+      const dx = smoothed.x - lastCenter.x;
+      const dy = smoothed.y - lastCenter.y;
       const distFromLast = Math.sqrt(dx * dx + dy * dy);
 
       // Anti-trembling: ignore tiny movements right around the current cell center.
       if (distFromLast < DEAD_ZONE) return;
 
-      // Voronoi: which cell is the finger physically closest to?
-      const closest = getClosestCell(e.x, e.y);
+      // Voronoi: which cell is the (smoothed) finger physically closest to?
+      const closest = getClosestCell(smoothed.x, smoothed.y);
 
       // Still in the same cell's territory — nothing to do.
       if (closest.row === lastCell.row && closest.col === lastCell.col) return;
@@ -170,7 +184,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
         // toward the previous cell before trimming, so micro-wobbles don't revert.
         const closestCenter = cellCenter(closest);
         const distToClosest = Math.sqrt(
-          (e.x - closestCenter.x) ** 2 + (e.y - closestCenter.y) ** 2
+          (smoothed.x - closestCenter.x) ** 2 + (smoothed.y - closestCenter.y) ** 2
         );
         // distFromLast - distToClosest = how much closer we are to the backtrack target
         // than to the cell we're leaving. Must exceed BACKTRACK_GAP.
@@ -185,16 +199,9 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       // Already the last cell in the path — no change.
       if (existingIdx === path.length - 1) return;
 
-      // Forward hysteresis: only snap if the finger is convincingly closer to
-      // the candidate cell than to the one it's leaving. Prevents wobble at
-      // cell-corner boundaries from hooking onto the wrong (often diagonal) letter.
-      const closestCenter = cellCenter(closest);
-      const distToClosest = Math.sqrt(
-        (e.x - closestCenter.x) ** 2 + (e.y - closestCenter.y) ** 2
-      );
-      if (distFromLast - distToClosest < FORWARD_GAP) return;
-
-      // Forward: add the new adjacent cell.
+      // Forward: add the new adjacent cell. No extra hysteresis needed here —
+      // the EMA smoothing above already removes the corner jitter that used to
+      // cause wrong-letter hooks, without adding drag on genuine diagonal moves.
       const next = [...path, closest];
       pathRef.current = next;
       setSelectedCells(next);
