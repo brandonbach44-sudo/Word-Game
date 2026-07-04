@@ -31,7 +31,7 @@ export default function WordLadderGameRoute() {
       puzzle={puzzle}
       mode="practice"
       difficulty={difficulty}
-      onGoHome={() => router.replace('/wordladder')}
+      onGoHome={() => router.back()}
       onPlayAgain={() => setPuzzleKey((k) => k + 1)}
     />
   );

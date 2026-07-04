@@ -3,6 +3,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Pressable,
   ScrollView,
@@ -21,13 +22,16 @@ import type { LadderDifficulty, LadderPuzzle } from '../utils/generator';
 import { getHintPath } from '../utils/generator';
 import { isOneLetterOff, isValidWord } from '../utils/wordGraph';
 import {
+  clearDailyProgress,
   computeNextStreak,
   DailyLockState,
+  DailyProgressState,
   formatDisplayDate,
   getTodayDateString,
   loadDailyLock,
   loadLadderStats,
   saveDailyLock,
+  saveDailyProgress,
   saveLadderStats,
   useCountdownToMidnight,
 } from '../utils/ladderStorage';
@@ -40,13 +44,20 @@ import LadderResultOverlay from '../components/LadderResultOverlay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAX_HINTS = 3;
-const KEYBOARD_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+const KEYBOARD_ROWS: string[][] = [
+  'QWERTYUIOP'.split(''),
+  'ASDFGHJKL'.split(''),
+  [...'ZXCVBNM'.split(''), 'BACK'],
+];
+const KEYBOARD_HORIZONTAL_PADDING = 6;
+const KEY_GAP = 6;
 
 type Props = {
   puzzle: LadderPuzzle;
   mode: 'daily' | 'practice';
   difficulty: LadderDifficulty;
   lockedResult?: DailyLockState | null; // daily-only: already played today
+  initialProgress?: DailyProgressState | null; // daily-only: resume from a previous session
   onGoHome: () => void;
   onPlayAgain?: () => void; // practice-only
 };
@@ -70,6 +81,7 @@ const LadderPlayScreen: React.FC<Props> = ({
   mode,
   difficulty,
   lockedResult,
+  initialProgress,
   onGoHome,
   onPlayAgain,
 }) => {
@@ -78,13 +90,14 @@ const LadderPlayScreen: React.FC<Props> = ({
   const countdown = useCountdownToMidnight();
 
   const alreadyLocked = mode === 'daily' && !!lockedResult;
+  const resumedElapsed = initialProgress?.elapsedSeconds ?? 0;
 
-  const [chain, setChain] = useState<string[]>([puzzle.start]);
+  const [chain, setChain] = useState<string[]>(initialProgress?.chain ?? [puzzle.start]);
   const [currentCells, setCurrentCells] = useState<string[]>(Array(wordLength).fill(''));
   const [error, setError] = useState<string | null>(null);
-  const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintsUsed, setHintsUsed] = useState(initialProgress?.hintsUsed ?? 0);
   const [status, setStatus] = useState<GameStatus>(alreadyLocked ? (lockedResult!.result === 'won' ? 'won' : 'gave_up') : 'playing');
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(resumedElapsed);
   const [showResult, setShowResult] = useState(alreadyLocked);
   const [finalStreaks, setFinalStreaks] = useState<{ current: number | null; best: number | null }>({
     current: null,
@@ -94,7 +107,10 @@ const LadderPlayScreen: React.FC<Props> = ({
   const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
   const [currentPopupAchievement, setCurrentPopupAchievement] = useState<Achievement | null>(null);
 
-  const startTimeRef = useRef(Date.now());
+  // Offset the start time backward by however much play time already
+  // happened in a previous session, so the timer keeps counting up
+  // seamlessly instead of resetting to 0 on resume.
+  const startTimeRef = useRef(Date.now() - resumedElapsed * 1000);
   const scrollRef = useRef<ScrollView>(null);
   const savedRef = useRef(false);
 
@@ -106,6 +122,29 @@ const LadderPlayScreen: React.FC<Props> = ({
     }, 1000);
     return () => clearInterval(interval);
   }, [status, alreadyLocked]);
+
+  // Reviewing an already-completed daily: finishGame() never runs (nothing
+  // new to save), so pull the current streak from storage just for display.
+  useEffect(() => {
+    if (!alreadyLocked) return;
+    loadLadderStats().then((stats) => {
+      setFinalStreaks({ current: stats.daily.currentStreak, best: stats.daily.bestStreak });
+    });
+  }, [alreadyLocked]);
+
+  // Autosave Daily progress on every move so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game. Resumed via
+  // `initialProgress` the next time this screen mounts for the same day.
+  useEffect(() => {
+    if (mode !== 'daily' || alreadyLocked || status !== 'playing') return;
+    const elapsedNow = Math.round((Date.now() - startTimeRef.current) / 1000);
+    saveDailyProgress({
+      dateISO: getTodayDateString(),
+      chain,
+      hintsUsed,
+      elapsedSeconds: elapsedNow,
+    });
+  }, [mode, alreadyLocked, status, chain, hintsUsed]);
 
   useEffect(() => {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -183,6 +222,7 @@ const LadderPlayScreen: React.FC<Props> = ({
         start: puzzle.start,
         end: puzzle.end,
       });
+      await clearDailyProgress();
     }
 
     await saveLadderStats(stats);
@@ -263,10 +303,15 @@ const LadderPlayScreen: React.FC<Props> = ({
   };
 
   const handleHint = () => {
-    if (status !== 'playing' || hintsUsed >= MAX_HINTS) return;
+    if (mode === 'daily' || status !== 'playing' || hintsUsed >= MAX_HINTS) return;
     const last = chain[chain.length - 1];
-    const path = getHintPath(last, puzzle.end);
-    if (!path || path.length < 2) return;
+    // Exclude words already in the chain so the hint never points back at a
+    // word that would fail the "already used" check on submit.
+    const path = getHintPath(last, puzzle.end, chain);
+    if (!path || path.length < 2) {
+      setError('No hint available from here — try Give Up');
+      return;
+    }
     const nextWord = path[1];
     const idx = diffIndex(last, nextWord);
     if (idx === -1) return;
@@ -283,17 +328,44 @@ const LadderPlayScreen: React.FC<Props> = ({
     finishGame('gave_up', chain, hintsUsed);
   };
 
+  const handleBackPress = () => {
+    // Leaving mid-game doesn't cost anything in Quick Play (you can just
+    // start another puzzle), but Daily only allows one attempt per day —
+    // so walking away mid-attempt needs to actually count as a loss,
+    // otherwise you could dodge a bad attempt by leaving and coming back.
+    if (mode === 'daily' && status === 'playing') {
+      Alert.alert(
+        'Leave Daily Ladder?',
+        "You've only got one Daily attempt per day — leaving now will count as a loss.",
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Leave (Loss)',
+            style: 'destructive',
+            onPress: async () => {
+              await finishGame('gave_up', chain, hintsUsed);
+              onGoHome();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    onGoHome();
+  };
+
   const isWin = status === 'won';
   const displayChain = alreadyLocked && lockedResult ? [lockedResult.start] : chain;
   const displayEnd = alreadyLocked && lockedResult ? lockedResult.end : puzzle.end;
+  const displaySteps = alreadyLocked && lockedResult ? lockedResult.steps : chain.length - 1;
 
   const shareText =
     mode === 'daily'
       ? `Word Ladder Daily — ${formatDisplayDate()}\n${puzzle.start.toUpperCase()} → ${puzzle.end.toUpperCase()}\n${
-          isWin ? `Solved in ${chain.length - 1} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
+          isWin ? `Solved in ${displaySteps} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
         }${finalStreaks.current && finalStreaks.current > 1 ? `\n🔥 ${finalStreaks.current} day streak` : ''}`
       : `Word Ladder — ${puzzle.start.toUpperCase()} → ${puzzle.end.toUpperCase()}\n${
-          isWin ? `Solved in ${chain.length - 1} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
+          isWin ? `Solved in ${displaySteps} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
         }`;
 
   return (
@@ -310,7 +382,7 @@ const LadderPlayScreen: React.FC<Props> = ({
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={onGoHome}>
+        <Pressable style={styles.backButton} onPress={handleBackPress}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </Pressable>
         <Text style={[styles.title, { color: background.textColor }]}>
@@ -421,19 +493,21 @@ const LadderPlayScreen: React.FC<Props> = ({
       {/* Error message */}
       {error && <Text style={styles.errorText}>{error}</Text>}
 
-      {/* Controls */}
+      {/* Controls — Daily has no hints, only Quick Play does */}
       {status === 'playing' && !alreadyLocked && (
         <View style={styles.controlsRow}>
-          <Pressable
-            style={[styles.controlButton, { borderColor: background.borderColor }, hintsUsed >= MAX_HINTS && styles.controlButtonDisabled]}
-            onPress={handleHint}
-            disabled={hintsUsed >= MAX_HINTS}
-          >
-            <Lightbulb size={16} color={background.textColor} />
-            <Text style={[styles.controlButtonText, { color: background.textColor }]}>
-              Hint ({MAX_HINTS - hintsUsed})
-            </Text>
-          </Pressable>
+          {mode !== 'daily' && (
+            <Pressable
+              style={[styles.controlButton, { borderColor: background.borderColor }, hintsUsed >= MAX_HINTS && styles.controlButtonDisabled]}
+              onPress={handleHint}
+              disabled={hintsUsed >= MAX_HINTS}
+            >
+              <Lightbulb size={16} color={background.textColor} />
+              <Text style={[styles.controlButtonText, { color: background.textColor }]}>
+                Hint ({MAX_HINTS - hintsUsed})
+              </Text>
+            </Pressable>
+          )}
           <Pressable style={[styles.controlButton, { borderColor: background.borderColor }]} onPress={handleGiveUp}>
             <FlagOff size={16} color={background.textColor} />
             <Text style={[styles.controlButtonText, { color: background.textColor }]}>Give Up</Text>
@@ -441,38 +515,65 @@ const LadderPlayScreen: React.FC<Props> = ({
         </View>
       )}
 
-      {/* Keyboard */}
+      {/* Keyboard — same sizing/spacing model as Wordle: keys stretch to fill */}
+      {/* the row width, BACK weighted wider than letter keys, ENTER as its */}
+      {/* own pill button below the keyboard. */}
       {status === 'playing' && !alreadyLocked && (
-        <View style={styles.keyboard}>
-          {KEYBOARD_ROWS.map((row, ri) => (
-            <View key={ri} style={styles.keyboardRow}>
-              {ri === 2 && (
-                <Pressable
-                  style={[styles.key, styles.wideKey, { backgroundColor: background.cardColor }]}
-                  onPress={handleSubmit}
-                >
-                  <Text style={[styles.keyText, { color: background.textColor, fontSize: 11 }]}>ENTER</Text>
-                </Pressable>
-              )}
-              {row.split('').map((letter) => (
-                <Pressable
-                  key={letter}
-                  style={[styles.key, { backgroundColor: background.cardColor }]}
-                  onPress={() => handleKeyPress(letter)}
-                >
-                  <Text style={[styles.keyText, { color: background.textColor }]}>{letter}</Text>
-                </Pressable>
-              ))}
-              {ri === 2 && (
-                <Pressable
-                  style={[styles.key, styles.wideKey, { backgroundColor: background.cardColor }]}
-                  onPress={handleBackspace}
-                >
-                  <Text style={[styles.keyText, { color: background.textColor, fontSize: 16 }]}>⌫</Text>
-                </Pressable>
-              )}
-            </View>
-          ))}
+        <View style={styles.bottomControls}>
+          <View style={styles.keyboard}>
+            {KEYBOARD_ROWS.map((row, ri) => {
+              const weights = row.map((k) => (k === 'BACK' ? 1.6 : 1));
+              const totalWeight = weights.reduce((a, b) => a + b, 0);
+              const availableWidth =
+                SCREEN_WIDTH - KEYBOARD_HORIZONTAL_PADDING * 2 - KEY_GAP * (row.length - 1);
+              const unit = availableWidth / totalWeight;
+
+              return (
+                <View key={ri} style={styles.keyboardRow}>
+                  {row.map((k, idx) => {
+                    const keyWidth = unit * weights[idx];
+                    const isBack = k === 'BACK';
+                    return (
+                      <Pressable
+                        key={k}
+                        style={({ pressed }) => [
+                          styles.key,
+                          {
+                            width: keyWidth,
+                            marginHorizontal: KEY_GAP / 2,
+                            backgroundColor: background.cardColor,
+                            borderColor: background.borderColor,
+                            transform: [{ scale: pressed ? 0.9 : 1 }],
+                          },
+                        ]}
+                        onPress={isBack ? handleBackspace : () => handleKeyPress(k)}
+                      >
+                        <Text
+                          style={[
+                            styles.keyText,
+                            { color: background.textColor },
+                            isBack && styles.keyBackText,
+                          ]}
+                        >
+                          {isBack ? '⌫' : k}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={handleSubmit}
+            style={({ pressed }) => [
+              styles.enterButton,
+              { borderColor: background.borderColor, backgroundColor: background.cardColor, opacity: pressed ? 0.75 : 1 },
+            ]}
+          >
+            <Text style={[styles.enterText, { color: background.textColor }]}>ENTER</Text>
+          </Pressable>
         </View>
       )}
 
@@ -490,7 +591,10 @@ const LadderPlayScreen: React.FC<Props> = ({
         bestStreak={finalStreaks.best}
         nextDailySecondsRemaining={mode === 'daily' ? parseCountdownSeconds(countdown) : null}
         shareText={shareText}
-        onClose={() => setShowResult(false)}
+        onClose={() => {
+          setShowResult(false);
+          onGoHome();
+        }}
         onPlayAgain={() => {
           setShowResult(false);
           onPlayAgain?.();
@@ -550,9 +654,10 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    gap: 24,
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 12,
   },
   controlButton: {
     flexDirection: 'row',
@@ -560,22 +665,36 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1.5,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
   controlButtonDisabled: { opacity: 0.4 },
   controlButtonText: { fontSize: 13, fontWeight: '700' },
 
-  keyboard: { paddingHorizontal: 4, paddingBottom: 10 },
-  keyboardRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 3, gap: 4 },
+  bottomControls: {
+    paddingHorizontal: KEYBOARD_HORIZONTAL_PADDING,
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
+  keyboard: { alignSelf: 'stretch' },
+  keyboardRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 3 },
   key: {
-    minWidth: 30,
-    height: 46,
+    height: 52,
+    borderWidth: 1,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
   },
-  wideKey: { minWidth: 46, paddingHorizontal: 6 },
-  keyText: { fontSize: 15, fontWeight: '700' },
+  keyText: { fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
+  keyBackText: { fontSize: 18 },
+  enterButton: {
+    marginTop: 8,
+    alignSelf: 'center',
+    borderWidth: 2,
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  enterText: { fontSize: 14, fontWeight: '900', letterSpacing: 2 },
 });

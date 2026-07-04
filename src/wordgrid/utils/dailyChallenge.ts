@@ -143,6 +143,48 @@ export async function saveDailyWordGridResult(
   return newStats;
 }
 
+// ─── Daily In-Progress Autosave (resume after closing the app mid-game) ────
+// Lets a Daily attempt survive the app being backgrounded, force-quit, or
+// swiped away mid-game — reopening the same day resumes the exact found
+// words/score/time remaining instead of losing progress or a free redo.
+
+const PROGRESS_KEY = 'wordgrid_daily_progress';
+
+export interface WordGridDailyProgress {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is stale/ignored
+  foundWords: { word: string; points: number }[];
+  score: number;
+  timeLeft: number;
+}
+
+export async function loadWordGridDailyProgress(): Promise<WordGridDailyProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveWordGridDailyProgress(progress: WordGridDailyProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveWordGridDailyProgress error', e);
+  }
+}
+
+export async function clearWordGridDailyProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearWordGridDailyProgress error', e);
+  }
+}
+
 // ─── Share Emoji Blocks ───────────────────────────────────────────────────────
 
 /**

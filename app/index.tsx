@@ -1,5 +1,5 @@
 // app/index.tsx
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -80,7 +80,8 @@ const GAMES = [
     borderColor: '#A9BC7C',
     textColor: '#33401C',
     descColor: '#556B2F',
-    icon: 'trending-up-outline' as const,
+    icon: 'ladder' as const,
+    iconSet: 'material' as const,
   },
 ];
 
@@ -141,7 +142,11 @@ export default function Home() {
                   <View style={styles.tileBody}>
                     {/* Icon */}
                     <View style={[styles.iconWrap, { backgroundColor: game.accentColor + '22' }]}>
-                      <Ionicons name={game.icon} size={18} color={game.accentColor} />
+                      {'iconSet' in game && game.iconSet === 'material' ? (
+                        <MaterialCommunityIcons name={game.icon as any} size={18} color={game.accentColor} />
+                      ) : (
+                        <Ionicons name={game.icon as any} size={18} color={game.accentColor} />
+                      )}
                     </View>
 
                     <Text style={[styles.gameName, { color: game.textColor }]}>

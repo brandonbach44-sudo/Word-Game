@@ -262,7 +262,7 @@ const WordSearchEntryScreen: React.FC = () => {
               onPress={() => router.push('/wordsearch/play')}
               activeOpacity={0.8}
             >
-              <Text style={[styles.modeTitle, { color: background.textColor }]}>Classic Game</Text>
+              <Text style={[styles.modeTitle, { color: background.textColor }]}>Quick Play</Text>
               <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
                 Choose a category and difficulty, then find all hidden words
               </Text>

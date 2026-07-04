@@ -9,14 +9,16 @@ import { WORD_SEARCH_THEMES } from '../../src/wordsearch/data/themes';
 import PlayScreen from '../../src/wordsearch/PlayScreen';
 import { generatePuzzleWithSeed, type WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 import { dateToSeed } from '../../src/wordsearch/utils/storage';
+import { loadWordSearchDailyProgress, type WordSearchDailyProgress } from '../../src/wordsearch/utils/wsStorage';
 
 export default function WordSearchDailyScreen() {
   const { background } = useTheme();
   const [puzzle, setPuzzle] = useState<WordSearchPuzzle | null>(null);
+  const [progress, setProgress] = useState<WordSearchDailyProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const generateDailyPuzzle = () => {
+    const generateDailyPuzzle = async () => {
       try {
         // Get today's seed (same for all users)
         const seed = dateToSeed(new Date());
@@ -36,6 +38,10 @@ export default function WordSearchDailyScreen() {
         });
 
         setPuzzle(generatedPuzzle);
+
+        // Resume in-progress attempt if the app was closed mid-game today
+        const existingProgress = await loadWordSearchDailyProgress();
+        if (existingProgress) setProgress(existingProgress);
       } catch (error) {
         console.error('Failed to generate daily puzzle:', error);
         router.back();
@@ -69,6 +75,7 @@ export default function WordSearchDailyScreen() {
       puzzleData={puzzle}
       isDaily={true}
       timeLimit={240} // 4-minute countdown for daily (Challenge settings)
+      initialProgress={progress}
     />
   );
 }

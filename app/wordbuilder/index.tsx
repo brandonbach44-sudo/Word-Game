@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   PanResponder,
   Pressable,
@@ -55,6 +56,10 @@ import {
   getTodayDailyResult,
   DEBUG_UNLOCK_ALL,
   unlockAllTilesForTesting,
+  loadDailyBuilderProgress,
+  saveDailyBuilderProgress,
+  clearDailyBuilderProgress,
+  type WordBuilderDailyProgress,
 } from '../../src/wordbuilder/utils/storage';
 import { TierName } from '../../src/wordbuilder/utils/tiers';
 import {
@@ -349,6 +354,10 @@ export default function WordBuilder() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameOverScrollRef = useRef<ScrollView>(null);
+  // Set true when an in-progress Daily attempt was restored on app launch —
+  // tells startDailyChallenge to enter the already-loaded game instead of
+  // wiping it with fresh letters/score/foundWords.
+  const resumedDailyRef = useRef(false);
 
   // Player Data State
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
@@ -400,6 +409,18 @@ export default function WordBuilder() {
       setDailyPlayed(todayResult.played);
       if (todayResult.played) {
         setDailyResult({ score: todayResult.score, words: todayResult.words });
+      } else {
+        // Resume an in-progress Daily attempt (app closed/backgrounded mid-game).
+        // Stay on the menu screen — startDailyChallenge() picks this up when tapped.
+        const savedProgress = await loadDailyBuilderProgress();
+        if (savedProgress) {
+          setLetters(savedProgress.letters);
+          setFoundWords(savedProgress.foundWords);
+          setScore(savedProgress.score);
+          setTimeLeft(savedProgress.timeLeft);
+          setLetterCount(6);
+          resumedDailyRef.current = true;
+        }
       }
     };
     initializeApp();
@@ -517,6 +538,8 @@ export default function WordBuilder() {
           setDailyChallenge(updatedDaily);
           setDailyPlayed(true);
           setDailyResult({ score, words: foundWords });
+          resumedDailyRef.current = false;
+          await clearDailyBuilderProgress();
         } else if (foundWords.length > 0 || score > 0) {
           // Save practice game result
           updatedStats = await updateStatsAfterGame(score, foundWords, gameMode, letterCount);
@@ -563,10 +586,36 @@ export default function WordBuilder() {
     };
   }, [timeLeft, gameMode, gameOver, score, foundWords, letterCount, letters]);
 
+  // Autosave Daily progress on every change so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game.
+  useEffect(() => {
+    if (gameMode !== 'daily' || gameOver) return;
+    saveDailyBuilderProgress({
+      dateISO: new Date().toISOString().slice(0, 10),
+      letters,
+      foundWords,
+      score,
+      timeLeft,
+    });
+  }, [gameMode, gameOver, letters, foundWords, score, timeLeft]);
+
   const startDailyChallenge = async () => {
     const alreadyPlayed = await hasPlayedTodayDaily();
     if (alreadyPlayed) return;
-    
+
+    // Resuming an in-progress attempt restored on launch — letters/score/
+    // foundWords/timeLeft are already populated, just enter the game.
+    if (resumedDailyRef.current) {
+      setGameMode('daily');
+      setSelectedIndices([]);
+      setCurrentWord('');
+      setMessage('Tap letters to build words!');
+      setGameOver(false);
+      setGameOverPage('results');
+      setPossibleWords([]);
+      return;
+    }
+
     setGameMode('daily');
     setLetterCount(6);
     setLetters(generateDailyLetters());
@@ -688,6 +737,42 @@ export default function WordBuilder() {
     setGameOverPage('results');
     setPossibleWords([]);
     if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  // Daily only allows one attempt per day — leaving mid-game (while it's
+  // still running, not yet timed out) needs to actually lock in today's
+  // result as-is, otherwise you could dodge a bad run by backing out and
+  // trying again later.
+  const handleGameplayBackPress = () => {
+    if (gameMode === 'daily' && !gameOver) {
+      Alert.alert(
+        'Leave Daily Challenge?',
+        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const updatedDaily = await saveDailyResult(score, foundWords);
+                setDailyChallenge(updatedDaily);
+                setDailyPlayed(true);
+                setDailyResult({ score, words: foundWords });
+                resumedDailyRef.current = false;
+                await clearDailyBuilderProgress();
+                await refreshPlayerData();
+              } catch (e) {
+                console.warn('Failed to lock in daily result on leave', e);
+              }
+              backToMenu();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    backToMenu();
   };
 
   const backToAppMenu = () => {
@@ -976,7 +1061,7 @@ export default function WordBuilder() {
         <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
 
         <View style={styles.header}>
-          <TouchableOpacity onPress={backToMenu}>
+          <TouchableOpacity onPress={handleGameplayBackPress}>
             <Text style={[styles.backButton, dynamicStyles.textSecondary]}>← Back</Text>
           </TouchableOpacity>
           <Text style={[styles.timer, dynamicStyles.text, timeLeft <= 10 && styles.timerWarning]}>

@@ -73,6 +73,28 @@ export const useHangman = () => {
     setIsPhrase(specificWord.includes(' ')); // Auto-detect if it's a phrase
   }, []);
 
+  // Restore a game already in progress (e.g. resuming a Daily attempt after
+  // the app was closed) — unlike the startGame* functions, this does NOT
+  // wipe guessed/correct/incorrect letters.
+  const hydrateGame = useCallback(
+    (params: {
+      word: string;
+      category: string;
+      guessedLetters: string[];
+      incorrectGuesses: string[];
+      correctGuesses: string[];
+    }) => {
+      setWord(params.word);
+      setCategory(params.category);
+      setGuessedLetters(params.guessedLetters);
+      setIncorrectGuesses(params.incorrectGuesses);
+      setCorrectGuesses(params.correctGuesses);
+      setStatus('playing');
+      setIsPhrase(params.word.includes(' '));
+    },
+    []
+  );
+
   // Reset game to idle state
   const resetGame = useCallback(() => {
     setWord('');
@@ -201,6 +223,7 @@ export const useHangman = () => {
     startGame,
     startGameWithCategory,
     startGameWithWord,  // NEW
+    hydrateGame,        // NEW — restore an in-progress Daily attempt
     resetGame,          // NEW
     guessLetter,
     guessWord,

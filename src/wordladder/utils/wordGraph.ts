@@ -99,7 +99,8 @@ export function isOneLetterOff(a: string, b: string): boolean {
 export function findShortestPath(
   start: string,
   end: string,
-  maxDepth: number = 10
+  maxDepth: number = 10,
+  avoid?: Iterable<string>
 ): string[] | null {
   const from = start.toLowerCase();
   const to = end.toLowerCase();
@@ -107,6 +108,9 @@ export function findShortestPath(
   if (from === to) return [from];
 
   const visited = new Set<string>([from]);
+  if (avoid) {
+    for (const w of avoid) visited.add(w.toLowerCase());
+  }
   let frontier: string[][] = [[from]];
   let depth = 0;
 

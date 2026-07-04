@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STATS_KEY = "wordle_stats_v1";
 const DAILY_LOCK_KEY = "wordle_daily_lock_v1";
+const DAILY_PROGRESS_KEY = "wordle_daily_progress_v1";
 const PREFS_KEY = "wordle_prefs_v1";
 
 export type WordlePrefs = {
@@ -114,5 +115,45 @@ export async function clearDailyLock(): Promise<void> {
     await AsyncStorage.removeItem(DAILY_LOCK_KEY);
   } catch (e) {
     console.warn("clearDailyLock error", e);
+  }
+}
+
+// ── Daily in-progress autosave (resume after closing the app mid-game) ──
+// Loosely typed (any) for the same reason as the stats functions above —
+// avoids a circular import with wordleGame.tsx's EvaluatedLetter type.
+export type WordleDailyProgress = {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is stale/ignored
+  guesses: string[];
+  evaluations: any[][];
+  currentGuess: string;
+  elapsedSeconds: number;
+};
+
+export async function loadDailyProgress(): Promise<WordleDailyProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.dateISO !== "string") return null;
+    return parsed;
+  } catch (e) {
+    console.warn("loadDailyProgress error", e);
+    return null;
+  }
+}
+
+export async function saveDailyProgress(progress: WordleDailyProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn("saveDailyProgress error", e);
+  }
+}
+
+export async function clearDailyProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DAILY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn("clearDailyProgress error", e);
   }
 }

@@ -2,6 +2,7 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -28,12 +29,16 @@ import { DailyChallengePopup } from '../components/DailyChallengePopup';
 import { generateGrid } from '../utils/gridGenerator';
 import {
   buildScoreBlocks,
+  clearWordGridDailyProgress,
   formatDisplayDate,
   generateDailyGrid,
   getTodayDateString,
   loadDailyWordGridStats,
+  loadWordGridDailyProgress,
   saveDailyWordGridResult,
+  saveWordGridDailyProgress,
   type DailyWordGridStats,
+  type WordGridDailyProgress,
 } from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore } from '../utils/scoring';
@@ -192,6 +197,40 @@ export default function GameScreen() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const feedbackKeyRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Set true when an in-progress Daily attempt was restored on app launch —
+  // tells startDailyGame to enter the already-loaded game instead of
+  // wiping it with a fresh grid/score/foundWords.
+  const resumedDailyRef = useRef(false);
+
+  // Resume an in-progress Daily attempt (app closed/backgrounded mid-game),
+  // unless today's Daily is already completed. Stays on the menu screen —
+  // startDailyGame() picks this restored state up when tapped.
+  useEffect(() => {
+    if (dailyPlayedToday) return;
+    loadWordGridDailyProgress().then((progress) => {
+      if (!progress) return;
+      setGameMode('daily');
+      setGrid(generateDailyGrid());
+      setScore(progress.score);
+      setFoundWords(progress.foundWords);
+      setFoundWordSet(new Set(progress.foundWords.map((w) => w.word)));
+      setTimeLeft(progress.timeLeft);
+      resumedDailyRef.current = true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyPlayedToday]);
+
+  // Autosave Daily progress on every change so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game.
+  useEffect(() => {
+    if (gameMode !== 'daily' || gameOver || screen !== 'game') return;
+    saveWordGridDailyProgress({
+      dateISO: getTodayDateString(),
+      foundWords,
+      score,
+      timeLeft,
+    });
+  }, [gameMode, gameOver, screen, foundWords, score, timeLeft]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -267,6 +306,8 @@ export default function GameScreen() {
       if (gameMode === 'daily') {
         const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
         setDailyStats(newDailyStats);
+        resumedDailyRef.current = false;
+        await clearWordGridDailyProgress();
         const blocks = buildScoreBlocks(score);
         const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
         const text = `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${score} pts · ${foundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
@@ -298,6 +339,18 @@ export default function GameScreen() {
 
   const startDailyGame = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+
+    // Resuming an in-progress attempt restored on launch — grid/score/
+    // foundWords/timeLeft are already populated, just enter the game.
+    if (resumedDailyRef.current) {
+      setGameOver(false);
+      setFeedbacks([]);
+      setShowDailyPopup(false);
+      setScreen('game');
+      setTimeout(startTimer, 100);
+      return;
+    }
+
     setGameMode('daily');
     setGrid(generateDailyGrid());
     setScore(0);
@@ -333,6 +386,39 @@ export default function GameScreen() {
     setScreen('menu');
     switchToTab('play');
   }, [switchToTab]);
+
+  // Daily only allows one attempt per day — leaving mid-game (while the
+  // round is still running, not yet timed out) needs to actually lock in
+  // today's result as-is, otherwise you could dodge a bad run by backing
+  // out and trying again later.
+  const handleGameplayBackPress = useCallback(() => {
+    if (gameMode === 'daily' && !gameOver) {
+      Alert.alert(
+        'Leave Daily Challenge?',
+        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
+                setDailyStats(newDailyStats);
+                resumedDailyRef.current = false;
+                await clearWordGridDailyProgress();
+              } catch (e) {
+                console.warn('Failed to lock in daily result on leave', e);
+              }
+              handleBackToMenu();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    handleBackToMenu();
+  }, [foundWords.length, gameMode, gameOver, handleBackToMenu, score]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -578,7 +664,7 @@ export default function GameScreen() {
 
         {/* Header: Back | Timer | Score */}
         <View style={styles.gameHeader}>
-          <TouchableOpacity onPress={handleBackToMenu}>
+          <TouchableOpacity onPress={handleGameplayBackPress}>
             <Text style={[styles.backText, { color: bg.secondaryText }]}>← Back</Text>
           </TouchableOpacity>
           <Text style={[styles.timerText, { color: timerColor }, timeLeft <= 10 && styles.timerWarning]}>

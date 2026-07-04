@@ -8,6 +8,7 @@ import type { LadderDifficulty } from './generator';
 
 const STATS_KEY = 'wordladder_stats_v1';
 const DAILY_LOCK_KEY = 'wordladder_daily_lock_v1';
+const DAILY_PROGRESS_KEY = 'wordladder_daily_progress_v1';
 const PREFS_KEY = 'wordladder_prefs_v1';
 
 // ── Prefs ────────────────────────────────────────────────────────────────
@@ -138,6 +139,46 @@ export async function saveDailyLock(lock: DailyLockState): Promise<void> {
     await AsyncStorage.setItem(DAILY_LOCK_KEY, JSON.stringify(lock));
   } catch (e) {
     console.warn('saveDailyLock error', e);
+  }
+}
+
+// ── Daily in-progress autosave (resume after closing the app) ──────────
+// Lets a Daily attempt survive the app being backgrounded, force-quit, or
+// swiped away mid-game — reopening the same day picks up exactly where you
+// left off instead of losing progress or getting a free do-over.
+export type DailyProgressState = {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is ignored/stale
+  chain: string[];
+  hintsUsed: number;
+  elapsedSeconds: number; // accumulated play time across sessions
+};
+
+export async function loadDailyProgress(): Promise<DailyProgressState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch (e) {
+    console.warn('loadDailyProgress error', e);
+    return null;
+  }
+}
+
+export async function saveDailyProgress(progress: DailyProgressState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveDailyProgress error', e);
+  }
+}
+
+export async function clearDailyProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DAILY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearDailyProgress error', e);
   }
 }
 

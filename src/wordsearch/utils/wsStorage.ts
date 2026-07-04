@@ -226,3 +226,44 @@ export async function saveWordSearchDailyResult(
   await AsyncStorage.setItem(DAILY_STATS_KEY, JSON.stringify(newStats));
   return newStats;
 }
+
+// ============================================================================
+// DAILY IN-PROGRESS AUTOSAVE (resume after closing the app mid-game)
+// ============================================================================
+
+const DAILY_PROGRESS_KEY = 'wordsearch_daily_progress';
+
+export interface WordSearchDailyProgress {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is stale/ignored
+  foundWordTexts: string[]; // just the word strings — matched back against the (deterministic) puzzle on resume
+  score: number;
+  elapsedSeconds: number;
+}
+
+export async function loadWordSearchDailyProgress(): Promise<WordSearchDailyProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveWordSearchDailyProgress(progress: WordSearchDailyProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveWordSearchDailyProgress error', e);
+  }
+}
+
+export async function clearWordSearchDailyProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DAILY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearWordSearchDailyProgress error', e);
+  }
+}

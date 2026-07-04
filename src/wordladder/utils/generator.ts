@@ -125,7 +125,12 @@ export function generateDailyLadder(date: Date = new Date()): LadderPuzzle {
   return buildPuzzle(DIFFICULTY_CONFIG.medium, 'medium', rand);
 }
 
-/** Re-derives a fresh shortest path from wherever the player currently is to the target. */
-export function getHintPath(currentWord: string, target: string): string[] | null {
-  return findShortestPath(currentWord, target, 12);
+/**
+ * Re-derives a fresh shortest path from wherever the player currently is to
+ * the target. `usedWords` (the player's chain so far) is excluded from the
+ * search so a hint never suggests a word that would immediately fail the
+ * "already used that word" check.
+ */
+export function getHintPath(currentWord: string, target: string, usedWords?: string[]): string[] | null {
+  return findShortestPath(currentWord, target, 12, usedWords);
 }

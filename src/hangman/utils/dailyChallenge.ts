@@ -116,3 +116,47 @@ export async function hasPlayedTodayDaily(): Promise<boolean> {
   const stats = await loadDailyStats();
   return stats.lastPlayedDate === getTodayDateString();
 }
+
+// ── Daily in-progress autosave (resume after closing the app mid-game) ──
+// Lets a Daily attempt survive the app being backgrounded, force-quit, or
+// swiped away mid-game — reopening the same day resumes the exact guessed
+// letters instead of losing progress or a free redo.
+
+const PROGRESS_KEY = 'hangman_daily_progress';
+
+export interface HangmanDailyProgress {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is stale/ignored
+  word: string;
+  category: string;
+  guessedLetters: string[];
+  incorrectGuesses: string[];
+  correctGuesses: string[];
+}
+
+export async function loadDailyProgress(): Promise<HangmanDailyProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDailyProgress(progress: HangmanDailyProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveDailyProgress error', e);
+  }
+}
+
+export async function clearDailyProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearDailyProgress error', e);
+  }
+}

@@ -1,7 +1,7 @@
 // app/wordladder/index.tsx
 
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -90,22 +90,32 @@ export default function WordLadderEntryScreen() {
   const [unlocked, setUnlocked] = useState<(Achievement & { unlockedAt: string })[]>([]);
   const countdown = useCountdownToMidnight();
 
-  useEffect(() => {
-    const init = async () => {
-      const [s, lock, played, ach] = await Promise.all([
-        loadLadderStats().catch(() => null),
-        loadDailyLock().catch(() => null),
-        hasPlayedTodayDaily().catch(() => false),
-        getUnlockedAchievements().catch(() => []),
-      ]);
-      setStats(s);
-      setDailyLock(lock);
-      setDailyPlayed(played);
-      setUnlocked(ach);
-      setLoadingStats(false);
-    };
-    init();
+  const loadAll = useCallback(async () => {
+    const [s, lock, played, ach] = await Promise.all([
+      loadLadderStats().catch(() => null),
+      loadDailyLock().catch(() => null),
+      hasPlayedTodayDaily().catch(() => false),
+      getUnlockedAchievements().catch(() => []),
+    ]);
+    setStats(s);
+    setDailyLock(lock);
+    setDailyPlayed(played);
+    setUnlocked(ach);
+    setLoadingStats(false);
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  // Refresh every time this screen regains focus (e.g. returning from a
+  // finished game) so stats/daily state never look stale.
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
 
   useEffect(() => {
     currentTabIdxRef.current = TABS.indexOf(activeTab);
@@ -153,9 +163,7 @@ export default function WordLadderEntryScreen() {
   };
 
   const practiceStats = stats?.practice;
-  const combinedWins = (stats?.practice.gamesWon ?? 0) + (stats?.daily.gamesWon ?? 0);
   const combinedGames = (stats?.practice.gamesPlayed ?? 0) + (stats?.daily.gamesPlayed ?? 0);
-  const winRate = combinedGames > 0 ? Math.round((combinedWins / combinedGames) * 100) : 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -277,7 +285,7 @@ export default function WordLadderEntryScreen() {
             </View>
 
             {/* Practice mode — difficulty picker */}
-            <Text style={[styles.sectionLabel, { color: background.textColor }]}>Practice Mode</Text>
+            <Text style={[styles.sectionLabel, { color: background.textColor }]}>Quick Play</Text>
             {DIFFICULTY_ORDER.map((diff) => {
               const config = DIFFICULTY_CONFIG[diff];
               const color = DIFFICULTY_COLORS[diff];
@@ -323,22 +331,55 @@ export default function WordLadderEntryScreen() {
               <ActivityIndicator color={COLORS.accent} style={{ marginTop: 20 }} />
             ) : combinedGames > 0 ? (
               <>
-                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Overview</Text>
+                {/* ── DAILY LADDER ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily Ladder</Text>
                 <View style={styles.statsGrid}>
                   {[
-                    { label: 'Games Played', value: combinedGames.toString() },
-                    { label: 'Games Won', value: combinedWins.toString() },
-                    { label: 'Win Rate', value: `${winRate}%` },
+                    { label: 'Current Streak', value: (stats?.daily.currentStreak ?? 0).toString() },
                     { label: 'Best Streak', value: (stats?.daily.bestStreak ?? 0).toString() },
-                    { label: 'Perfect Solves', value: ((practiceStats?.perfectSolves ?? 0) + (stats?.daily.perfectSolves ?? 0)).toString() },
+                    { label: 'Played', value: (stats?.daily.gamesPlayed ?? 0).toString() },
+                    { label: 'Won', value: (stats?.daily.gamesWon ?? 0).toString() },
+                    {
+                      label: 'Win Rate',
+                      value: `${
+                        stats && stats.daily.gamesPlayed > 0
+                          ? Math.round((stats.daily.gamesWon / stats.daily.gamesPlayed) * 100)
+                          : 0
+                      }%`,
+                    },
+                    { label: 'Perfect Solves', value: (stats?.daily.perfectSolves ?? 0).toString() },
                     {
                       label: 'Fastest Solve',
-                      value: (() => {
-                        const candidates = [practiceStats?.fastestTimeSeconds, stats?.daily.fastestTimeSeconds].filter(
-                          (v): v is number => v != null
-                        );
-                        return candidates.length > 0 ? `${Math.min(...candidates)}s` : '—';
-                      })(),
+                      value: stats?.daily.fastestTimeSeconds != null ? `${stats.daily.fastestTimeSeconds}s` : '—',
+                    },
+                  ].map(({ label, value }) => (
+                    <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                      <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
+                      <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* ── PRACTICE MODE ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
+                <View style={styles.statsGrid}>
+                  {[
+                    { label: 'Played', value: (practiceStats?.gamesPlayed ?? 0).toString() },
+                    {
+                      label: 'Won',
+                      value: `${practiceStats?.gamesWon ?? 0} (${
+                        practiceStats && practiceStats.gamesPlayed > 0
+                          ? Math.round((practiceStats.gamesWon / practiceStats.gamesPlayed) * 100)
+                          : 0
+                      }%)`,
+                    },
+                    { label: 'Easy Wins', value: (practiceStats?.easyWins ?? 0).toString() },
+                    { label: 'Medium Wins', value: (practiceStats?.mediumWins ?? 0).toString() },
+                    { label: 'Hard Wins', value: (practiceStats?.hardWins ?? 0).toString() },
+                    { label: 'Perfect Solves', value: (practiceStats?.perfectSolves ?? 0).toString() },
+                    {
+                      label: 'Fastest Solve',
+                      value: practiceStats?.fastestTimeSeconds != null ? `${practiceStats.fastestTimeSeconds}s` : '—',
                     },
                   ].map(({ label, value }) => (
                     <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>

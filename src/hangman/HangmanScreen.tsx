@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -34,6 +35,10 @@ import {
   loadDailyStats,
   saveDailyResult,
   dateToSeed,
+  loadDailyProgress,
+  saveDailyProgress,
+  clearDailyProgress,
+  type HangmanDailyProgress,
 } from './utils/dailyChallenge';
 
 import { useHangman } from './Hooks/useHangman';
@@ -269,6 +274,11 @@ export default function HangmanScreen() {
   const [dailyGameEnded, setDailyGameEnded] = useState(false);
   const [showGuessModal, setShowGuessModal] = useState(false);
   const [guessInput, setGuessInput] = useState('');
+  // Stashes a restored in-progress Daily attempt (app closed/backgrounded
+  // mid-game) found on launch. Not applied to the hook immediately —
+  // startDailyChallenge() picks it up when the user actually taps Play, so
+  // the app doesn't auto-jump into the game screen on launch.
+  const resumedDailyProgressRef = useRef<HangmanDailyProgress | null>(null);
 
   const {
     word,
@@ -285,6 +295,7 @@ export default function HangmanScreen() {
     startGame,
     startGameWithCategory,
     startGameWithWord,
+    hydrateGame,
     resetGame,
     guessLetter,
     guessWord,
@@ -316,7 +327,14 @@ export default function HangmanScreen() {
       setLockedAchievements(locked);
     };
     loadData();
-    loadDailyStats().then(setDailyStats);
+    loadDailyStats().then(async (stats) => {
+      setDailyStats(stats);
+      // Stash an in-progress Daily attempt (if any) unless today's is done —
+      // startDailyChallenge() applies it when the user taps Play.
+      if (stats.lastPlayedDate !== getTodayDateString()) {
+        resumedDailyProgressRef.current = await loadDailyProgress();
+      }
+    });
   }, []);
 
   // Achievement popup queue
@@ -371,14 +389,30 @@ export default function HangmanScreen() {
       const handleDailyEnd = async () => {
         const result = isWon ? 'won' : 'lost';
         await saveDailyResult(result, dailyWord, incorrectGuesses.length);
+        resumedDailyProgressRef.current = null;
+        await clearDailyProgress();
         const updatedDailyStats = await loadDailyStats();
         setDailyStats(updatedDailyStats);
         setShowDailyPopup(true);
       };
-      
+
       handleDailyEnd();
     }
   }, [isWon, isLost, playingDaily, dailyGameEnded, dailyWord]);
+
+  // Autosave Daily progress on every guess so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game.
+  useEffect(() => {
+    if (!playingDaily || !isPlaying) return;
+    saveDailyProgress({
+      dateISO: getTodayDateString(),
+      word: dailyWord,
+      category,
+      guessedLetters: [...correctGuesses, ...incorrectGuesses],
+      incorrectGuesses,
+      correctGuesses,
+    });
+  }, [playingDaily, isPlaying, dailyWord, category, correctGuesses, incorrectGuesses]);
 
   // Clear selected letter when game ends
   useEffect(() => {
@@ -394,6 +428,26 @@ export default function HangmanScreen() {
 
   // Start daily challenge - picks word from main word list based on date
   const startDailyChallenge = () => {
+    // Resuming an in-progress attempt restored on launch — restore the
+    // exact guessed/correct/incorrect letters instead of starting fresh.
+    const resumed = resumedDailyProgressRef.current;
+    if (resumed) {
+      setDailyWord(resumed.word);
+      setPlayingDaily(true);
+      setDailyGameEnded(false);
+      setShowDailyPopup(false);
+      setSelectedCategory('Daily Challenge');
+      hydrateGame({
+        word: resumed.word,
+        category: resumed.category,
+        guessedLetters: resumed.guessedLetters,
+        incorrectGuesses: resumed.incorrectGuesses,
+        correctGuesses: resumed.correctGuesses,
+      });
+      setGameMode('playing');
+      return;
+    }
+
     // Flatten all words from all categories into one list
     const allWords: { word: string; category: string }[] = [];
     Object.entries(WORD_CATEGORIES).forEach(([category, words]) => {
@@ -401,17 +455,17 @@ export default function HangmanScreen() {
         allWords.push({ word, category });
       });
     });
-    
+
     // Use date as seed to pick the same word for everyone
     const seed = dateToSeed(new Date());
     const index = seed % allWords.length;
     const dailyEntry = allWords[index];
-    
+
     if (!dailyEntry) {
       console.error('No daily word found!');
       return;
     }
-    
+
     setDailyWord(dailyEntry.word);
     setPlayingDaily(true);
     setDailyGameEnded(false);
@@ -433,7 +487,43 @@ export default function HangmanScreen() {
     setShowDailyPopup(false);
     setSelectedLetter(null);
   };
-  
+
+  // Daily only allows one attempt per day — leaving mid-game (word still
+  // unsolved, not yet won/lost) needs to actually lock in the attempt as a
+  // loss, otherwise you could dodge a bad run by backing out and trying
+  // again later. Runs BEFORE resetGame()/handleBackToModeSelect() clears
+  // the in-memory guesses, since those would otherwise wipe the state this
+  // needs to save.
+  const handleGameplayBackPress = () => {
+    if (playingDaily && isPlaying) {
+      Alert.alert(
+        'Leave Daily Challenge?',
+        "You've only got one Daily attempt per day — leaving now will end your run and count today as a loss.",
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Leave (Loss)',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await saveDailyResult('lost', dailyWord, incorrectGuesses.length);
+                resumedDailyProgressRef.current = null;
+                await clearDailyProgress();
+                const updatedDailyStats = await loadDailyStats();
+                setDailyStats(updatedDailyStats);
+              } catch (e) {
+                console.warn('Failed to lock in daily result on leave', e);
+              }
+              handleBackToModeSelect();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    handleBackToModeSelect();
+  };
+
   const handleBackToCategorySelect = () => setGameMode('category-select');
   
   const handlePlayAgain = () => {
@@ -558,7 +648,7 @@ export default function HangmanScreen() {
           textColor={background.textColor}
         />
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBackToModeSelect}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGameplayBackPress}>
             <Text style={[styles.backButtonText, { color: background.secondaryText }]}>
               ← Back
             </Text>
@@ -839,7 +929,7 @@ export default function HangmanScreen() {
             onPress={() => handleSelectGameType('custom')}
             activeOpacity={0.8}
           >
-            <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Play</Text>
+            <Text style={[styles.gameModeTitle, { color: background.textColor }]}>Quick Play</Text>
             <Text style={[styles.gameModeDescription, { color: background.secondaryText }]}>
               Choose a category and start guessing
             </Text>
@@ -938,7 +1028,7 @@ export default function HangmanScreen() {
           )}
           {playerStats ? (
             <>
-              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Free Play Stats</Text>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Quick Play Stats</Text>
               <View style={styles.statsGrid}>
                 <StatsCard
                   label="Games Played"

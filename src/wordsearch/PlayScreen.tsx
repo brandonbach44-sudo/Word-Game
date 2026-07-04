@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Share2 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -29,9 +30,13 @@ import {
   saveWordSearchDailyResult,
   updateWordSearchStats,
   loadWordSearchStats,
+  loadWordSearchDailyProgress,
+  saveWordSearchDailyProgress,
+  clearWordSearchDailyProgress,
   type WordSearchStats,
+  type WordSearchDailyProgress,
 } from '../../src/wordsearch/utils/wsStorage';
-import { useCountdownToMidnight } from '../../src/wordsearch/utils/storage';
+import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -146,6 +151,7 @@ interface PlayScreenProps {
   puzzleData: WordSearchPuzzle;
   isDaily?: boolean;
   timeLimit?: number; // seconds — for daily countdown mode
+  initialProgress?: WordSearchDailyProgress | null; // daily-only: resume from a previous session
 }
 
 interface Cell { row: number; col: number }
@@ -260,6 +266,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   puzzleData,
   isDaily = false,
   timeLimit,
+  initialProgress,
 }) => {
   const themeName = WORD_SEARCH_THEMES.find(t => t.id === themeId)?.name ?? themeId;
   const { background } = useTheme();
@@ -278,13 +285,25 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     }
   }, [pendingAchievements, currentPopup]);
 
-  const [gameState, setGameState] = useState<GameState>({
-    score: 0,
-    foundWords: [],
-    elapsedSeconds: 0,
-    foundCells: [],
-    currentSelection: [],
-  });
+  // Resume from a previous session: the puzzle grid is deterministic per
+  // day (same seed), so we can match saved word strings back against
+  // puzzleData.words to reconstruct full PlacedWord + highlighted cells.
+  const initialGameState: GameState = (() => {
+    if (!initialProgress) {
+      return { score: 0, foundWords: [], elapsedSeconds: 0, foundCells: [], currentSelection: [] };
+    }
+    const restoredWords = puzzleData.words.filter(w => initialProgress.foundWordTexts.includes(w.word));
+    const restoredCells = restoredWords.flatMap(getWordCells);
+    return {
+      score: initialProgress.score,
+      foundWords: restoredWords,
+      elapsedSeconds: initialProgress.elapsedSeconds,
+      foundCells: restoredCells,
+      currentSelection: [],
+    };
+  })();
+
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [gameFinished, setGameFinished] = useState(false);
 
   // Combo system
@@ -367,6 +386,18 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   const gameStateRef = useRef(gameState);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { gameFinishedRef.current = gameFinished; }, [gameFinished]);
+
+  // Autosave Daily progress on every change so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game.
+  useEffect(() => {
+    if (!isDaily || gameFinished) return;
+    saveWordSearchDailyProgress({
+      dateISO: getTodayDateString(),
+      foundWordTexts: gameState.foundWords.map(w => w.word),
+      score: gameState.score,
+      elapsedSeconds: gameState.elapsedSeconds,
+    });
+  }, [isDaily, gameFinished, gameState.foundWords, gameState.score, gameState.elapsedSeconds]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -500,6 +531,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           finalScore
         );
         dailyStreak = dailyStats.streak;
+        await clearWordSearchDailyProgress();
       }
 
       const updatedStats = await updateWordSearchStats({
@@ -579,6 +611,27 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   };
 
   const handleBack = () => {
+    // Daily only allows one attempt per day — leaving mid-game needs to
+    // actually lock in the attempt as-is, otherwise you could dodge a bad
+    // run by backing out and trying again later.
+    if (isDaily && !gameFinished) {
+      Alert.alert(
+        'Leave Daily Challenge?',
+        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
+        [
+          { text: 'Keep Playing', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: async () => {
+              await triggerFinish();
+              router.back();
+            },
+          },
+        ]
+      );
+      return;
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     router.back();
   };

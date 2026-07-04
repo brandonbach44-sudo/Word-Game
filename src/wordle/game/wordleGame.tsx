@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   PanResponder,
@@ -27,12 +28,16 @@ import { ImageBackground } from "react-native";
 // AchievementPopup is shared from wordbuilder — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
 import {
+  clearDailyProgress,
   loadDailyLock,
+  loadDailyProgress,
   loadWordleStats,
   loadWordlePrefs,
   saveDailyLock,
+  saveDailyProgress,
   saveWordleStats,
   saveWordlePrefs,
+  type WordleDailyProgress,
   type WordlePrefs,
 } from "../storage/wordleStorage";
 
@@ -509,6 +514,10 @@ export default function WordleGame() {
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [nextDailySeconds, setNextDailySeconds] = useState<number | null>(null);
   const [todayISO, setTodayISO] = useState<string>(() => getTodayISODate());
+  // Set true when an in-progress Daily attempt was restored on hydration —
+  // tells startGame("daily") to enter the already-loaded game instead of
+  // wiping it via resetGameState.
+  const resumedDailyRef = useRef(false);
 
   // Achievement popup state
   const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
@@ -627,6 +636,7 @@ export default function WordleGame() {
 
         setStats(mergeLoadedStats(loadedStats));
 
+        let lockedToday = false;
         if (
           loadedLock &&
           typeof loadedLock === "object" &&
@@ -645,8 +655,24 @@ export default function WordleGame() {
                 ? undefined
                 : Number(loadedLock.timeSeconds),
           });
+          lockedToday = loadedLock.dateISO === getTodayISODate();
         } else {
           setDailyLock(null);
+        }
+
+        // Resume an in-progress Daily attempt (app closed/backgrounded mid-game)
+        // unless today's Daily is already completed.
+        if (!lockedToday) {
+          const savedProgress = await loadDailyProgress();
+          if (isMounted && savedProgress && savedProgress.dateISO === getTodayISODate()) {
+            setGameMode("daily");
+            setSolution(getDailySolution());
+            setGuesses(savedProgress.guesses);
+            setEvaluations(savedProgress.evaluations as EvaluatedLetter[][]);
+            setCurrentGuess(savedProgress.currentGuess);
+            setStartTime(Date.now() - savedProgress.elapsedSeconds * 1000);
+            resumedDailyRef.current = true;
+          }
         }
 
         setHydrated(true);
@@ -809,11 +835,31 @@ export default function WordleGame() {
         showMessageFn("Daily Challenge complete — tap View Result.");
         return;
       }
+      // Resuming an in-progress Daily attempt (restored on hydration) —
+      // enter as-is instead of wiping guesses via resetGameState.
+      if (targetMode === "daily" && resumedDailyRef.current) {
+        setScreen("game");
+        return;
+      }
       resetGameState(targetMode);
       setScreen("game");
     },
     [isDailyCompletedToday, resetGameState, showMessageFn]
   );
+
+  // Autosave Daily progress on every change so the attempt survives the app
+  // being backgrounded, force-quit, or swiped away mid-game.
+  useEffect(() => {
+    if (!hydrated || gameMode !== "daily" || status !== "playing") return;
+    const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+    saveDailyProgress({
+      dateISO: todayISO,
+      guesses,
+      evaluations,
+      currentGuess,
+      elapsedSeconds,
+    });
+  }, [hydrated, gameMode, status, guesses, evaluations, currentGuess, startTime, todayISO]);
 
   const openDailyResultFromMenu = useCallback(() => {
     if (!isDailyCompletedToday) return;
@@ -974,8 +1020,10 @@ export default function WordleGame() {
           shareText,
         };
         setDailyLock(lock);
+        resumedDailyRef.current = false;
         try {
           await saveDailyLock(lock);
+          await clearDailyProgress();
         } catch (e) {
           console.warn("Failed to save daily lock", e);
         }
@@ -1073,6 +1121,33 @@ export default function WordleGame() {
     }
     return map;
   }, [evaluations]);
+
+  // Daily only allows one attempt per day — leaving mid-game needs to
+  // actually lock in the attempt as a loss, otherwise you could dodge a bad
+  // run by backing out and trying again later.
+  const handleGameBackPress = useCallback(() => {
+    if (gameMode === "daily" && status === "playing") {
+      Alert.alert(
+        "Leave Daily Challenge?",
+        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
+        [
+          { text: "Keep Playing", style: "cancel" },
+          {
+            text: "Leave",
+            style: "destructive",
+            onPress: () => {
+              const elapsedSeconds =
+                startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
+              endGame("lost", guesses.length, elapsedSeconds);
+              goToMenu("play");
+            },
+          },
+        ]
+      );
+      return;
+    }
+    goToMenu("play");
+  }, [endGame, gameMode, goToMenu, guesses.length, startTime, status]);
 
   const gridShakeX = shakeAnim.interpolate({
     inputRange: [0, 1],
@@ -1287,7 +1362,7 @@ export default function WordleGame() {
       // First wins
       { id: "first_win", emoji: "✅", name: "First Win", description: "Win your first game", unlocked: totalWins >= 1 },
       { id: "daily_win", emoji: "📅", name: "Daily Solver", description: "Win a Daily Challenge", unlocked: dailyWins >= 1 },
-      { id: "practice_win", emoji: "🎯", name: "Practice Pays", description: "Win a Practice game", unlocked: practiceWins >= 1 },
+      { id: "practice_win", emoji: "🎯", name: "Practice Pays", description: "Win a Quick Play game", unlocked: practiceWins >= 1 },
       // Guess skill
       { id: "perfect", emoji: "⚡", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
       { id: "lucky_guess", emoji: "🍀", name: "Lucky Guess", description: "Win in 2 guesses", unlocked: twoGuessWins >= 1 },
@@ -1817,8 +1892,8 @@ export default function WordleGame() {
                   borderColor={BORDER}
                 />
 
-                {/* ── PLAY (secondary) ── */}
-                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Play</Text>
+                {/* ── QUICK PLAY (secondary) ── */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginTop: 28 }]}>Quick Play</Text>
                 <View style={styles.statsGrid}>
                   <StatsCard label="Played" value={`${stats.practice.gamesPlayed}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                   <StatsCard label="Won" value={`${stats.practice.gamesWon} (${winRatePractice}%)`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
@@ -1871,11 +1946,11 @@ export default function WordleGame() {
           <>
             <View style={styles.gameTopArea}>
               <View style={styles.gameHeader}>
-                <Pressable onPress={() => goToMenu("play")} hitSlop={8}>
+                <Pressable onPress={handleGameBackPress} hitSlop={8}>
                   <Text style={[styles.gameBackText, { color: SUBTEXT }]}>← Back</Text>
                 </Pressable>
                 <Text style={[styles.modeTitle, { color: SUBTEXT }]}>
-                  {gameMode === "daily" ? "Daily Challenge" : "Play"}
+                  {gameMode === "daily" ? "Daily Challenge" : "Quick Play"}
                 </Text>
                 <View style={styles.gameHeaderSpacer} />
               </View>

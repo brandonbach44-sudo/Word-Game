@@ -383,6 +383,50 @@ export const saveDailyResult = async (score: number, words: string[]): Promise<D
   return daily;
 };
 
+// ==================== DAILY IN-PROGRESS AUTOSAVE ====================
+// Lets a Daily attempt survive the app being backgrounded, force-quit, or
+// swiped away mid-game — reopening the same day resumes the exact letters/
+// found words/time remaining instead of losing progress or a free redo.
+
+const DAILY_PROGRESS_KEY = 'wordbuilder_daily_progress';
+
+export interface WordBuilderDailyProgress {
+  dateISO: string; // YYYY-MM-DD — progress from a different day is stale/ignored
+  letters: string[];
+  foundWords: string[];
+  score: number;
+  timeLeft: number;
+}
+
+export const loadDailyBuilderProgress = async (): Promise<WordBuilderDailyProgress | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch (error) {
+    console.error('Error loading daily builder progress:', error);
+    return null;
+  }
+};
+
+export const saveDailyBuilderProgress = async (progress: WordBuilderDailyProgress): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (error) {
+    console.error('Error saving daily builder progress:', error);
+  }
+};
+
+export const clearDailyBuilderProgress = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(DAILY_PROGRESS_KEY);
+  } catch (error) {
+    console.error('Error clearing daily builder progress:', error);
+  }
+};
+
 // ==================== DAILY STATS HELPERS ====================
 
 export const getDailyAverageScore = (daily: DailyChallenge): number => {

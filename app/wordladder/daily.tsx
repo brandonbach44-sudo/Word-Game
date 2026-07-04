@@ -6,21 +6,31 @@ import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { generateDailyLadder } from '../../src/wordladder/utils/generator';
-import { DailyLockState, getTodayDateString, loadDailyLock } from '../../src/wordladder/utils/ladderStorage';
+import {
+  DailyLockState,
+  DailyProgressState,
+  getTodayDateString,
+  loadDailyLock,
+  loadDailyProgress,
+} from '../../src/wordladder/utils/ladderStorage';
 import LadderPlayScreen from '../../src/wordladder/screens/LadderPlayScreen';
 
 export default function WordLadderDailyScreen() {
   const { background } = useTheme();
   const [lock, setLock] = useState<DailyLockState | null>(null);
+  const [progress, setProgress] = useState<DailyProgressState | null>(null);
   const [loading, setLoading] = useState(true);
 
   const puzzle = useMemo(() => generateDailyLadder(new Date()), []);
 
   useEffect(() => {
     (async () => {
-      const existing = await loadDailyLock();
-      if (existing && existing.dateISO === getTodayDateString()) {
-        setLock(existing);
+      const [existingLock, existingProgress] = await Promise.all([loadDailyLock(), loadDailyProgress()]);
+      if (existingLock && existingLock.dateISO === getTodayDateString()) {
+        setLock(existingLock);
+      } else if (existingProgress) {
+        // loadDailyProgress() already filters to today's date internally.
+        setProgress(existingProgress);
       }
       setLoading(false);
     })();
@@ -44,7 +54,8 @@ export default function WordLadderDailyScreen() {
       mode="daily"
       difficulty="medium"
       lockedResult={lock}
-      onGoHome={() => router.replace('/wordladder')}
+      initialProgress={progress}
+      onGoHome={() => router.back()}
     />
   );
 }
