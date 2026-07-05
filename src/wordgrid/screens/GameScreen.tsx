@@ -618,23 +618,6 @@ export default function GameScreen() {
                   </>
                 )}
 
-                {/* Buttons */}
-                <View style={styles.buttonRow}>
-                  <Pressable
-                    style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                    onPress={handleBackToMenu}
-                  >
-                    <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                    onPress={handlePlayAgain}
-                  >
-                    <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
-                  </Pressable>
-                </View>
-
-
               </View>
             </ScrollView>
           </View>
@@ -662,15 +645,24 @@ export default function GameScreen() {
                 <Text style={[styles.noWordsText, { color: bg.secondaryText }]}>No words found this round</Text>
               }
             />
-
-            <Pressable
-              style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1, marginTop: 12, minWidth: 160 }]}
-              onPress={handleBackToMenu}
-            >
-              <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Back to Menu</Text>
-            </Pressable>
           </View>
         </ScrollView>
+
+        {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar */}
+        <View style={styles.buttonRow}>
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+            onPress={handleBackToMenu}
+          >
+            <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+            onPress={handlePlayAgain}
+          >
+            <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
+          </Pressable>
+        </View>
 
         {/* Page indicator */}
         <View style={styles.pageIndicatorContainer}>
