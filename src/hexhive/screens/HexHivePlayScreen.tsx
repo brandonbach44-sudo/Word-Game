@@ -1,11 +1,15 @@
 // src/hexhive/screens/HexHivePlayScreen.tsx
-// Core gameplay screen — used by both the daily puzzle and untimed Quick
-// Play mode. Owns the current guess, found-word set, scoring, achievement
-// checks, and persistence for whichever mode it's given.
+// Core gameplay screen — used by both the daily puzzle and Quick Play mode.
+// Owns the current guess, found-word set, scoring, achievement checks, and
+// persistence for whichever mode it's given.
+//
+// Quick Play gets a 60-second timer (a fast-burst mode with no streak);
+// Daily stays untimed and persistent, matching the reference game.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Keyboard, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Share2 } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import HexGrid, { type Feedback } from '../components/HexGrid';
@@ -26,15 +30,23 @@ import {
 import { checkWordAchievements, checkProgressAchievements, type Achievement } from '../utils/achievements';
 
 const ACCENT = '#D4A017'; // Hex Hive's own accent — warm honey gold, distinct from other games
+const QUICK_PLAY_SECONDS = 60;
+
+function formatTime(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 interface HexHivePlayScreenProps {
   puzzle: HexHivePuzzle;
   mode: 'daily' | 'practice';
   initialFoundWords?: string[];
   onGoHome: () => void;
+  onPlayAgain?: () => void; // practice-only
 }
 
-export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onGoHome }: HexHivePlayScreenProps) {
+export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onGoHome, onPlayAgain }: HexHivePlayScreenProps) {
   const { background } = useTheme();
   const solution = useMemo(() => getPuzzleSolution(puzzle), [puzzle]);
 
@@ -49,6 +61,10 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
 
   const [achievementQueue, setAchievementQueue] = useState<Achievement[]>([]);
   const statsRef = useRef<HexHiveStats | null>(null);
+
+  // Quick Play only: 60-second countdown, no timer at all for Daily.
+  const [timeLeft, setTimeLeft] = useState(QUICK_PLAY_SECONDS);
+  const [gameOver, setGameOver] = useState(false);
 
   useEffect(() => {
     loadHexHiveStats().then((s) => {
@@ -65,6 +81,30 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   );
   const rank = getRankProgress(score, solution.maxScore);
 
+  const handleTimeUp = async () => {
+    setGameOver(true);
+    const stats = statsRef.current ?? (await loadHexHiveStats());
+    const updated = { ...stats, practicePuzzlesPlayed: stats.practicePuzzlesPlayed + 1 };
+    statsRef.current = updated;
+    await saveHexHiveStats(updated);
+  };
+
+  useEffect(() => {
+    if (mode !== 'practice') return;
+    const interval = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(interval);
+          handleTimeUp();
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
   const flashFeedback = (fb: Feedback) => {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     setFeedback(fb);
@@ -76,6 +116,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   };
 
   const handleSubmit = async () => {
+    if (gameOver) return;
     const result = checkGuess(currentGuess, puzzle, foundSet);
 
     if (result.status !== 'valid') {
@@ -147,11 +188,24 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     queueAchievements([...wordAch, ...progressAch]);
   };
 
-  const handleLetterPress = (letter: string) => setCurrentGuess((g) => (g.length < 20 ? g + letter : g));
+  const handleLetterPress = (letter: string) => {
+    if (gameOver) return;
+    setCurrentGuess((g) => (g.length < 20 ? g + letter : g));
+  };
   const handleDelete = () => setCurrentGuess((g) => g.slice(0, -1));
   const handleShuffle = () => setOuterLetters((prev) => shuffleLetters(prev));
 
+  const handleShareResult = async () => {
+    const message = `Hex Hive — Quick Play\n${rank.name} rank\n${score} points · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}`;
+    try {
+      await Share.share({ message });
+    } catch {}
+  };
+
   const sortedFound = useMemo(() => [...foundWords].sort(), [foundWords]);
+
+  const timerColor = timeLeft > 20 ? background.textColor : timeLeft > 10 ? '#f59e0b' : '#e94560';
+  const showResults = mode === 'practice' && gameOver;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -169,56 +223,120 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
         <View style={styles.titleWrap} pointerEvents="none">
-          <Text style={[styles.title, { color: background.textColor }]}>
-            {mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}
-          </Text>
+          {mode === 'practice' && !gameOver ? (
+            <Text style={[styles.title, { color: timerColor }]}>{formatTime(timeLeft)}</Text>
+          ) : (
+            <Text style={[styles.title, { color: background.textColor }]}>
+              {mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}
+            </Text>
+          )}
         </View>
       </View>
 
-      <View style={styles.rankBarWrap}>
-        <RankProgressBar
-          rankIndex={rank.index}
-          score={score}
-          accentColor={ACCENT}
-          textColor={background.textColor}
-          borderColor={background.borderColor}
-        />
-      </View>
+      {showResults ? (
+        <ScrollView contentContainerStyle={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+          <View style={[styles.resultsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+            <Text style={[styles.brand, { color: background.secondaryText }]}>HEX HIVE</Text>
+            <Text style={[styles.gameOverTitle, { color: background.textColor }]}>Time&apos;s Up!</Text>
+            <Text style={[styles.gameOverSubtitle, { color: background.secondaryText }]}>
+              {foundWords.length} word{foundWords.length !== 1 ? 's' : ''} · {score} points
+            </Text>
 
-      <View style={styles.boardCard}>
-        <HexGrid
-          outerLetters={outerLetters}
-          center={puzzle.center}
-          currentGuess={currentGuess}
-          feedback={feedback}
-          onLetterPress={handleLetterPress}
-          onDelete={handleDelete}
-          onShuffle={handleShuffle}
-          onSubmit={handleSubmit}
-          accentColor={ACCENT}
-          textColor={background.textColor}
-          secondaryTextColor={background.secondaryText}
-          tileColor={ACCENT + '17'}
-          cardColor={background.cardColor}
-          borderColor={background.borderColor}
-        />
-      </View>
+            <View style={[styles.resultsDivider, { backgroundColor: background.borderColor }]} />
+            <View style={styles.statsRow}>
+              <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.statPillLabel, { color: background.textColor }]}>Rank</Text>
+                <Text style={[styles.statPillValue, { color: ACCENT }]}>{rank.name}</Text>
+              </View>
+              <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.statPillLabel, { color: background.textColor }]}>Score</Text>
+                <Text style={[styles.statPillValue, { color: ACCENT }]}>{score}</Text>
+              </View>
+            </View>
+            <View style={styles.statsRow}>
+              <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.statPillLabel, { color: background.textColor }]}>Words</Text>
+                <Text style={[styles.statPillValue, { color: background.textColor }]}>{foundWords.length}</Text>
+              </View>
+              <View style={[styles.statPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                <Text style={[styles.statPillLabel, { color: background.textColor }]}>Pangrams</Text>
+                <Text style={[styles.statPillValue, { color: background.textColor }]}>
+                  {foundWords.filter((w) => solution.pangrams.includes(w)).length}
+                </Text>
+              </View>
+            </View>
+          </View>
 
-      <ScrollView
-        style={styles.wordListWrap}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
-        keyboardShouldPersistTaps="handled"
-        onScrollBeginDrag={() => Keyboard.dismiss()}
-      >
-        <WordList
-          foundWords={sortedFound}
-          pangrams={new Set(solution.pangrams)}
-          textColor={background.textColor}
-          secondaryTextColor={background.secondaryText}
-          accentColor={ACCENT}
-          borderColor={background.borderColor}
-        />
-      </ScrollView>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+              onPress={onGoHome}
+            >
+              <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Main Menu</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
+              onPress={onPlayAgain}
+            >
+              <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Play Again</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.shareButton} onPress={handleShareResult} activeOpacity={0.85}>
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
+            </View>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        <>
+          <View style={styles.rankBarWrap}>
+            <RankProgressBar
+              rankIndex={rank.index}
+              score={score}
+              accentColor={ACCENT}
+              textColor={background.textColor}
+              borderColor={background.borderColor}
+            />
+          </View>
+
+          <View style={styles.boardCard}>
+            <HexGrid
+              outerLetters={outerLetters}
+              center={puzzle.center}
+              currentGuess={currentGuess}
+              feedback={feedback}
+              onLetterPress={handleLetterPress}
+              onDelete={handleDelete}
+              onShuffle={handleShuffle}
+              onSubmit={handleSubmit}
+              accentColor={ACCENT}
+              textColor={background.textColor}
+              secondaryTextColor={background.secondaryText}
+              tileColor={ACCENT + '17'}
+              cardColor={background.cardColor}
+              borderColor={background.borderColor}
+            />
+          </View>
+
+          <ScrollView
+            style={styles.wordListWrap}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => Keyboard.dismiss()}
+          >
+            <WordList
+              foundWords={sortedFound}
+              pangrams={new Set(solution.pangrams)}
+              textColor={background.textColor}
+              secondaryTextColor={background.secondaryText}
+              accentColor={ACCENT}
+              borderColor={background.borderColor}
+            />
+          </ScrollView>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -244,4 +362,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   wordListWrap: { flex: 1, marginTop: 14 },
+
+  resultsScroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
+  resultsCard: { borderRadius: 20, borderWidth: 1.5, padding: 24, alignItems: 'center' },
+  brand: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 },
+  gameOverTitle: { fontSize: 24, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
+  gameOverSubtitle: { fontSize: 14, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  resultsDivider: { height: 1, width: '100%', marginBottom: 16 },
+  statsRow: { flexDirection: 'row', gap: 10, width: '100%', marginBottom: 10 },
+  statPill: { flex: 1, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  statPillLabel: { fontSize: 11, marginBottom: 2 },
+  statPillValue: { fontSize: 16, fontWeight: '700' },
+  buttonRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  primaryButton: { flex: 1, borderWidth: 1.5, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  primaryButtonText: { fontSize: 15, fontWeight: '600' },
+  shareButton: { marginTop: 12, borderRadius: 14, backgroundColor: ACCENT, paddingVertical: 14 },
+  shareButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  shareButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
