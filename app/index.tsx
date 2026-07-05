@@ -92,7 +92,8 @@ const GAMES = [
     borderColor: '#E8C468',
     textColor: '#4A3600',
     descColor: '#8A6D0E',
-    icon: 'hexagon-outline' as const,
+    icon: 'hexagon-multiple-outline' as const,
+    iconSet: 'material' as const,
   },
 ];
 
