@@ -4,12 +4,12 @@
 // persistence for whichever mode it's given.
 //
 // Quick Play gets a 60-second timer (a fast-burst mode with no streak);
-// Daily stays untimed and persistent, matching the reference game. The
-// end-of-round summary is a centered modal overlay on top of the (locked)
-// board, mirroring Wordle's WordleResultOverlay layout exactly: brand →
-// title/subtitle → a boxed highlight (rank, standing in for Wordle's
-// "Solution" box) → a "This Round" stat-pill section → a "Stats" (lifetime)
-// stat-pill section → button row → share button → dismiss button.
+// Daily stays untimed and persistent, matching the reference game. Both the
+// Quick Play "Time's Up!" summary and the Daily "Full Clear!" celebration are
+// centered modal overlays on top of the (locked or still-playable) board,
+// mirroring Wordle's WordleResultOverlay layout: brand → title/subtitle → a
+// boxed highlight (rank, standing in for Wordle's "Solution" box) → stat-pill
+// sections → button row → share button → dismiss button.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -21,7 +21,7 @@ import HexGrid, { type Feedback } from '../components/HexGrid';
 import WordList from '../components/WordList';
 import RankProgressBar from '../components/RankProgressBar';
 import type { HexHivePuzzle } from '../data/puzzles';
-import { getPuzzleSolution, shuffleLetters, getTodayDateString } from '../utils/generator';
+import { getPuzzleSolution, shuffleLetters, getTodayDateString, formatDisplayDate } from '../utils/generator';
 import { checkGuess } from '../utils/validator';
 import { getRankProgress, scoreWordForPuzzle } from '../utils/scoring';
 import {
@@ -118,6 +118,10 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const [gameOver, setGameOver] = useState(false);
   const [resultsVisible, setResultsVisible] = useState(false);
   const [finalStats, setFinalStats] = useState<HexHiveStats | null>(null);
+
+  // Daily only: one-time "Full Clear!" celebration the moment every word in
+  // today's hive has been found.
+  const [showFullClearCelebration, setShowFullClearCelebration] = useState(false);
 
   useEffect(() => {
     loadHexHiveStats().then((s) => {
@@ -252,6 +256,10 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         rankName: newRank.name,
         fullyCleared: newFullyCleared,
       });
+
+      if (newFullyCleared) {
+        setShowFullClearCelebration(true);
+      }
     }
 
     const wordAch = await checkWordAchievements({ word, isPangram: result.isPangram }, stats);
@@ -273,6 +281,13 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     } catch {}
   };
 
+  const handleShareFullClear = async () => {
+    const message = `Hex Hive — Daily\n${formatDisplayDate()}\nFull Clear! ${rank.name} rank\n${solution.words.length} words · ${score} points`;
+    try {
+      await Share.share({ message });
+    } catch {}
+  };
+
   const sortedFound = useMemo(() => [...foundWords].sort(), [foundWords]);
 
   const timerColor = timeLeft > 20 ? background.textColor : timeLeft > 10 ? '#f59e0b' : '#e94560';
@@ -284,6 +299,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const BORDER = background.borderColor;
 
   const pangramsFound = foundWords.filter((w) => solution.pangrams.includes(w)).length;
+  const showViewResultsPill = mode === 'practice' && gameOver && !resultsVisible;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: BG }]}>
@@ -300,9 +316,13 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         <TouchableOpacity style={styles.backButton} onPress={onGoHome}>
           <Text style={[styles.backText, { color: SUBTEXT }]}>← Back</Text>
         </TouchableOpacity>
-        <View style={styles.titleWrap} pointerEvents="none">
+        <View style={styles.titleWrap} pointerEvents="box-none">
           {mode === 'practice' && !gameOver ? (
             <Text style={[styles.title, { color: timerColor }]}>{formatTime(timeLeft)}</Text>
+          ) : showViewResultsPill ? (
+            <TouchableOpacity onPress={() => setResultsVisible(true)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.title, { color: ACCENT }]}>View Results</Text>
+            </TouchableOpacity>
           ) : (
             <Text style={[styles.title, { color: TEXT }]}>{mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}</Text>
           )}
@@ -353,12 +373,6 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           borderColor={BORDER}
         />
       </ScrollView>
-
-      {gameOver && !resultsVisible && (
-        <TouchableOpacity style={styles.viewResultsFab} onPress={() => setResultsVisible(true)} activeOpacity={0.85}>
-          <Text style={styles.viewResultsFabText}>View Results</Text>
-        </TouchableOpacity>
-      )}
 
       {mode === 'practice' && gameOver && resultsVisible && (
         <View style={styles.overlay}>
@@ -429,6 +443,52 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           </View>
         </View>
       )}
+
+      {mode === 'daily' && showFullClearCelebration && (
+        <View style={styles.overlay}>
+          <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+            <Text style={[styles.brand, { color: SUBTEXT }]}>HEX HIVE</Text>
+            <Text style={[styles.title2, { color: TEXT }]}>Full Clear! 🐝</Text>
+            <Text style={[styles.subtitle, { color: SUBTEXT }]}>
+              You found every word in today&apos;s hive.
+            </Text>
+
+            <View style={[styles.rankBox, { borderColor: BORDER }]}>
+              <Text style={[styles.rankBoxLabel, { color: SUBTEXT }]}>RANK</Text>
+              <Text style={[styles.rankBoxValue, { color: ACCENT }]}>{rank.name}</Text>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: BORDER }]} />
+            <Text style={[styles.sectionTitle, { color: TEXT }]}>Today</Text>
+            <View style={styles.statsRow}>
+              <StatPill label="Score" value={`${score}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              <StatPill label="Words" value={`${foundWords.length}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              <StatPill label="Pangrams" value={`${pangramsFound}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            </View>
+
+            <View style={styles.buttonRow}>
+              <PrimaryButton
+                label="Keep Playing"
+                onPress={() => setShowFullClearCelebration(false)}
+                borderColor={BORDER}
+                textColor={TEXT}
+                backgroundColor={BG}
+              />
+              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+              onPress={handleShareFullClear}
+            >
+              <View style={styles.shareButtonInner}>
+                <Share2 size={18} color="#fff" />
+                <Text style={styles.shareButtonText}>Share Result</Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -454,17 +514,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   wordListWrap: { flex: 1, marginTop: 14 },
-
-  viewResultsFab: {
-    position: 'absolute',
-    bottom: 24,
-    alignSelf: 'center',
-    backgroundColor: ACCENT,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 999,
-  },
-  viewResultsFabText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   // Result overlay — mirrors Wordle's WordleResultOverlay layout/colors.
   overlay: {
@@ -506,7 +555,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignItems: 'center',
-    backgroundColor: ACCENT,
+    backgroundColor: '#22c55e',
   },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },

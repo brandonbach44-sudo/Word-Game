@@ -518,9 +518,9 @@ export default function GameScreen() {
     const bestLen = foundWords.length > 0
       ? foundWords.reduce((max, w) => w.word.length > max ? w.word.length : max, 0)
       : 0;
-    const bestPts = foundWords.length > 0
-      ? foundWords.reduce((max, w) => w.points > max ? w.points : max, 0)
-      : 0;
+    const topWordEntry = foundWords.length > 0
+      ? foundWords.reduce((best, w) => (w.points > best.points ? w : best), foundWords[0])
+      : null;
 
     const handleResultsScroll = (event: any) => {
       const offsetX = event.nativeEvent.contentOffset.x;
@@ -595,7 +595,9 @@ export default function GameScreen() {
                   </View>
                   <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
                     <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best Word</Text>
-                    <Text style={[styles.statPillValue, { color: bg.textColor }]}>{bestPts} pts</Text>
+                    <Text style={[styles.statPillValue, { color: bg.textColor }]}>
+                      {topWordEntry ? `${topWordEntry.word.toUpperCase()} (${topWordEntry.points})` : '—'}
+                    </Text>
                   </View>
                 </View>
 

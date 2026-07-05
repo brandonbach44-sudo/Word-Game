@@ -14,14 +14,23 @@ export function dateToSeed(date: Date): number {
   return year * 10000 + month * 100 + day;
 }
 
+// Local-timezone "YYYY-MM-DD" — not UTC, so the daily reset lines up with
+// the player's actual midnight rather than Greenwich's.
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateString(new Date());
 }
 
 export function getYesterdayDateString(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateString(d);
 }
 
 export function formatDisplayDate(date: Date = new Date()): string {
@@ -37,13 +46,20 @@ export function getDailyPuzzle(date: Date = new Date()): HexHivePuzzle {
 
 /** Random puzzle for untimed practice play (not tied to date or streaks). */
 export function getRandomPuzzle(excludeIndex?: number): HexHivePuzzle {
+  return getRandomPuzzleWithIndex(excludeIndex).puzzle;
+}
+
+/** Same as getRandomPuzzle, but also returns the index so callers (Quick
+ * Play's "Play Again") can remember it and exclude it next time, avoiding
+ * back-to-back repeats of the same hive. */
+export function getRandomPuzzleWithIndex(excludeIndex?: number): { puzzle: HexHivePuzzle; index: number } {
   let index = Math.floor(Math.random() * PUZZLES.length);
   if (excludeIndex !== undefined && PUZZLES.length > 1) {
     while (index === excludeIndex) {
       index = Math.floor(Math.random() * PUZZLES.length);
     }
   }
-  return PUZZLES[index];
+  return { puzzle: PUZZLES[index], index };
 }
 
 export function shuffleLetters(letters: string[]): string[] {

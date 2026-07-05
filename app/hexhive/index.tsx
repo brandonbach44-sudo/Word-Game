@@ -226,6 +226,7 @@ export default function HexHiveEntryScreen() {
   const [dailyWordCount, setDailyWordCount] = useState(0);
   const [dailyScore, setDailyScore] = useState(0);
   const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [dailyFullyCleared, setDailyFullyCleared] = useState(false);
   const [unlocked, setUnlocked] = useState<(Achievement & { unlockedAt: string })[]>([]);
   const [history, setHistory] = useState<DailyHistory>({});
 
@@ -248,10 +249,12 @@ export default function HexHiveEntryScreen() {
       setDailyWordCount(progress.foundWords.length);
       setDailyScore(score);
       setDailyPlayed(true);
+      setDailyFullyCleared(solution.words.length > 0 && progress.foundWords.length >= solution.words.length);
     } else {
       setDailyWordCount(0);
       setDailyScore(0);
       setDailyPlayed(s?.lastPlayedDate === getTodayDateString());
+      setDailyFullyCleared(false);
     }
     setLoadingStats(false);
   }, []);
@@ -373,6 +376,11 @@ export default function HexHiveEntryScreen() {
 
               {dailyPlayed && (
                 <View style={styles.dailyCompletedInfo}>
+                  {dailyFullyCleared && (
+                    <View style={styles.fullClearBadge}>
+                      <Text style={styles.fullClearBadgeText}>🐝 Full Clear!</Text>
+                    </View>
+                  )}
                   <Text style={[styles.dailyCompletedScore, { color: ACCENT }]}>{dailyScore}</Text>
                   <Text style={[styles.dailyCompletedLabel, { color: background.secondaryText }]}>
                     {dailyWordCount} word{dailyWordCount === 1 ? '' : 's'} found
@@ -629,6 +637,14 @@ const styles = StyleSheet.create({
   dailyCompletedInfo: { alignItems: 'center', paddingVertical: 8 },
   dailyCompletedScore: { fontSize: 48, fontWeight: 'bold' },
   dailyCompletedLabel: { fontSize: 14, marginTop: 4, marginBottom: 8 },
+  fullClearBadge: {
+    backgroundColor: ACCENT,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  fullClearBadgeText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
   dailyStatPillRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 },
   dailyStatPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: '#f3e7d7', minWidth: 100, alignItems: 'center' },
   dailyStatPillHighlight: { backgroundColor: 'rgba(212, 160, 23, 0.15)' },

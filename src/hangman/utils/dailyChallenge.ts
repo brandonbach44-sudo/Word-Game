@@ -15,15 +15,22 @@ export function getDailyWordIndex(wordList: any[], date: Date = new Date()): num
   return seed % wordList.length;
 }
 
-// Today's date: "YYYY-MM-DD"
+// Today's date: "YYYY-MM-DD", in the device's local timezone — not UTC, so
+// the daily reset lines up with the player's actual midnight.
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 export function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateString(new Date());
 }
 // Yesterday's date: "YYYY-MM-DD"
 export function getYesterdayDateString(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateString(d);
 }
 // Display date (e.g. "Tuesday, December 17")
 export function formatDisplayDate(date: Date = new Date()): string {

@@ -36,7 +36,7 @@ import { COLORS } from '../../src/shared/theme';
 
 // Utils
 import { generateLetters } from '../../src/wordbuilder/utils/letterGenerator';
-import { generateDailyLetters } from '../../src/wordbuilder/utils/dailyLetters';
+import { generateDailyLetters, getTodayDateString } from '../../src/wordbuilder/utils/dailyLetters';
 import { calculateWordScoreWithBonus } from '../../src/wordbuilder/utils/scoring';
 import { findAllPossibleWords, getPossibleWordsStats, PossibleWord } from '../../src/wordbuilder/utils/wordFinder';
 import { 
@@ -593,7 +593,7 @@ export default function WordBuilder() {
   useEffect(() => {
     if (gameMode !== 'daily' || gameOver) return;
     saveDailyBuilderProgress({
-      dateISO: new Date().toISOString().slice(0, 10),
+      dateISO: getTodayDateString(),
       letters,
       foundWords,
       score,

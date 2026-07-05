@@ -12,14 +12,23 @@ export function dateToSeed(date: Date): number {
   return year * 10000 + month * 100 + day;
 }
 
+// Local-timezone "YYYY-MM-DD" — not UTC, so the daily reset lines up with
+// the player's actual midnight rather than Greenwich's.
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function getTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateString(new Date());
 }
 
 export function getYesterdayDateString(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateString(d);
 }
 
 export function formatDisplayDate(date: Date = new Date()): string {
