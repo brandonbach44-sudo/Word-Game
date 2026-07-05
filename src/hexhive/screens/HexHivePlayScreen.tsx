@@ -1,6 +1,6 @@
 // src/hexhive/screens/HexHivePlayScreen.tsx
-// Core gameplay screen — used by both the daily puzzle and untimed practice
-// mode. Owns the current guess, found-word set, scoring, achievement
+// Core gameplay screen — used by both the daily puzzle and untimed Quick
+// Play mode. Owns the current guess, found-word set, scoring, achievement
 // checks, and persistence for whichever mode it's given.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -79,7 +79,15 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     const result = checkGuess(currentGuess, puzzle, foundSet);
 
     if (result.status !== 'valid') {
-      flashFeedback(result.status === 'already_found' ? 'already_found' : result.status === 'too_short' ? 'too_short' : result.status === 'not_a_word' || result.status === 'invalid_letters' || result.status === 'missing_center' ? 'invalid' : null);
+      flashFeedback(
+        result.status === 'already_found'
+          ? 'already_found'
+          : result.status === 'too_short'
+          ? 'too_short'
+          : result.status === 'not_a_word' || result.status === 'invalid_letters' || result.status === 'missing_center'
+          ? 'invalid'
+          : null
+      );
       setCurrentGuess('');
       return;
     }
@@ -138,11 +146,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onGoHome}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>← Hex Hive</Text>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.modeLabel, { color: background.secondaryText }]}>
-          {mode === 'daily' ? 'Daily' : 'Quick Play'}
+        <Text style={[styles.title, { color: background.textColor }]}>
+          {mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}
         </Text>
+        <View style={styles.headerPlaceholder} />
       </View>
 
       <View style={styles.rankBarWrap}>
@@ -155,22 +164,29 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         />
       </View>
 
-      <HexGrid
-        outerLetters={outerLetters}
-        center={puzzle.center}
-        currentGuess={currentGuess}
-        feedback={feedback}
-        onLetterPress={handleLetterPress}
-        onDelete={handleDelete}
-        onShuffle={handleShuffle}
-        onSubmit={handleSubmit}
-        accentColor={ACCENT}
-        textColor={background.textColor}
-        secondaryTextColor={background.secondaryText}
-        tileColor={background.cardColor}
-        cardColor={background.cardColor}
-        borderColor={background.borderColor}
-      />
+      <View
+        style={[
+          styles.boardCard,
+          { backgroundColor: background.cardColor, borderColor: background.borderColor },
+        ]}
+      >
+        <HexGrid
+          outerLetters={outerLetters}
+          center={puzzle.center}
+          currentGuess={currentGuess}
+          feedback={feedback}
+          onLetterPress={handleLetterPress}
+          onDelete={handleDelete}
+          onShuffle={handleShuffle}
+          onSubmit={handleSubmit}
+          accentColor={ACCENT}
+          textColor={background.textColor}
+          secondaryTextColor={background.secondaryText}
+          tileColor={ACCENT + '17'}
+          cardColor={background.cardColor}
+          borderColor={background.borderColor}
+        />
+      </View>
 
       <ScrollView
         style={styles.wordListWrap}
@@ -198,12 +214,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 4,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
   backButton: { padding: 8, marginLeft: -8 },
-  backText: { fontSize: 15, fontWeight: '500' },
-  modeLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
-  rankBarWrap: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 6 },
-  wordListWrap: { flex: 1, marginTop: 6 },
+  backText: { fontSize: 16, fontWeight: '500' },
+  title: { fontSize: 18, fontWeight: 'bold' },
+  headerPlaceholder: { width: 60 },
+  rankBarWrap: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
+  boardCard: {
+    marginHorizontal: 16,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+  },
+  wordListWrap: { flex: 1, marginTop: 14 },
 });
