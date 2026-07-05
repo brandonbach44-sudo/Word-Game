@@ -168,10 +168,11 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         <TouchableOpacity style={styles.backButton} onPress={onGoHome}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: background.textColor }]}>
-          {mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}
-        </Text>
-        <View style={styles.headerPlaceholder} />
+        <View style={styles.titleWrap} pointerEvents="none">
+          <Text style={[styles.title, { color: background.textColor }]}>
+            {mode === 'daily' ? 'Daily Hex Hive' : 'Hex Hive'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.rankBarWrap}>
@@ -227,15 +228,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 6,
+    position: 'relative',
   },
-  backButton: { padding: 8, marginLeft: -8 },
+  backButton: { padding: 8, marginLeft: -8, zIndex: 1 },
   backText: { fontSize: 16, fontWeight: '500' },
+  titleWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   title: { fontSize: 18, fontWeight: 'bold' },
-  headerPlaceholder: { width: 60 },
   rankBarWrap: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
   boardCard: {
     marginHorizontal: 16,

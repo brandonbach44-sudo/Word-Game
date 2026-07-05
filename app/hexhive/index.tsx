@@ -179,8 +179,9 @@ export default function HexHiveEntryScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: background.textColor }]}>Hex Hive</Text>
-        <View style={styles.headerPlaceholder} />
+        <View style={styles.titleWrap} pointerEvents="none">
+          <Text style={[styles.title, { color: background.textColor }]}>Hex Hive</Text>
+        </View>
       </View>
 
       <View style={[styles.segmentSwitcher, { backgroundColor: background.cardColor }]}>
@@ -410,14 +411,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
+    position: 'relative',
   },
-  backButton: { padding: 8 },
+  backButton: { padding: 8, zIndex: 1 },
   backText: { fontSize: 16, fontWeight: '500' },
-  headerPlaceholder: { width: 60 },
+  titleWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   title: { fontSize: 22, fontWeight: 'bold' },
 
   segmentSwitcher: {
