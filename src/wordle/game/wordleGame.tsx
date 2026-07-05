@@ -658,6 +658,16 @@ export default function WordleGame() {
                 : Number(loadedLock.timeSeconds),
           });
           lockedToday = loadedLock.dateISO === getTodayISODate();
+
+          // Daily is already completed for today — reflect that in game
+          // state immediately, otherwise `status` stays at its default
+          // "playing" and the "Leave Daily Challenge?" prompt (which only
+          // guards an in-progress attempt) fires on every remount even
+          // though there's nothing left to leave.
+          if (lockedToday) {
+            setGameMode("daily");
+            setStatus(loadedLock.result);
+          }
         } else {
           setDailyLock(null);
         }

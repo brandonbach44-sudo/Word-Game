@@ -40,7 +40,20 @@ const SMOOTHING_ALPHA = 0.55;
 // center (not just "closer than to the old cell", which compounds badly on
 // diagonals) means we simply wait out the corner instead of guessing there,
 // with no extra penalty once the finger is clearly heading into a cell.
-const CONFIDENT_RADIUS = CELL_STEP * 0.58;
+const CONFIDENT_RADIUS = CELL_STEP * 0.52;
+
+// How strongly the recent swipe direction breaks ties between candidate cells
+// that are nearly equidistant from the touch (the corner case). Expressed as
+// a distance "discount" in px awarded to a candidate perfectly aligned with
+// the direction the finger has actually been moving. Kept small relative to
+// CELL_STEP so it only ever matters near corners — it never overrides a
+// candidate that's clearly closer for an unrelated reason.
+const DIRECTION_BIAS = CELL_STEP * 0.22;
+
+// How much the instantaneous frame-to-frame movement is smoothed into a
+// running "swipe direction" estimate. Higher = steadier direction, slower to
+// react to a genuine change in swipe direction.
+const VELOCITY_ALPHA = 0.5;
 
 // Serif "I" — renders with top and bottom horizontal bars so it's
 // clearly distinguishable from lowercase "l"
@@ -93,6 +106,62 @@ function isAdjacent(a: Position, b: Position): boolean {
   );
 }
 
+// The up-to-8 cells adjacent to pos, clipped to the grid bounds.
+function neighborsOf(pos: Position): Position[] {
+  const out: Position[] = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const row = pos.row + dr;
+      const col = pos.col + dc;
+      if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        out.push({ row, col });
+      }
+    }
+  }
+  return out;
+}
+
+// Picks the best next cell out of `lastCell` and its neighbors, biasing
+// toward whichever candidate best matches the direction the finger has
+// actually been swiping (see DIRECTION_BIAS). Restricting the search to
+// lastCell's neighborhood (rather than all 16 cells) also means we only ever
+// compare cells that are actually reachable next, which is exactly what the
+// adjacency gate downstream needs anyway.
+function pickNextCell(
+  lastCell: Position,
+  touch: { x: number; y: number },
+  velocity: { x: number; y: number }
+): Position {
+  const lastCenter = cellCenter(lastCell);
+  const velLen = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
+  const velUnit = velLen > 0.5 ? { x: velocity.x / velLen, y: velocity.y / velLen } : null;
+
+  let best = lastCell;
+  let bestScore = Infinity;
+  for (const cand of [lastCell, ...neighborsOf(lastCell)]) {
+    const c = cellCenter(cand);
+    const dx = touch.x - c.x;
+    const dy = touch.y - c.y;
+    let score = Math.sqrt(dx * dx + dy * dy);
+
+    const isSameCell = cand.row === lastCell.row && cand.col === lastCell.col;
+    if (velUnit && !isSameCell) {
+      const toCandX = c.x - lastCenter.x;
+      const toCandY = c.y - lastCenter.y;
+      const toCandLen = Math.sqrt(toCandX ** 2 + toCandY ** 2);
+      const alignment = (toCandX * velUnit.x + toCandY * velUnit.y) / toCandLen; // -1..1
+      score -= alignment * DIRECTION_BIAS;
+    }
+
+    if (score < bestScore) {
+      bestScore = score;
+      best = cand;
+    }
+  }
+  return best;
+}
+
 interface Props {
   grid: string[][];
   onPathComplete: (path: Position[]) => void;
@@ -109,6 +178,8 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Smoothed touch point used for cell-detection math (see SMOOTHING_ALPHA above).
   const smoothedRef = useRef<{ x: number; y: number } | null>(null);
+  // Running estimate of swipe direction, used to bias corner ties (see DIRECTION_BIAS).
+  const velocityRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Clear any pending pause-submit timer.
   const clearPauseTimer = () => {
@@ -145,6 +216,7 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       setSelectedCells([cell]);
       setLivePoint({ x: e.x, y: e.y });
       smoothedRef.current = { x: e.x, y: e.y };
+      velocityRef.current = { x: 0, y: 0 };
     })
     .onStart((_e) => {
       // onBegin already committed the starting cell — do NOT override it here.
@@ -162,6 +234,14 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       };
       smoothedRef.current = smoothed;
 
+      // Update the running swipe-direction estimate from this frame's movement.
+      const frameDx = smoothed.x - prevSmoothed.x;
+      const frameDy = smoothed.y - prevSmoothed.y;
+      velocityRef.current = {
+        x: velocityRef.current.x * VELOCITY_ALPHA + frameDx * (1 - VELOCITY_ALPHA),
+        y: velocityRef.current.y * VELOCITY_ALPHA + frameDy * (1 - VELOCITY_ALPHA),
+      };
+
       const path = pathRef.current;
       if (path.length === 0) return;
 
@@ -174,8 +254,9 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
       // Anti-trembling: ignore tiny movements right around the current cell center.
       if (distFromLast < DEAD_ZONE) return;
 
-      // Voronoi: which cell is the (smoothed) finger physically closest to?
-      const closest = getClosestCell(smoothed.x, smoothed.y);
+      // Which of lastCell's neighbors (or lastCell itself) best fits the
+      // touch point, biased toward the direction we've actually been swiping.
+      const closest = pickNextCell(lastCell, smoothed, velocityRef.current);
 
       // Still in the same cell's territory — nothing to do.
       if (closest.row === lastCell.row && closest.col === lastCell.col) return;
