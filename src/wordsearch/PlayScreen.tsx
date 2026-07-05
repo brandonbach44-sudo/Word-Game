@@ -884,23 +884,34 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                   />
                 </View>
 
-                {/* Share — daily only */}
-                {isDaily && (
-                  <Pressable
-                    style={({ pressed }) => [overlayStyles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                    onPress={async () => {
-                      const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                      const result = resultData.allFound ? `${resultData.foundWords}/${resultData.totalWords} ✅` : `${resultData.foundWords}/${resultData.totalWords}`;
-                      const text = `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`;
-                      try { await Share.share({ message: text }); } catch {}
-                    }}
-                  >
-                    <View style={overlayStyles.shareButtonInner}>
-                      <Share2 size={18} color="#fff" />
-                      <Text style={overlayStyles.shareButtonText}>Share Result</Text>
-                    </View>
-                  </Pressable>
-                )}
+                {/* Share */}
+                <Pressable
+                  style={({ pressed }) => [overlayStyles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+                  onPress={async () => {
+                    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const result = resultData.allFound ? `${resultData.foundWords}/${resultData.totalWords} ✅` : `${resultData.foundWords}/${resultData.totalWords}`;
+                    const text = isDaily
+                      ? `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`
+                      : `🔍 Word Search\n${themeName}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}`;
+                    try { await Share.share({ message: text }); } catch {}
+                  }}
+                >
+                  <View style={overlayStyles.shareButtonInner}>
+                    <Share2 size={18} color="#fff" />
+                    <Text style={overlayStyles.shareButtonText}>Share Result</Text>
+                  </View>
+                </Pressable>
+
+                {/* Close — dismisses overlay, stays on the finished board */}
+                <Pressable
+                  style={({ pressed }) => [
+                    overlayStyles.secondaryButton,
+                    { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 },
+                  ]}
+                  onPress={() => setResultData(null)}
+                >
+                  <Text style={[overlayStyles.secondaryButtonText, { color: background.textColor }]}>Close</Text>
+                </Pressable>
 
               </View>
               <View style={{ height: 30 }} />
@@ -1052,6 +1063,8 @@ const overlayStyles = StyleSheet.create({
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
+  secondaryButton: { marginTop: 10, borderWidth: 2, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
+  secondaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
 });
 
 export default PlayScreen;
