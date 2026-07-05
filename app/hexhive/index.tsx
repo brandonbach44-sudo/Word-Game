@@ -70,6 +70,31 @@ const DailyStatPill = ({
   </View>
 );
 
+function StatsGrid({
+  items,
+  cardColor,
+  borderColor,
+  textColor,
+  secondaryColor,
+}: {
+  items: { label: string; value: string }[];
+  cardColor: string;
+  borderColor: string;
+  textColor: string;
+  secondaryColor: string;
+}) {
+  return (
+    <View style={styles.statsGrid}>
+      {items.map(({ label, value }) => (
+        <View key={label} style={[styles.statsCard, { backgroundColor: cardColor, borderColor }]}>
+          <Text style={[styles.statsValue, { color: textColor }]}>{value}</Text>
+          <Text style={[styles.statsLabel, { color: secondaryColor }]}>{label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function HexHiveEntryScreen() {
   const { background } = useTheme();
 
@@ -292,7 +317,7 @@ export default function HexHiveEntryScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modeTitle, { color: background.textColor }]}>Quick Play</Text>
                 <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
-                  A fresh random hive every time — no streak, just words
+                  60 seconds, a fresh random hive — no streak, just words
                 </Text>
               </View>
             </TouchableOpacity>
@@ -319,26 +344,55 @@ export default function HexHiveEntryScreen() {
           <ScrollView style={{ width }} contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
             {loadingStats ? (
               <ActivityIndicator color={ACCENT} style={{ marginTop: 20 }} />
-            ) : combinedWords > 0 ? (
+            ) : combinedWords > 0 || (stats?.practicePuzzlesPlayed ?? 0) > 0 ? (
               <>
-                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Overview</Text>
-                <View style={styles.statsGrid}>
-                  {[
+                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily</Text>
+                <StatsGrid
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                  textColor={background.textColor}
+                  secondaryColor={background.secondaryText}
+                  items={[
                     { label: 'Current Streak', value: (stats?.currentStreak ?? 0).toString() },
                     { label: 'Best Streak', value: (stats?.bestStreak ?? 0).toString() },
                     { label: 'Days Played', value: (stats?.daysPlayed ?? 0).toString() },
+                    { label: 'Full Clears', value: (stats?.fullClears ?? 0).toString() },
+                    { label: 'Full Clear Streak', value: (stats?.currentFullClearStreak ?? 0).toString() },
+                    { label: 'Best Full Clear Streak', value: (stats?.bestFullClearStreak ?? 0).toString() },
+                    { label: 'Best Daily Score', value: (stats?.bestDailyScore ?? 0).toString() },
+                    { label: 'Best Daily Words', value: (stats?.bestDailyWordCount ?? 0).toString() },
+                    { label: 'Daily Words Found', value: (stats?.dailyWordsFound ?? 0).toString() },
+                    { label: 'Daily Pangrams', value: (stats?.dailyPangramsFound ?? 0).toString() },
+                  ]}
+                />
+
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
+                <StatsGrid
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                  textColor={background.textColor}
+                  secondaryColor={background.secondaryText}
+                  items={[
+                    { label: 'Rounds Played', value: (stats?.practicePuzzlesPlayed ?? 0).toString() },
+                    { label: 'Best Score', value: (stats?.practiceBestScore ?? 0).toString() },
+                    { label: 'Best Words (Round)', value: (stats?.practiceBestWordCount ?? 0).toString() },
+                    { label: 'Words Found', value: (stats?.practiceWordsFound ?? 0).toString() },
+                    { label: 'Pangrams Found', value: (stats?.practicePangramsFound ?? 0).toString() },
+                  ]}
+                />
+
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Lifetime</Text>
+                <StatsGrid
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                  textColor={background.textColor}
+                  secondaryColor={background.secondaryText}
+                  items={[
                     { label: 'Total Words', value: (stats?.totalWordsFound ?? 0).toString() },
                     { label: 'Total Pangrams', value: (stats?.totalPangramsFound ?? 0).toString() },
-                    { label: 'Best Daily Score', value: (stats?.bestDailyScore ?? 0).toString() },
-                    { label: 'Full Clears', value: (stats?.fullClears ?? 0).toString() },
                     { label: 'Longest Word', value: stats?.longestWordFound ? stats.longestWordFound.toUpperCase() : '—' },
-                  ].map(({ label, value }) => (
-                    <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                      <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
-                      <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
+                  ]}
+                />
 
                 <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
                   Daily History

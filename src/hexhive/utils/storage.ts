@@ -17,18 +17,32 @@ const DAILY_HISTORY_KEY = 'hexhive_daily_history_v1';
 
 // ── Stats ────────────────────────────────────────────────────────────────
 export type HexHiveStats = {
+  // Daily
   daysPlayed: number;
   currentStreak: number;
   bestStreak: number;
   lastPlayedDate: string; // YYYY-MM-DD, '' if never played
-  totalWordsFound: number;
-  totalPangramsFound: number;
+  dailyWordsFound: number;
+  dailyPangramsFound: number;
   bestDailyScore: number;
   bestDailyRankIndex: number;
+  bestDailyWordCount: number; // most words found in a single daily puzzle
   fullClears: number; // number of daily puzzles fully solved (every word found)
-  longestWordFound: string;
+  currentFullClearStreak: number; // consecutive days ending in a full clear
+  bestFullClearStreak: number;
+  lastFullClearDate: string; // YYYY-MM-DD, '' if never
+
+  // Quick Play
   practicePuzzlesPlayed: number;
+  practiceWordsFound: number;
+  practicePangramsFound: number;
   practiceBestScore: number;
+  practiceBestWordCount: number; // most words found in a single Quick Play round
+
+  // Lifetime (combined daily + practice)
+  totalWordsFound: number;
+  totalPangramsFound: number;
+  longestWordFound: string;
 };
 
 function emptyStats(): HexHiveStats {
@@ -37,14 +51,25 @@ function emptyStats(): HexHiveStats {
     currentStreak: 0,
     bestStreak: 0,
     lastPlayedDate: '',
-    totalWordsFound: 0,
-    totalPangramsFound: 0,
+    dailyWordsFound: 0,
+    dailyPangramsFound: 0,
     bestDailyScore: 0,
     bestDailyRankIndex: 0,
+    bestDailyWordCount: 0,
     fullClears: 0,
-    longestWordFound: '',
+    currentFullClearStreak: 0,
+    bestFullClearStreak: 0,
+    lastFullClearDate: '',
+
     practicePuzzlesPlayed: 0,
+    practiceWordsFound: 0,
+    practicePangramsFound: 0,
     practiceBestScore: 0,
+    practiceBestWordCount: 0,
+
+    totalWordsFound: 0,
+    totalPangramsFound: 0,
+    longestWordFound: '',
   };
 }
 
@@ -82,6 +107,28 @@ export function bumpStreakForToday(stats: HexHiveStats): HexHiveStats {
     currentStreak,
     bestStreak: Math.max(stats.bestStreak, currentStreak),
     lastPlayedDate: today,
+  };
+}
+
+/**
+ * Call the moment a daily puzzle first becomes fully cleared. Tracks a
+ * separate "full clear streak" (consecutive days ending in every word
+ * found) alongside the regular play streak, since fully clearing a puzzle
+ * is a much higher bar than just playing.
+ */
+export function bumpFullClearStreakForToday(stats: HexHiveStats): HexHiveStats {
+  const today = getTodayDateString();
+  if (stats.lastFullClearDate === today) return stats;
+
+  const yesterday = getYesterdayDateString();
+  const continuesStreak = stats.lastFullClearDate === yesterday;
+  const currentFullClearStreak = continuesStreak ? stats.currentFullClearStreak + 1 : 1;
+
+  return {
+    ...stats,
+    currentFullClearStreak,
+    bestFullClearStreak: Math.max(stats.bestFullClearStreak, currentFullClearStreak),
+    lastFullClearDate: today,
   };
 }
 

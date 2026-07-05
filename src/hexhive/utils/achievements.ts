@@ -8,7 +8,7 @@ import type { HexHiveStats } from './storage';
 
 const ACHIEVEMENTS_KEY = 'hexhive_achievements_v1';
 
-export type HexHiveAchievementCategory = 'milestone' | 'volume' | 'streak' | 'skill' | 'daily';
+export type HexHiveAchievementCategory = 'milestone' | 'volume' | 'streak' | 'skill' | 'daily' | 'practice';
 
 export interface Achievement {
   id: string;
@@ -30,27 +30,48 @@ export const HEXHIVE_ACHIEVEMENTS: Achievement[] = [
   { id: 'hh_first_pangram', emoji: '⭐', name: 'First Pangram', description: 'Find a word using all 7 letters', requirement: 1, category: 'milestone' },
   { id: 'hh_first_full_clear', emoji: '🏆', name: 'Full Clear', description: 'Find every word in a daily puzzle', requirement: 1, category: 'milestone' },
 
-  // ── Volume ──────────────────────────────────────────────────────────
+  // ── Volume (lifetime, daily + Quick Play combined) ───────────────────
   { id: 'hh_words_50', emoji: '📝', name: 'Wordsmith', description: 'Find 50 total words', requirement: 50, category: 'volume' },
   { id: 'hh_words_250', emoji: '📚', name: 'Lexicon', description: 'Find 250 total words', requirement: 250, category: 'volume' },
   { id: 'hh_words_1000', emoji: '🗂️', name: 'Encyclopedic', description: 'Find 1,000 total words', requirement: 1000, category: 'volume' },
+  { id: 'hh_words_2500', emoji: '📖', name: 'Bookworm', description: 'Find 2,500 total words', requirement: 2500, category: 'volume' },
+  { id: 'hh_words_5000', emoji: '🏛️', name: 'Wordsmith Legend', description: 'Find 5,000 total words', requirement: 5000, category: 'volume' },
   { id: 'hh_pangrams_10', emoji: '🌟', name: 'Pangram Hunter', description: 'Find 10 total pangrams', requirement: 10, category: 'volume' },
   { id: 'hh_pangrams_25', emoji: '✨', name: 'Pangram Master', description: 'Find 25 total pangrams', requirement: 25, category: 'volume' },
+  { id: 'hh_pangrams_50', emoji: '💫', name: 'Pangram Legend', description: 'Find 50 total pangrams', requirement: 50, category: 'volume' },
 
   // ── Skill ───────────────────────────────────────────────────────────
   { id: 'hh_reach_amazing', emoji: '🎯', name: 'Amazing', description: 'Reach Amazing rank in a daily puzzle', requirement: 1, category: 'skill' },
   { id: 'hh_reach_genius', emoji: '🧠', name: 'Genius', description: 'Reach Genius rank in a daily puzzle', requirement: 1, category: 'skill' },
   { id: 'hh_reach_master', emoji: '👑', name: 'Master', description: 'Reach Master rank in a daily puzzle', requirement: 1, category: 'skill' },
   { id: 'hh_long_word_9', emoji: '📏', name: 'Long Haul', description: 'Find a word with 9 or more letters', requirement: 9, category: 'skill' },
+  { id: 'hh_long_word_11', emoji: '📐', name: 'Marathon Word', description: 'Find a word with 11 or more letters', requirement: 11, category: 'skill' },
+  { id: 'hh_long_word_13', emoji: '🧵', name: 'Linguist', description: 'Find a word with 13 or more letters', requirement: 13, category: 'skill' },
 
   // ── Streak ──────────────────────────────────────────────────────────
   { id: 'hh_streak_3', emoji: '🔥', name: 'On a Roll', description: 'Reach a 3-day streak', requirement: 3, category: 'streak' },
   { id: 'hh_streak_7', emoji: '🔥', name: 'Week Streak', description: 'Reach a 7-day streak', requirement: 7, category: 'streak' },
   { id: 'hh_streak_30', emoji: '🏅', name: 'Monthly Regular', description: 'Reach a 30-day streak', requirement: 30, category: 'streak' },
+  { id: 'hh_streak_100', emoji: '💯', name: 'Devoted', description: 'Reach a 100-day streak', requirement: 100, category: 'streak' },
+  { id: 'hh_fullclear_streak_3', emoji: '🧹', name: 'Clean Sweep', description: 'Fully clear the daily puzzle 3 days in a row', requirement: 3, category: 'streak' },
+  { id: 'hh_fullclear_streak_7', emoji: '🧼', name: 'Perfectionist', description: 'Fully clear the daily puzzle 7 days in a row', requirement: 7, category: 'streak' },
 
   // ── Daily ───────────────────────────────────────────────────────────
   { id: 'hh_days_10', emoji: '📅', name: 'Regular Player', description: 'Play 10 daily puzzles', requirement: 10, category: 'daily' },
   { id: 'hh_days_50', emoji: '🗓️', name: 'Dedicated', description: 'Play 50 daily puzzles', requirement: 50, category: 'daily' },
+  { id: 'hh_days_100', emoji: '📆', name: 'Centurion', description: 'Play 100 daily puzzles', requirement: 100, category: 'daily' },
+  { id: 'hh_fullclears_10', emoji: '🎖️', name: 'Completionist', description: 'Fully clear 10 daily puzzles', requirement: 10, category: 'daily' },
+  { id: 'hh_fullclears_25', emoji: '🏵️', name: 'Puzzle Perfectionist', description: 'Fully clear 25 daily puzzles', requirement: 25, category: 'daily' },
+
+  // ── Quick Play ────────────────────────────────────────────────────────
+  { id: 'hh_qp_first_round', emoji: '⚡', name: 'Quick Starter', description: 'Play your first Quick Play round', requirement: 1, category: 'practice' },
+  { id: 'hh_qp_rounds_10', emoji: '🏃', name: 'Speed Runner', description: 'Play 10 Quick Play rounds', requirement: 10, category: 'practice' },
+  { id: 'hh_qp_rounds_50', emoji: '🎽', name: 'Blitz Regular', description: 'Play 50 Quick Play rounds', requirement: 50, category: 'practice' },
+  { id: 'hh_qp_score_50', emoji: '🥉', name: 'Quick 50', description: 'Score 50+ points in a single Quick Play round', requirement: 50, category: 'practice' },
+  { id: 'hh_qp_score_100', emoji: '🥈', name: 'Quick 100', description: 'Score 100+ points in a single Quick Play round', requirement: 100, category: 'practice' },
+  { id: 'hh_qp_words_10', emoji: '💨', name: 'Rapid Fire', description: 'Find 10+ words in a single Quick Play round', requirement: 10, category: 'practice' },
+  { id: 'hh_qp_words_20', emoji: '🌪️', name: 'Lightning Round', description: 'Find 20+ words in a single Quick Play round', requirement: 20, category: 'practice' },
+  { id: 'hh_qp_pangram', emoji: '🐝', name: 'Speed Pangram', description: 'Find a pangram in Quick Play before time runs out', requirement: 1, category: 'practice' },
 ];
 
 async function loadUnlockedIds(): Promise<UnlockedAchievement[]> {
@@ -99,6 +120,10 @@ export interface WordFoundEvent {
  * Checks a just-found word plus the just-updated stats snapshot against
  * every achievement, unlocking any newly-earned ones. Returns the list of
  * achievements unlocked by this call (for popup display).
+ *
+ * `stats` is expected to already reflect this word (mode-specific counters
+ * bumped by the caller before invoking), so thresholds here can just read
+ * off the stats object directly regardless of which mode was played.
  */
 export async function checkWordAchievements(
   event: WordFoundEvent,
@@ -116,14 +141,25 @@ export async function checkWordAchievements(
   if (stats.totalWordsFound >= 50) await tryUnlock('hh_words_50');
   if (stats.totalWordsFound >= 250) await tryUnlock('hh_words_250');
   if (stats.totalWordsFound >= 1000) await tryUnlock('hh_words_1000');
+  if (stats.totalWordsFound >= 2500) await tryUnlock('hh_words_2500');
+  if (stats.totalWordsFound >= 5000) await tryUnlock('hh_words_5000');
 
   if (event.isPangram) {
     if (stats.totalPangramsFound >= 1) await tryUnlock('hh_first_pangram');
     if (stats.totalPangramsFound >= 10) await tryUnlock('hh_pangrams_10');
     if (stats.totalPangramsFound >= 25) await tryUnlock('hh_pangrams_25');
+    if (stats.totalPangramsFound >= 50) await tryUnlock('hh_pangrams_50');
+    if (stats.practicePangramsFound >= 1) await tryUnlock('hh_qp_pangram');
   }
 
   if (event.word.length >= 9) await tryUnlock('hh_long_word_9');
+  if (event.word.length >= 11) await tryUnlock('hh_long_word_11');
+  if (event.word.length >= 13) await tryUnlock('hh_long_word_13');
+
+  if (stats.practiceBestScore >= 50) await tryUnlock('hh_qp_score_50');
+  if (stats.practiceBestScore >= 100) await tryUnlock('hh_qp_score_100');
+  if (stats.practiceBestWordCount >= 10) await tryUnlock('hh_qp_words_10');
+  if (stats.practiceBestWordCount >= 20) await tryUnlock('hh_qp_words_20');
 
   if (newlyUnlocked.length > 0) {
     await saveUnlockedIds(existing);
@@ -131,7 +167,7 @@ export async function checkWordAchievements(
   return newlyUnlocked;
 }
 
-/** Checks rank-, streak-, and daily-count-based achievements. */
+/** Checks rank-, streak-, and daily/Quick-Play-count-based achievements. */
 export async function checkProgressAchievements(
   stats: HexHiveStats,
   rankIndex: number,
@@ -154,9 +190,37 @@ export async function checkProgressAchievements(
   if (stats.currentStreak >= 3) await tryUnlock('hh_streak_3');
   if (stats.currentStreak >= 7) await tryUnlock('hh_streak_7');
   if (stats.currentStreak >= 30) await tryUnlock('hh_streak_30');
+  if (stats.currentStreak >= 100) await tryUnlock('hh_streak_100');
+
+  if (stats.currentFullClearStreak >= 3) await tryUnlock('hh_fullclear_streak_3');
+  if (stats.currentFullClearStreak >= 7) await tryUnlock('hh_fullclear_streak_7');
 
   if (stats.daysPlayed >= 10) await tryUnlock('hh_days_10');
   if (stats.daysPlayed >= 50) await tryUnlock('hh_days_50');
+  if (stats.daysPlayed >= 100) await tryUnlock('hh_days_100');
+
+  if (stats.fullClears >= 10) await tryUnlock('hh_fullclears_10');
+  if (stats.fullClears >= 25) await tryUnlock('hh_fullclears_25');
+
+  if (newlyUnlocked.length > 0) {
+    await saveUnlockedIds(existing);
+  }
+  return newlyUnlocked;
+}
+
+/** Checks Quick-Play-round-count achievements. Call once per round played (on time-up). */
+export async function checkPracticeRoundAchievements(stats: HexHiveStats): Promise<Achievement[]> {
+  const existing = await loadUnlockedIds();
+  const newlyUnlocked: Achievement[] = [];
+
+  const tryUnlock = async (id: string) => {
+    const a = await unlock(id, existing);
+    if (a) newlyUnlocked.push(a);
+  };
+
+  if (stats.practicePuzzlesPlayed >= 1) await tryUnlock('hh_qp_first_round');
+  if (stats.practicePuzzlesPlayed >= 10) await tryUnlock('hh_qp_rounds_10');
+  if (stats.practicePuzzlesPlayed >= 50) await tryUnlock('hh_qp_rounds_50');
 
   if (newlyUnlocked.length > 0) {
     await saveUnlockedIds(existing);

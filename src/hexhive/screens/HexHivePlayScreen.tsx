@@ -21,13 +21,19 @@ import { checkGuess } from '../utils/validator';
 import { getRankProgress, scoreWordForPuzzle } from '../utils/scoring';
 import {
   bumpStreakForToday,
+  bumpFullClearStreakForToday,
   loadHexHiveStats,
   saveHexHiveStats,
   saveDailyProgress,
   saveDailyHistoryEntry,
   type HexHiveStats,
 } from '../utils/storage';
-import { checkWordAchievements, checkProgressAchievements, type Achievement } from '../utils/achievements';
+import {
+  checkWordAchievements,
+  checkProgressAchievements,
+  checkPracticeRoundAchievements,
+  type Achievement,
+} from '../utils/achievements';
 
 const ACCENT = '#D4A017'; // Hex Hive's own accent — warm honey gold, distinct from other games
 const QUICK_PLAY_SECONDS = 60;
@@ -61,6 +67,8 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
 
   const [achievementQueue, setAchievementQueue] = useState<Achievement[]>([]);
   const statsRef = useRef<HexHiveStats | null>(null);
+  const foundWordsRef = useRef<string[]>(foundWords);
+  foundWordsRef.current = foundWords;
 
   // Quick Play only: 60-second countdown, no timer at all for Daily.
   const [timeLeft, setTimeLeft] = useState(QUICK_PLAY_SECONDS);
@@ -81,12 +89,19 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   );
   const rank = getRankProgress(score, solution.maxScore);
 
+  const queueAchievements = (newOnes: Achievement[]) => {
+    if (newOnes.length > 0) setAchievementQueue((q) => [...q, ...newOnes]);
+  };
+
   const handleTimeUp = async () => {
     setGameOver(true);
-    const stats = statsRef.current ?? (await loadHexHiveStats());
-    const updated = { ...stats, practicePuzzlesPlayed: stats.practicePuzzlesPlayed + 1 };
-    statsRef.current = updated;
-    await saveHexHiveStats(updated);
+    let stats = statsRef.current ?? (await loadHexHiveStats());
+    stats = { ...stats, practicePuzzlesPlayed: stats.practicePuzzlesPlayed + 1 };
+    statsRef.current = stats;
+    await saveHexHiveStats(stats);
+
+    const roundAch = await checkPracticeRoundAchievements(stats);
+    queueAchievements(roundAch);
   };
 
   useEffect(() => {
@@ -109,10 +124,6 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     setFeedback(fb);
     feedbackTimer.current = setTimeout(() => setFeedback(null), 1200);
-  };
-
-  const queueAchievements = (newOnes: Achievement[]) => {
-    if (newOnes.length > 0) setAchievementQueue((q) => [...q, ...newOnes]);
   };
 
   const handleSubmit = async () => {
@@ -150,22 +161,35 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
       await saveDailyProgress({ dateISO: getTodayDateString(), foundWords: newFound });
     }
 
-    // Update stats
+    // Update stats — daily and Quick Play each get their own lifetime
+    // counters, plus a combined lifetime total used for the volume ladder.
     let stats = statsRef.current ?? (await loadHexHiveStats());
+    stats = { ...stats };
+
     if (mode === 'daily') {
       stats = bumpStreakForToday(stats);
+      stats.dailyWordsFound += 1;
+      if (result.isPangram) stats.dailyPangramsFound += 1;
     } else {
-      stats = { ...stats };
+      stats.practiceWordsFound += 1;
+      if (result.isPangram) stats.practicePangramsFound += 1;
     }
+
     stats.totalWordsFound += 1;
     if (result.isPangram) stats.totalPangramsFound += 1;
     if (word.length > stats.longestWordFound.length) stats.longestWordFound = word;
+
     if (mode === 'daily') {
       stats.bestDailyScore = Math.max(stats.bestDailyScore, newScore);
       stats.bestDailyRankIndex = Math.max(stats.bestDailyRankIndex, newRank.index);
-      if (newFullyCleared) stats.fullClears += 1;
+      stats.bestDailyWordCount = Math.max(stats.bestDailyWordCount, newFound.length);
+      if (newFullyCleared) {
+        stats = bumpFullClearStreakForToday(stats);
+        stats.fullClears += 1;
+      }
     } else {
       stats.practiceBestScore = Math.max(stats.practiceBestScore, newScore);
+      stats.practiceBestWordCount = Math.max(stats.practiceBestWordCount, newFound.length);
     }
     statsRef.current = stats;
     await saveHexHiveStats(stats);
