@@ -249,8 +249,8 @@ const styles = StyleSheet.create({
   controlButton: {
     borderWidth: 1.5,
     borderRadius: 999,
-    paddingHorizontal: 26,
-    paddingVertical: 18,
+    width: 96,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -264,8 +264,8 @@ const styles = StyleSheet.create({
   },
   enterButton: {
     borderRadius: 999,
-    paddingHorizontal: 36,
-    paddingVertical: 18,
+    width: 96,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
   },
