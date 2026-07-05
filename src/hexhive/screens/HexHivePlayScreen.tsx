@@ -20,6 +20,7 @@ import {
   loadHexHiveStats,
   saveHexHiveStats,
   saveDailyProgress,
+  saveDailyHistoryEntry,
   type HexHiveStats,
 } from '../utils/storage';
 import { checkWordAchievements, checkProgressAchievements, type Achievement } from '../utils/achievements';
@@ -63,7 +64,6 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     [foundWords, solution]
   );
   const rank = getRankProgress(score, solution.maxScore);
-  const fullyCleared = foundWords.length >= solution.words.length && solution.words.length > 0;
 
   const flashFeedback = (fb: Feedback) => {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
@@ -98,6 +98,13 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     setCurrentGuess('');
     flashFeedback(result.isPangram ? 'pangram' : 'valid');
 
+    // Compute the up-to-date score/rank including this word — `score`/`rank`
+    // from render still reflect the pre-submit state since setFoundWords
+    // hasn't re-rendered yet.
+    const newScore = score + scoreWordForPuzzle(word, result.isPangram);
+    const newRank = getRankProgress(newScore, solution.maxScore);
+    const newFullyCleared = newFound.length >= solution.words.length && solution.words.length > 0;
+
     if (mode === 'daily') {
       await saveDailyProgress({ dateISO: getTodayDateString(), foundWords: newFound });
     }
@@ -113,17 +120,30 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     if (result.isPangram) stats.totalPangramsFound += 1;
     if (word.length > stats.longestWordFound.length) stats.longestWordFound = word;
     if (mode === 'daily') {
-      stats.bestDailyScore = Math.max(stats.bestDailyScore, score + scoreWordForPuzzle(word, result.isPangram));
-      stats.bestDailyRankIndex = Math.max(stats.bestDailyRankIndex, rank.index);
-      if (fullyCleared) stats.fullClears += 1;
+      stats.bestDailyScore = Math.max(stats.bestDailyScore, newScore);
+      stats.bestDailyRankIndex = Math.max(stats.bestDailyRankIndex, newRank.index);
+      if (newFullyCleared) stats.fullClears += 1;
     } else {
-      stats.practiceBestScore = Math.max(stats.practiceBestScore, score + scoreWordForPuzzle(word, result.isPangram));
+      stats.practiceBestScore = Math.max(stats.practiceBestScore, newScore);
     }
     statsRef.current = stats;
     await saveHexHiveStats(stats);
 
+    if (mode === 'daily') {
+      await saveDailyHistoryEntry({
+        dateISO: getTodayDateString(),
+        score: newScore,
+        maxScore: solution.maxScore,
+        wordsFound: newFound.length,
+        totalWords: solution.words.length,
+        rankIndex: newRank.index,
+        rankName: newRank.name,
+        fullyCleared: newFullyCleared,
+      });
+    }
+
     const wordAch = await checkWordAchievements({ word, isPangram: result.isPangram }, stats);
-    const progressAch = await checkProgressAchievements(stats, rank.index, rank.name, fullyCleared);
+    const progressAch = await checkProgressAchievements(stats, newRank.index, newRank.name, newFullyCleared);
     queueAchievements([...wordAch, ...progressAch]);
   };
 

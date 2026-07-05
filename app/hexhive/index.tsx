@@ -30,13 +30,16 @@ import { getRankProgress, scoreWordForPuzzle } from '../../src/hexhive/utils/sco
 import {
   loadHexHiveStats,
   loadDailyProgress,
+  loadDailyHistory,
   type HexHiveStats,
+  type DailyHistory,
 } from '../../src/hexhive/utils/storage';
 import {
   getUnlockedAchievements,
   HEXHIVE_ACHIEVEMENTS,
   type Achievement,
 } from '../../src/hexhive/utils/achievements';
+import HexHiveCalendar from '../../src/hexhive/components/HexHiveCalendar';
 
 const ACCENT = '#D4A017';
 const { width } = Dimensions.get('window');
@@ -81,16 +84,19 @@ export default function HexHiveEntryScreen() {
   const [dailyScore, setDailyScore] = useState(0);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [unlocked, setUnlocked] = useState<(Achievement & { unlockedAt: string })[]>([]);
+  const [history, setHistory] = useState<DailyHistory>({});
 
   const loadAll = useCallback(async () => {
     const puzzle = getDailyPuzzle(new Date());
-    const [s, progress, ach] = await Promise.all([
+    const [s, progress, ach, hist] = await Promise.all([
       loadHexHiveStats().catch(() => null),
       loadDailyProgress().catch(() => null),
       getUnlockedAchievements().catch(() => []),
+      loadDailyHistory().catch(() => ({})),
     ]);
     setStats(s);
     setUnlocked(ach);
+    setHistory(hist);
 
     if (progress && progress.foundWords.length > 0) {
       const solution = getPuzzleSolution(puzzle);
@@ -332,6 +338,18 @@ export default function HexHiveEntryScreen() {
                     </View>
                   ))}
                 </View>
+
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
+                  Daily History
+                </Text>
+                <HexHiveCalendar
+                  history={history}
+                  accentColor={ACCENT}
+                  textColor={background.textColor}
+                  secondaryTextColor={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
               </>
             ) : (
               <Text style={[styles.emptyText, { color: background.secondaryText }]}>

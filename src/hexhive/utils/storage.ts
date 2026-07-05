@@ -13,6 +13,7 @@ import { getTodayDateString, getYesterdayDateString } from './generator';
 const STATS_KEY = 'hexhive_stats_v1';
 const DAILY_PROGRESS_KEY = 'hexhive_daily_progress_v1';
 const PREFS_KEY = 'hexhive_prefs_v1';
+const DAILY_HISTORY_KEY = 'hexhive_daily_history_v1';
 
 // ── Stats ────────────────────────────────────────────────────────────────
 export type HexHiveStats = {
@@ -108,6 +109,47 @@ export async function saveDailyProgress(progress: DailyProgress): Promise<void> 
     await AsyncStorage.setItem(DAILY_PROGRESS_KEY, JSON.stringify(progress));
   } catch (e) {
     console.warn('saveDailyProgress error', e);
+  }
+}
+
+// ── Daily history (one entry per calendar day ever played, kept forever) ──
+// Powers the Stats calendar so a player can look back and see exactly what
+// they scored on any past day, not just their all-time best.
+export type DailyHistoryEntry = {
+  dateISO: string;
+  score: number;
+  maxScore: number;
+  wordsFound: number;
+  totalWords: number;
+  rankIndex: number;
+  rankName: string;
+  fullyCleared: boolean;
+};
+
+export type DailyHistory = Record<string, DailyHistoryEntry>; // keyed by dateISO
+
+export async function loadDailyHistory(): Promise<DailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.warn('loadDailyHistory error', e);
+    return {};
+  }
+}
+
+/** Upserts today's entry with the latest cumulative values — safe to call after every word found. */
+export async function saveDailyHistoryEntry(entry: DailyHistoryEntry): Promise<DailyHistory> {
+  try {
+    const history = await loadDailyHistory();
+    const updated: DailyHistory = { ...history, [entry.dateISO]: entry };
+    await AsyncStorage.setItem(DAILY_HISTORY_KEY, JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.warn('saveDailyHistoryEntry error', e);
+    return {};
   }
 }
 
