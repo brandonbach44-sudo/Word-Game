@@ -46,6 +46,90 @@ const { width } = Dimensions.get('window');
 type Tab = 'play' | 'stats';
 const TABS: Tab[] = ['play', 'stats'];
 
+// Maps each achievement id to a 0–1 progress fraction given the current
+// stats snapshot, mirroring Wordle's Stats tab (progress bars on locked,
+// countable achievements). Achievements not listed here (or already
+// unlocked) simply show no bar.
+function getAchievementProgress(id: string, stats: HexHiveStats): number | undefined {
+  const clamp = (n: number) => Math.max(0, Math.min(1, n));
+  switch (id) {
+    case 'hh_first_word':
+      return clamp(stats.totalWordsFound / 1);
+    case 'hh_words_50':
+      return clamp(stats.totalWordsFound / 50);
+    case 'hh_words_250':
+      return clamp(stats.totalWordsFound / 250);
+    case 'hh_words_1000':
+      return clamp(stats.totalWordsFound / 1000);
+    case 'hh_words_2500':
+      return clamp(stats.totalWordsFound / 2500);
+    case 'hh_words_5000':
+      return clamp(stats.totalWordsFound / 5000);
+    case 'hh_first_pangram':
+      return clamp(stats.totalPangramsFound / 1);
+    case 'hh_pangrams_10':
+      return clamp(stats.totalPangramsFound / 10);
+    case 'hh_pangrams_25':
+      return clamp(stats.totalPangramsFound / 25);
+    case 'hh_pangrams_50':
+      return clamp(stats.totalPangramsFound / 50);
+    case 'hh_long_word_9':
+      return clamp(stats.longestWordFound.length / 9);
+    case 'hh_long_word_11':
+      return clamp(stats.longestWordFound.length / 11);
+    case 'hh_long_word_13':
+      return clamp(stats.longestWordFound.length / 13);
+    case 'hh_reach_amazing':
+      return clamp(stats.bestDailyRankIndex / 7);
+    case 'hh_reach_genius':
+      return clamp(stats.bestDailyRankIndex / 8);
+    case 'hh_reach_master':
+      return clamp(stats.bestDailyRankIndex / 9);
+    case 'hh_streak_3':
+      return clamp(stats.bestStreak / 3);
+    case 'hh_streak_7':
+      return clamp(stats.bestStreak / 7);
+    case 'hh_streak_30':
+      return clamp(stats.bestStreak / 30);
+    case 'hh_streak_100':
+      return clamp(stats.bestStreak / 100);
+    case 'hh_fullclear_streak_3':
+      return clamp(stats.bestFullClearStreak / 3);
+    case 'hh_fullclear_streak_7':
+      return clamp(stats.bestFullClearStreak / 7);
+    case 'hh_first_full_clear':
+      return clamp(stats.fullClears / 1);
+    case 'hh_days_10':
+      return clamp(stats.daysPlayed / 10);
+    case 'hh_days_50':
+      return clamp(stats.daysPlayed / 50);
+    case 'hh_days_100':
+      return clamp(stats.daysPlayed / 100);
+    case 'hh_fullclears_10':
+      return clamp(stats.fullClears / 10);
+    case 'hh_fullclears_25':
+      return clamp(stats.fullClears / 25);
+    case 'hh_qp_first_round':
+      return clamp(stats.practicePuzzlesPlayed / 1);
+    case 'hh_qp_rounds_10':
+      return clamp(stats.practicePuzzlesPlayed / 10);
+    case 'hh_qp_rounds_50':
+      return clamp(stats.practicePuzzlesPlayed / 50);
+    case 'hh_qp_score_50':
+      return clamp(stats.practiceBestScore / 50);
+    case 'hh_qp_score_100':
+      return clamp(stats.practiceBestScore / 100);
+    case 'hh_qp_words_10':
+      return clamp(stats.practiceBestWordCount / 10);
+    case 'hh_qp_words_20':
+      return clamp(stats.practiceBestWordCount / 20);
+    case 'hh_qp_pangram':
+      return clamp(stats.practicePangramsFound / 1);
+    default:
+      return undefined;
+  }
+}
+
 const DailyStatPill = ({
   label,
   value,
@@ -91,6 +175,40 @@ function StatsGrid({
           <Text style={[styles.statsLabel, { color: secondaryColor }]}>{label}</Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+function AchievementCard({
+  achievement,
+  unlocked,
+  progress,
+  textColor,
+  secondaryText,
+  cardColor,
+  borderColor,
+}: {
+  achievement: Achievement;
+  unlocked: boolean;
+  progress?: number;
+  textColor: string;
+  secondaryText: string;
+  cardColor: string;
+  borderColor: string;
+}) {
+  const opacity = unlocked ? 1 : 0.5;
+  const showProgress = !unlocked && progress !== undefined && progress > 0;
+
+  return (
+    <View style={[styles.achievementCard, { backgroundColor: cardColor, borderColor, opacity }]}>
+      <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+      <Text style={[styles.achievementName, { color: textColor }]}>{achievement.name}</Text>
+      <Text style={[styles.achievementDesc, { color: secondaryText }]}>{achievement.description}</Text>
+      {showProgress && (
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${Math.round(progress! * 100)}%` }]} />
+        </View>
+      )}
     </View>
   );
 }
@@ -195,6 +313,9 @@ export default function HexHiveEntryScreen() {
   };
 
   const combinedWords = stats?.totalWordsFound ?? 0;
+  const unlockedIds = new Set(unlocked.map((u) => u.id));
+  const unlockedAchievements = HEXHIVE_ACHIEVEMENTS.filter((a) => unlockedIds.has(a.id));
+  const lockedAchievements = HEXHIVE_ACHIEVEMENTS.filter((a) => !unlockedIds.has(a.id));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -346,7 +467,7 @@ export default function HexHiveEntryScreen() {
               <ActivityIndicator color={ACCENT} style={{ marginTop: 20 }} />
             ) : combinedWords > 0 || (stats?.practicePuzzlesPlayed ?? 0) > 0 ? (
               <>
-                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily</Text>
+                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily Challenge</Text>
                 <StatsGrid
                   cardColor={background.cardColor}
                   borderColor={background.borderColor}
@@ -361,12 +482,12 @@ export default function HexHiveEntryScreen() {
                     { label: 'Best Full Clear Streak', value: (stats?.bestFullClearStreak ?? 0).toString() },
                     { label: 'Best Daily Score', value: (stats?.bestDailyScore ?? 0).toString() },
                     { label: 'Best Daily Words', value: (stats?.bestDailyWordCount ?? 0).toString() },
-                    { label: 'Daily Words Found', value: (stats?.dailyWordsFound ?? 0).toString() },
-                    { label: 'Daily Pangrams', value: (stats?.dailyPangramsFound ?? 0).toString() },
+                    { label: 'Words Found', value: (stats?.dailyWordsFound ?? 0).toString() },
+                    { label: 'Pangrams Found', value: (stats?.dailyPangramsFound ?? 0).toString() },
                   ]}
                 />
 
-                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 28 }]}>Quick Play</Text>
                 <StatsGrid
                   cardColor={background.cardColor}
                   borderColor={background.borderColor}
@@ -381,20 +502,26 @@ export default function HexHiveEntryScreen() {
                   ]}
                 />
 
-                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Lifetime</Text>
-                <StatsGrid
-                  cardColor={background.cardColor}
-                  borderColor={background.borderColor}
-                  textColor={background.textColor}
-                  secondaryColor={background.secondaryText}
-                  items={[
-                    { label: 'Total Words', value: (stats?.totalWordsFound ?? 0).toString() },
-                    { label: 'Total Pangrams', value: (stats?.totalPangramsFound ?? 0).toString() },
-                    { label: 'Longest Word', value: stats?.longestWordFound ? stats.longestWordFound.toUpperCase() : '—' },
-                  ]}
-                />
+                <View style={[styles.lifetimeStrip, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                  <View style={styles.lifetimeItem}>
+                    <Text style={[styles.lifetimeValue, { color: ACCENT }]}>{stats?.totalWordsFound ?? 0}</Text>
+                    <Text style={[styles.lifetimeLabel, { color: background.secondaryText }]}>Total Words</Text>
+                  </View>
+                  <View style={[styles.lifetimeDivider, { backgroundColor: background.borderColor }]} />
+                  <View style={styles.lifetimeItem}>
+                    <Text style={[styles.lifetimeValue, { color: ACCENT }]}>{stats?.totalPangramsFound ?? 0}</Text>
+                    <Text style={[styles.lifetimeLabel, { color: background.secondaryText }]}>Total Pangrams</Text>
+                  </View>
+                  <View style={[styles.lifetimeDivider, { backgroundColor: background.borderColor }]} />
+                  <View style={styles.lifetimeItem}>
+                    <Text style={[styles.lifetimeValue, { color: ACCENT }]}>
+                      {stats?.longestWordFound ? stats.longestWordFound.toUpperCase() : '—'}
+                    </Text>
+                    <Text style={[styles.lifetimeLabel, { color: background.secondaryText }]}>Longest Word</Text>
+                  </View>
+                </View>
 
-                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 24 }]}>
                   Daily History
                 </Text>
                 <HexHiveCalendar
@@ -412,24 +539,28 @@ export default function HexHiveEntryScreen() {
               </Text>
             )}
 
-            {/* Achievements — unlocked first, then locked */}
-            <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
-              Achievements ({unlocked.length}/{HEXHIVE_ACHIEVEMENTS.length})
+            {/* Achievements — unlocked first, then locked (with progress bars) */}
+            <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 28 }]}>
+              Achievements ({unlockedAchievements.length}/{HEXHIVE_ACHIEVEMENTS.length})
             </Text>
 
-            {unlocked.length > 0 && (
+            {unlockedAchievements.length > 0 && (
               <View style={styles.achievementsGrid}>
-                {HEXHIVE_ACHIEVEMENTS.filter((a) => unlocked.some((u) => u.id === a.id)).map((achievement) => (
-                  <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-                    <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
-                    <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
-                  </View>
+                {unlockedAchievements.map((achievement) => (
+                  <AchievementCard
+                    key={achievement.id}
+                    achievement={achievement}
+                    unlocked
+                    textColor={background.textColor}
+                    secondaryText={background.secondaryText}
+                    cardColor={background.cardColor}
+                    borderColor={background.borderColor}
+                  />
                 ))}
               </View>
             )}
 
-            {unlocked.length > 0 && unlocked.length < HEXHIVE_ACHIEVEMENTS.length && (
+            {unlockedAchievements.length > 0 && lockedAchievements.length > 0 && (
               <View style={styles.lockedDivider}>
                 <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
                 <Text style={[styles.dividerText, { color: background.secondaryText }]}>Locked</Text>
@@ -437,17 +568,19 @@ export default function HexHiveEntryScreen() {
               </View>
             )}
 
-            {HEXHIVE_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).length > 0 && (
+            {lockedAchievements.length > 0 && (
               <View style={styles.achievementsGrid}>
-                {HEXHIVE_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).map((achievement) => (
-                  <View
+                {lockedAchievements.map((achievement) => (
+                  <AchievementCard
                     key={achievement.id}
-                    style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
-                  >
-                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
-                    <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
-                    <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
-                  </View>
+                    achievement={achievement}
+                    unlocked={false}
+                    progress={stats ? getAchievementProgress(achievement.id, stats) : undefined}
+                    textColor={background.textColor}
+                    secondaryText={background.secondaryText}
+                    cardColor={background.cardColor}
+                    borderColor={background.borderColor}
+                  />
                 ))}
               </View>
             )}
@@ -528,15 +661,38 @@ const styles = StyleSheet.create({
   statsLabel: { fontSize: 12, textAlign: 'center' },
   emptyText: { fontSize: 14, marginTop: 8 },
 
+  lifetimeStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    marginTop: 16,
+  },
+  lifetimeItem: { flex: 1, alignItems: 'center' },
+  lifetimeDivider: { width: 1, height: 32 },
+  lifetimeValue: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  lifetimeLabel: { fontSize: 10, textAlign: 'center' },
+
   achievementsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  achievementCard: { width: '48%', padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  achievementCard: { width: '48%', padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', marginBottom: 10 },
   achievementEmoji: { fontSize: 32, marginBottom: 6 },
-  achievementEmojiLocked: { opacity: 0.5 },
   achievementName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 2 },
   achievementDesc: { fontSize: 11, textAlign: 'center' },
-  achievementCardLocked: { opacity: 0.5 },
-  achievementTextLocked: { opacity: 0.7 },
   lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 11, fontWeight: '600', marginHorizontal: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+  progressTrack: {
+    marginTop: 8,
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: ACCENT,
+  },
 });
