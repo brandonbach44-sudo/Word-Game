@@ -17,6 +17,7 @@ export default function RootLayout() {
           <Stack.Screen name="wordle/index" />
           <Stack.Screen name="hangman/index" />
           <Stack.Screen name="wordgrid" />
+          <Stack.Screen name="hexhive" />
         </Stack>
       </ThemeProvider>
     </SafeAreaProvider>

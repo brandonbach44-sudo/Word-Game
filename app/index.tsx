@@ -83,6 +83,17 @@ const GAMES = [
     icon: 'ladder' as const,
     iconSet: 'material' as const,
   },
+  {
+    name: 'Hex Hive',
+    description: 'Find words using the hexagon letters — every word needs the center letter',
+    route: '/hexhive',
+    accentColor: '#D4A017',
+    bgColor: '#FBF1DA',
+    borderColor: '#E8C468',
+    textColor: '#4A3600',
+    descColor: '#8A6D0E',
+    icon: 'hexagon-outline' as const,
+  },
 ];
 
 const COMING_SOON = ['Anagrams', 'Crossword'];
