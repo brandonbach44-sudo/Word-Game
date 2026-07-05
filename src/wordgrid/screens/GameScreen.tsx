@@ -23,7 +23,7 @@ import { usePreventRemove } from '@react-navigation/core';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
-import { AchievementPopup } from '../../wordbuilder/components/AchievementPopup';
+import { AchievementPopup } from '../../shared/AchievementPopup';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
@@ -407,6 +407,15 @@ export default function GameScreen() {
     switchToTab('play');
   }, [switchToTab]);
 
+  const handleShareResult = useCallback(async () => {
+    try {
+      const text = `Word Grid: ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points`;
+      await Share.share({ message: text });
+    } catch (e) {
+      console.warn('Share failed', e);
+    }
+  }, [foundWords, score]);
+
   // Daily only allows one attempt per day — leaving mid-game (while the
   // round is still running, not yet timed out) needs to actually lock in
   // today's result as-is, otherwise you could dodge a bad run by backing
@@ -663,6 +672,18 @@ export default function GameScreen() {
             <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
           </Pressable>
         </View>
+
+        {foundWords.length > 0 && (
+          <Pressable
+            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={handleShareResult}
+          >
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
+            </View>
+          </Pressable>
+        )}
 
         {/* Page indicator */}
         <View style={styles.pageIndicatorContainer}>

@@ -39,6 +39,7 @@ import {
   type WordSearchDailyProgress,
 } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
+import { AchievementPopup } from '../../src/shared/AchievementPopup';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -52,65 +53,6 @@ interface ResultData {
   multiplier: number;
   timeBonus: number;
   newAchievements: WSAchievement[];
-}
-
-// ── Achievement popup ─────────────────────────────────────────────────────────
-function AchievementPopup({
-  achievement,
-  onDismiss,
-  cardColor,
-  textColor,
-}: {
-  achievement: WSAchievement | null;
-  onDismiss: () => void;
-  cardColor: string;
-  textColor: string;
-}) {
-  const slideAnim = useRef(new Animated.Value(-150)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (achievement) {
-      Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 8 }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      ]).start();
-      const timer = setTimeout(() => dismiss(), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [achievement]);
-
-  const dismiss = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, { toValue: -150, duration: 200, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => onDismiss());
-  };
-
-  if (!achievement) return null;
-  return (
-    <Modal transparent visible animationType="none" statusBarTranslucent>
-      <Animated.View
-        style={[overlayStyles.popupContainer, { transform: [{ translateY: slideAnim }], opacity: opacityAnim }]}
-        pointerEvents="box-none"
-      >
-        <TouchableOpacity
-          style={[overlayStyles.popup, { backgroundColor: cardColor, borderColor: COLORS.accent }]}
-          onPress={dismiss}
-          activeOpacity={0.9}
-        >
-          <Text style={overlayStyles.popupUnlockLabel}>Achievement Unlocked!</Text>
-          <View style={overlayStyles.popupContent}>
-            <Text style={overlayStyles.popupEmoji}>{achievement.emoji}</Text>
-            <View style={overlayStyles.popupText}>
-              <Text style={[overlayStyles.popupName, { color: textColor }]}>{achievement.name}</Text>
-              <Text style={[overlayStyles.popupDesc, { color: textColor, opacity: 0.7 }]}>{achievement.description}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    </Modal>
-  );
 }
 
 // ── Stat pill ─────────────────────────────────────────────────────────────────
@@ -829,7 +771,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       <AchievementPopup
         achievement={currentPopup}
         onDismiss={() => setCurrentPopup(null)}
-        cardColor={background.cardColor}
+        backgroundColor={background.cardColor}
         textColor={background.textColor}
       />
 
@@ -1110,14 +1052,6 @@ const overlayStyles = StyleSheet.create({
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
-  popupContainer: { position: 'absolute', top: 60, left: 20, right: 20, alignItems: 'center', zIndex: 999 },
-  popup: { width: SCREEN_WIDTH - 40, borderRadius: 16, padding: 16, borderWidth: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 8 },
-  popupUnlockLabel: { fontSize: 12, fontWeight: '600', color: COLORS.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  popupContent: { flexDirection: 'row', alignItems: 'center' },
-  popupEmoji: { fontSize: 40, marginRight: 15 },
-  popupText: { flex: 1 },
-  popupName: { fontSize: 18, fontWeight: 'bold', marginBottom: 2 },
-  popupDesc: { fontSize: 14 },
 });
 
 export default PlayScreen;

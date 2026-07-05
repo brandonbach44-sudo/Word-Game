@@ -18,7 +18,7 @@ import { usePreventRemove } from '@react-navigation/core';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
-import { AchievementPopup } from '../../wordbuilder/components/AchievementPopup';
+import { AchievementPopup } from '../../shared/AchievementPopup';
 
 import type { LadderDifficulty, LadderPuzzle } from '../utils/generator';
 import { getHintPath } from '../utils/generator';

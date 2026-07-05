@@ -23,11 +23,11 @@ import { useTheme } from "../../shared/ThemeContext";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
-import { AchievementPopup } from "../../wordbuilder/components/AchievementPopup";
+import { AchievementPopup } from "../../shared/AchievementPopup";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
 import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
-// AchievementPopup is shared from wordbuilder — uses compatible shape (emoji, name, description)
+// AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
 import {
   clearDailyProgress,

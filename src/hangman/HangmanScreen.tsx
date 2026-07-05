@@ -23,7 +23,7 @@ import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
 
-import { AchievementPopup } from './Components/AchievementPopup';
+import { AchievementPopup } from '../shared/AchievementPopup';
 import { DailyChallengeCard } from './Components/DailyChallengeCard';
 import { DailyChallengePopup } from './Components/DailyChallengePopup';
 import { GameStatus } from './Components/GameStatus';
@@ -275,6 +275,7 @@ export default function HangmanScreen() {
   const [dailyWord, setDailyWord] = useState<string>('');
   const [dailyGameEnded, setDailyGameEnded] = useState(false);
   const [showGuessModal, setShowGuessModal] = useState(false);
+  const [resultCardClosed, setResultCardClosed] = useState(false);
   const [guessInput, setGuessInput] = useState('');
   // Stashes a restored in-progress Daily attempt (app closed/backgrounded
   // mid-game) found on launch. Not applied to the hook immediately —
@@ -421,6 +422,11 @@ export default function HangmanScreen() {
     if (!isPlaying) setSelectedLetter(null);
   }, [isPlaying]);
 
+  // Reset the closed result card whenever a fresh round starts
+  useEffect(() => {
+    if (isPlaying) setResultCardClosed(false);
+  }, [isPlaying]);
+
   // Set game mode to playing when game starts
   useEffect(() => {
     if ((isPlaying || isWon || isLost) && gameMode !== 'playing') {
@@ -557,6 +563,7 @@ export default function HangmanScreen() {
   
   const handlePlayAgain = () => {
     setSelectedLetter(null);
+    setResultCardClosed(false);
     if (playingDaily) {
       // Can't play daily again - go back to menu
       handleBackToModeSelect();
@@ -806,7 +813,7 @@ export default function HangmanScreen() {
         {/* Regular Game End Popup (non-daily) */}
         {!playingDaily && (
           <GameStatus
-            isVisible={isWon || isLost}
+            isVisible={(isWon || isLost) && !resultCardClosed}
             isWon={isWon}
             word={word}
             category={category}
@@ -814,6 +821,7 @@ export default function HangmanScreen() {
             totalGuesses={stats.totalGuesses}
             onPlayAgain={handlePlayAgain}
             onBackToMenu={handleBackToModeSelect}
+            onClose={() => setResultCardClosed(true)}
           />
         )}
         

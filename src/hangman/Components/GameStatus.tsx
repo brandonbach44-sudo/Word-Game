@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Share2 } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 
 type GameStatusProps = {
@@ -12,6 +13,7 @@ type GameStatusProps = {
   maxAttempts?: number;
   onPlayAgain: () => void;
   onBackToMenu: () => void;
+  onClose: () => void;
 };
 
 const StatPill = ({
@@ -64,6 +66,7 @@ export const GameStatus: React.FC<GameStatusProps> = ({
   maxAttempts = 6,
   onPlayAgain,
   onBackToMenu,
+  onClose,
 }) => {
   const { background } = useTheme();
 
@@ -74,6 +77,17 @@ export const GameStatus: React.FC<GameStatusProps> = ({
   const SUBTEXT = background.secondaryText ?? '#6b7280';
   const CARD = background.cardColor ?? '#ffffff';
   const BORDER = background.borderColor ?? '#e5e7eb';
+
+  const handleShare = async () => {
+    try {
+      const text = isWon
+        ? `Hangman: guessed "${word.toUpperCase()}" with ${incorrectGuesses}/${maxAttempts} wrong guesses.`
+        : `Hangman: the word was "${word.toUpperCase()}".`;
+      await Share.share({ message: text });
+    } catch (e) {
+      console.warn('Share failed', e);
+    }
+  };
 
   const title = isWon ? 'You Got It!' : 'Game Over';
   const subtitle = isWon
@@ -115,6 +129,26 @@ export const GameStatus: React.FC<GameStatusProps> = ({
             <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
             <PrimaryButton label="Main Menu" onPress={onBackToMenu} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
           </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={handleShare}
+          >
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={onClose}
+          >
+            <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
+          </Pressable>
 
         </View>
       </View>
@@ -231,6 +265,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  shareButton: {
+    marginTop: 10,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    backgroundColor: '#22c55e',
+  },
+  shareButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1,

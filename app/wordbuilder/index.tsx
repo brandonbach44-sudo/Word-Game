@@ -24,7 +24,7 @@ import { Flame, Share2, Trophy } from 'lucide-react-native';
 // Components
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
-import { AchievementPopup } from '../../src/wordbuilder/components/AchievementPopup';
+import { AchievementPopup } from '../../src/shared/AchievementPopup';
 
 // Shared Managers
 import { SoundManager } from '../../src/shared/SoundManager';
@@ -953,37 +953,6 @@ export default function WordBuilder() {
                   </>
                 )}
 
-                {/* Buttons */}
-                <View style={styles.resultsButtonRow}>
-                  {!isDaily && (
-                    <Pressable
-                      style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                      onPress={() => startPracticeGame(gameMode as 'blitz' | 'standard', letterCount)}
-                    >
-                      <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Play Again</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
-                    onPress={backToMenu}
-                  >
-                    <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Main Menu</Text>
-                  </Pressable>
-                </View>
-
-                {/* Share — daily only */}
-                {isDaily && (
-                  <Pressable
-                    style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                    onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
-                  >
-                    <View style={styles.shareButtonInner}>
-                      <Share2 size={18} color="#fff" />
-                      <Text style={styles.shareButtonText}>Share Result</Text>
-                    </View>
-                  </Pressable>
-                )}
-
               </View>
             </ScrollView>
           </View>
@@ -1021,16 +990,40 @@ export default function WordBuilder() {
                 </View>
               )}
             />
-            
-            <TouchableOpacity 
-              style={[styles.menuButton, dynamicStyles.button, styles.wordsPageButton]} 
-              onPress={backToMenu}
-            >
-              <Text style={[styles.menuButtonText, dynamicStyles.text]}>Back to Menu</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
-        
+
+        {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar */}
+        <View style={styles.resultsButtonRow}>
+          {!isDaily && (
+            <Pressable
+              style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+              onPress={() => startPracticeGame(gameMode as 'blitz' | 'standard', letterCount)}
+            >
+              <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Play Again</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+            onPress={backToMenu}
+          >
+            <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Main Menu</Text>
+          </Pressable>
+        </View>
+
+        {/* Share — daily only */}
+        {isDaily && (
+          <Pressable
+            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+            onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
+          >
+            <View style={styles.shareButtonInner}>
+              <Share2 size={18} color="#fff" />
+              <Text style={styles.shareButtonText}>Share Result</Text>
+            </View>
+          </Pressable>
+        )}
+
         {/* Page Indicator Dots + Swipe Hint */}
         <View style={styles.pageIndicatorContainer}>
           <View style={styles.pageIndicatorLabels}>
@@ -2380,16 +2373,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 0.5,
   },
-  menuButton: {
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 25,
-    borderWidth: 2,
-  },
-  menuButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   wordsPageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -2428,10 +2411,6 @@ const styles = StyleSheet.create({
   },
   wordScore: {
     fontSize: 12,
-  },
-  wordsPageButton: {
-    alignSelf: 'center',
-    marginVertical: 15,
   },
   tooltipOverlay: {
     position: 'absolute',

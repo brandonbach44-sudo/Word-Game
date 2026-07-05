@@ -1,3 +1,8 @@
+// src/shared/AchievementPopup.tsx
+// Canonical achievement-unlocked popup, shared by every game so the
+// slide-in toast looks and behaves identically everywhere. Accepts any
+// achievement-shaped object ({ emoji, name, description }) so each game's
+// own Achievement type works without adaptation.
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -8,12 +13,17 @@ import {
   Dimensions,
   Modal,
 } from 'react-native';
-import { Achievement } from '../utils/achievements';
 
 const { width } = Dimensions.get('window');
 
+export type AchievementLike = {
+  emoji: string;
+  name: string;
+  description: string;
+};
+
 interface AchievementPopupProps {
-  achievement: Achievement | null;
+  achievement: AchievementLike | null;
   onDismiss: () => void;
   backgroundColor?: string;
   textColor?: string;
