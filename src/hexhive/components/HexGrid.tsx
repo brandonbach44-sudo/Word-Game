@@ -55,7 +55,7 @@ function HexTile({ letter, isCenter, onPress, accentColor, textColor, tileColor 
       onPress={onPress}
       style={{ width: HEX_W, height: HEX_H }}
     >
-      <Svg width={HEX_W} height={HEX_H} viewBox={`${-HEX_SIZE} ${-HEX_SIZE} ${HEX_W} ${HEX_W}`} style={StyleSheet.absoluteFillObject}>
+      <Svg width={HEX_W} height={HEX_H} viewBox={`${-HEX_SIZE} ${-HEX_H / 2} ${HEX_W} ${HEX_H}`} style={StyleSheet.absoluteFillObject}>
         <Polygon
           points={hexPoints(HEX_SIZE - 1.5)}
           fill={isCenter ? accentColor : tileColor}

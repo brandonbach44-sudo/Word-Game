@@ -164,12 +164,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         />
       </View>
 
-      <View
-        style={[
-          styles.boardCard,
-          { backgroundColor: background.cardColor, borderColor: background.borderColor },
-        ]}
-      >
+      <View style={styles.boardCard}>
         <HexGrid
           outerLetters={outerLetters}
           center={puzzle.center}
@@ -224,9 +219,7 @@ const styles = StyleSheet.create({
   rankBarWrap: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
   boardCard: {
     marginHorizontal: 16,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 12,
   },
   wordListWrap: { flex: 1, marginTop: 14 },
