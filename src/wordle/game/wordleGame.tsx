@@ -164,6 +164,37 @@ const VALID_GUESSES_SET: Set<string> = new Set(
 // In case SOLUTIONS words should also always be valid guesses:
 for (const w of SOLUTIONS_LC) VALID_GUESSES_SET.add(w);
 
+// ✅ Daily word order: a fixed, seeded shuffle of SOLUTIONS indices, kept
+// separate from the raw array order. Relying on "day number % array length"
+// directly against SOLUTIONS_LC means the *order words were typed into the
+// file* controls which word shows on which day — if that order ever clumps
+// same-letter words together (e.g. alphabetical, or just bad luck from a
+// manual reshuffle), users can get long runs of "only W words" etc. A
+// seeded Fisher-Yates permutation is deterministic (same seed -> same
+// mapping every run) but decoupled from array order, so edits to SOLUTIONS
+// (adding/removing words) can't reintroduce clustering.
+function mulberry32(seed: number) {
+  return function (): number {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function buildDailyOrder(length: number): number[] {
+  const order = Array.from({ length }, (_, i) => i);
+  const rand = mulberry32(0xc0ffee);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+const DAILY_ORDER: number[] = buildDailyOrder(SOLUTIONS_LC.length);
+
 function createEmptyModeStats(): ModeStats {
   return {
     gamesPlayed: 0,
@@ -233,7 +264,7 @@ function getDailyIndex(date = new Date()): number {
 }
 
 function getDailySolution(): string {
-  return SOLUTIONS_LC[getDailyIndex()];
+  return SOLUTIONS_LC[DAILY_ORDER[getDailyIndex()]];
 }
 
 function getRandomPracticeSolution(): string {
