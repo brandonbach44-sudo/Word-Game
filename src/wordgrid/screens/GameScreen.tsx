@@ -1184,7 +1184,7 @@ const styles = StyleSheet.create({
   statPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
   statPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },
   statPillValue: { fontSize: 14, fontWeight: '900' },
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 16 },
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
   primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
   primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
