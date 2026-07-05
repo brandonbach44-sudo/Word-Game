@@ -283,7 +283,7 @@ export default function HexHiveEntryScreen() {
             >
               <View style={[styles.modeAccent, { backgroundColor: ACCENT }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modeTitle, { color: background.textColor }]}>Practice</Text>
+                <Text style={[styles.modeTitle, { color: background.textColor }]}>Quick Play</Text>
                 <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
                   A fresh random hive every time — no streak, just words
                 </Text>

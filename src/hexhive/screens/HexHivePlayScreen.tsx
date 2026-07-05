@@ -141,7 +141,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Hex Hive</Text>
         </TouchableOpacity>
         <Text style={[styles.modeLabel, { color: background.secondaryText }]}>
-          {mode === 'daily' ? 'Daily' : 'Practice'}
+          {mode === 'daily' ? 'Daily' : 'Quick Play'}
         </Text>
       </View>
 
