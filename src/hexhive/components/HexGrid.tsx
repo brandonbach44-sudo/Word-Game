@@ -204,14 +204,14 @@ export default function HexGrid({
           onPress={onDelete}
           activeOpacity={0.7}
         >
-          <Delete size={20} color={textColor} />
+          <Delete size={24} color={textColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.shuffleButton, { borderColor }]}
           onPress={onShuffle}
           activeOpacity={0.7}
         >
-          <RotateCw size={20} color={textColor} />
+          <RotateCw size={24} color={textColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.enterButton, { backgroundColor: accentColor }]}
@@ -249,25 +249,25 @@ const styles = StyleSheet.create({
   controlButton: {
     borderWidth: 1.5,
     borderRadius: 999,
-    paddingHorizontal: 22,
-    paddingVertical: 15,
+    paddingHorizontal: 26,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   shuffleButton: {
     borderWidth: 1.5,
     borderRadius: 999,
-    width: 52,
-    height: 52,
+    width: 62,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
   },
   enterButton: {
     borderRadius: 999,
-    paddingHorizontal: 30,
-    paddingVertical: 15,
+    paddingHorizontal: 36,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  enterText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
+  enterText: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
 });

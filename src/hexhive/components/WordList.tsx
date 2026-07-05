@@ -1,4 +1,7 @@
 // src/hexhive/components/WordList.tsx
+// Matches the found-word badge style used in Wordsmith (Word Builder):
+// small pill badges in a wrapped row, tinted with the accent color, rather
+// than a plain divided list.
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -14,35 +17,36 @@ interface WordListProps {
 export default function WordList({
   foundWords,
   pangrams,
-  textColor,
   secondaryTextColor,
   accentColor,
-  borderColor,
 }: WordListProps) {
   return (
     <View style={styles.container}>
-      <Text style={[styles.header, { color: textColor }]}>
-        {foundWords.length === 0
-          ? 'You have found 0 words'
-          : `You have found ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}`}
+      <Text style={[styles.header, { color: secondaryTextColor }]}>
+        Found: {foundWords.length}
       </Text>
 
       {foundWords.length > 0 && (
-        <View style={styles.list}>
-          {foundWords.map((word) => (
-            <View key={word} style={[styles.wordRow, { borderBottomColor: borderColor }]}>
-              <Text
+        <View style={styles.wrap}>
+          {foundWords.map((word) => {
+            const isPangram = pangrams.has(word);
+            return (
+              <View
+                key={word}
                 style={[
-                  styles.word,
-                  { color: pangrams.has(word) ? accentColor : textColor },
-                  pangrams.has(word) && styles.pangramWord,
+                  styles.badge,
+                  {
+                    backgroundColor: isPangram ? accentColor : `${accentColor}26`,
+                    borderColor: accentColor,
+                  },
                 ]}
               >
-                {word}
-              </Text>
-              {pangrams.has(word) && <Text style={[styles.pangramTag, { color: accentColor }]}>Pangram</Text>}
-            </View>
-          ))}
+                <Text style={[styles.badgeText, { color: isPangram ? '#ffffff' : accentColor }]}>
+                  {word.toUpperCase()}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       )}
     </View>
@@ -50,17 +54,27 @@ export default function WordList({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { fontSize: 14, marginBottom: 8 },
-  list: {},
-  wordRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  container: { width: '100%' },
+  header: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  word: { fontSize: 15 },
-  pangramWord: { fontWeight: '700' },
-  pangramTag: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  wrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
