@@ -416,10 +416,10 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
   },
-  backButton: { padding: 8 },
+  backButton: { flex: 1, alignItems: 'flex-start', padding: 8 },
   backText: { fontSize: 16, fontWeight: '500' },
-  headerPlaceholder: { width: 60 },
-  title: { fontSize: 22, fontWeight: 'bold' },
+  headerPlaceholder: { flex: 1 },
+  title: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
 
   segmentSwitcher: {
     flexDirection: 'row',

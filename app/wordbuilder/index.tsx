@@ -1194,7 +1194,7 @@ export default function WordBuilder() {
           <Text style={[styles.backToGamesText, dynamicStyles.textSecondary]}>← Games</Text>
         </TouchableOpacity>
         <Text style={[styles.appTitle, dynamicStyles.text]}>Wordsmith</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ flex: 1 }} />
       </View>
       
       {/* Segment Switcher */}
@@ -1718,6 +1718,8 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   backToGamesButton: {
+    flex: 1,
+    alignItems: 'flex-start',
     padding: 8,
   },
   backToGamesText: {
@@ -1727,6 +1729,7 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 22,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   
   // Segment Switcher

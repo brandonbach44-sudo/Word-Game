@@ -2273,8 +2273,9 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   backToGamesButton: {
+    flex: 1,
+    alignItems: "flex-start",
     padding: 8,
-    minWidth: 60,
   },
   backToGamesText: {
     fontSize: 16,
@@ -2283,9 +2284,10 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 22,
     fontWeight: "bold",
+    textAlign: "center",
   },
   headerSpacer: {
-    width: 60,
+    flex: 1,
   },
 
   // Segment Switcher (Pill Slider)

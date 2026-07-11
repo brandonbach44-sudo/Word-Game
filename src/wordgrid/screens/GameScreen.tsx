@@ -816,7 +816,7 @@ export default function GameScreen() {
           <Text style={[styles.backText, { color: bg.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: bg.textColor }]}>Word Grid</Text>
-        <View style={{ width: 70 }} />
+        <View style={{ flex: 1 }} />
       </View>
 
       {/* Segment Switcher pill (matches WordBuilder) */}
@@ -1035,8 +1035,9 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 22,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
-  backBtn: { minWidth: 70 },
+  backBtn: { flex: 1, alignItems: 'flex-start' },
   backText: { fontSize: 16, fontWeight: '500' },
 
   // ── Segment switcher ──

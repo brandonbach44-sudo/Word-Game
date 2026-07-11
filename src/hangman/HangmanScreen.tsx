@@ -71,10 +71,10 @@ import {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
-  backButton: { padding: 8 },
+  backButton: { flex: 1, alignItems: 'flex-start', padding: 8 },
   backButtonText: { fontSize: 16, fontWeight: '500' },
-  title: { fontSize: 22, fontWeight: 'bold' },
-  headerPlaceholder: { width: 60 },
+  title: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+  headerPlaceholder: { flex: 1 },
   segmentSwitcher: { flexDirection: 'row', alignSelf: 'center', marginTop: 12, marginBottom: 8, borderRadius: 999, padding: 4 },
   segmentButton: { paddingVertical: 8, paddingHorizontal: 24, borderRadius: 999 },
   segmentButtonText: { fontSize: 14, fontWeight: '500' },
