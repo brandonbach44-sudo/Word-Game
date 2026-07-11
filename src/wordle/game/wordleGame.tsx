@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   PanResponder,
@@ -24,6 +23,8 @@ import { useTheme } from "../../shared/ThemeContext";
 import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
 import { AchievementPopup } from "../../shared/AchievementPopup";
+import { ConfirmModal } from "../../shared/ConfirmModal";
+import { FallingLetters } from "../../shared/FallingLetters";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
 import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
@@ -687,6 +688,10 @@ export default function WordleGame() {
               loadedLock.timeSeconds == null
                 ? undefined
                 : Number(loadedLock.timeSeconds),
+            shareText:
+              typeof loadedLock.shareText === "string"
+                ? loadedLock.shareText
+                : undefined,
           });
           lockedToday = loadedLock.dateISO === getTodayISODate();
 
@@ -698,6 +703,13 @@ export default function WordleGame() {
           if (lockedToday) {
             setGameMode("daily");
             setStatus(loadedLock.result);
+            setSolution(getDailySolution());
+            if (Array.isArray(loadedLock.guesses)) {
+              setGuesses(loadedLock.guesses);
+            }
+            if (Array.isArray(loadedLock.evaluations)) {
+              setEvaluations(loadedLock.evaluations as EvaluatedLetter[][]);
+            }
           }
         } else {
           setDailyLock(null);
@@ -907,6 +919,11 @@ export default function WordleGame() {
   const openDailyResultFromMenu = useCallback(() => {
     if (!isDailyCompletedToday) return;
 
+    // Switch to the game screen underneath so closing the overlay lands the
+    // player on their completed board instead of bouncing back to the menu.
+    setGameMode("daily");
+    setScreen("game");
+
     setOverlayOrigin("menu_view");
     setOverlayMode("daily");
     setOverlayStatus(dailyLock?.result ?? "lost");
@@ -955,7 +972,15 @@ export default function WordleGame() {
     async (
       result: "won" | "lost",
       guessesUsed: number,
-      elapsedSeconds: number | null
+      elapsedSeconds: number | null,
+      // Passed explicitly (rather than read from the `guesses`/`evaluations`
+      // closures) because endGame is invoked from a setTimeout scheduled
+      // right after the final guess is submitted — by the time it fires,
+      // a stale closure would still see the board from *before* that guess,
+      // producing an empty/incomplete saved board. Defaults keep the other
+      // call site (leaving mid-game) working off current state.
+      finalGuesses: string[] = guesses,
+      finalEvaluations: EvaluatedLetter[][] = evaluations
     ) => {
       if (status !== "playing") return;
 
@@ -972,7 +997,7 @@ export default function WordleGame() {
       setOverlayTimeSeconds(elapsedSeconds);
 
       // Build share text (matches real Wordle format)
-      const emojiRows = evaluations.map((row) =>
+      const emojiRows = finalEvaluations.map((row) =>
         row.map((cell) =>
           cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
         ).join("")
@@ -983,7 +1008,7 @@ export default function WordleGame() {
         : `Wordle ${resultStr}`;
       const shareText = `${header}\n\n${emojiRows.join("\n")}`;
       setOverlayShareText(shareText);
-      setOverlayEvaluationRows(evaluations.map(row => row.map(cell => cell.state)));
+      setOverlayEvaluationRows(finalEvaluations.map(row => row.map(cell => cell.state)));
 
       setStats((prev) => {
         const key = gameMode === "daily" ? "daily" : "practice";
@@ -1061,6 +1086,8 @@ export default function WordleGame() {
           guessesCount: guessesUsed,
           timeSeconds: elapsedSeconds,
           shareText,
+          guesses: finalGuesses,
+          evaluations: finalEvaluations,
         };
         setDailyLock(lock);
         resumedDailyRef.current = false;
@@ -1074,7 +1101,7 @@ export default function WordleGame() {
 
       setShowResult(true);
     },
-    [gameMode, solution, status, todayISO, triggerWinBounce]
+    [gameMode, solution, status, todayISO, triggerWinBounce, guesses, evaluations]
   );
 
   const submitGuess = useCallback(() => {
@@ -1133,9 +1160,15 @@ export default function WordleGame() {
       const elapsedSeconds =
         startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
 
+      // Compute the final board directly instead of relying on `guesses`/
+      // `evaluations` state — this callback fires after a delay, and by
+      // then a stale closure would still be missing the guess just made.
+      const finalGuesses = [...guesses, guessLower];
+      const finalEvaluations = [...evaluations, evalRow];
+
       const delayMs = 350 + COLS * 80;
       setTimeout(() => {
-        endGame(didWin ? "won" : "lost", rowIndex + 1, elapsedSeconds);
+        endGame(didWin ? "won" : "lost", rowIndex + 1, elapsedSeconds, finalGuesses, finalEvaluations);
       }, delayMs);
     }
   }, [
@@ -1168,54 +1201,50 @@ export default function WordleGame() {
   // Daily only allows one attempt per day — leaving mid-game needs to
   // actually lock in the attempt as a loss, otherwise you could dodge a bad
   // run by backing out and trying again later.
+  // Pending leave-confirmation action: null when hidden, either the string
+  // "back" (in-app button) or a navigation action object (swipe/hardware
+  // back via usePreventRemove) when the themed ConfirmModal should show.
+  const [leaveAction, setLeaveAction] = useState<"back" | any>(null);
+  // usePreventRemove reads `status` from its own render's closure. When we
+  // confirm "Leave" we call endGame() (async setState) then immediately
+  // re-dispatch the nav action in the same tick — before React re-renders
+  // with the new status. Without this ref, the still-stale "playing"
+  // closure intercepts its own re-dispatched action and reopens the modal,
+  // so the user can never actually leave. The ref bypasses the guard
+  // synchronously, ahead of the re-render.
+  const isLeavingRef = useRef(false);
+
   const handleGameBackPress = useCallback(() => {
     if (gameMode === "daily" && status === "playing") {
-      Alert.alert(
-        "Leave Daily Challenge?",
-        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
-        [
-          { text: "Keep Playing", style: "cancel" },
-          {
-            text: "Leave",
-            style: "destructive",
-            onPress: () => {
-              const elapsedSeconds =
-                startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
-              endGame("lost", guesses.length, elapsedSeconds);
-              goToMenu("play");
-            },
-          },
-        ]
-      );
+      setLeaveAction("back");
       return;
     }
     goToMenu("play");
-  }, [endGame, gameMode, goToMenu, guesses.length, startTime, status]);
+  }, [gameMode, goToMenu, status]);
 
   // Same protection as above, but for leaving the Wordle screen entirely
   // (iOS swipe-back gesture, Android hardware back button) rather than the
   // in-app "← Back" button — a gesture/hardware-back would otherwise skip
   // handleGameBackPress altogether and escape with no result recorded.
   const navigation = useNavigation();
-  usePreventRemove(gameMode === "daily" && status === "playing", ({ data }) => {
-    Alert.alert(
-      "Leave Daily Challenge?",
-      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
-      [
-        { text: "Keep Playing", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: () => {
-            const elapsedSeconds =
-              startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
-            endGame("lost", guesses.length, elapsedSeconds);
-            navigation.dispatch(data.action);
-          },
-        },
-      ]
-    );
+  usePreventRemove(gameMode === "daily" && status === "playing" && !isLeavingRef.current, ({ data }) => {
+    setLeaveAction(data.action);
   });
+
+  const confirmLeaveDaily = useCallback(() => {
+    const action = leaveAction;
+    setLeaveAction(null);
+    if (!action) return;
+    isLeavingRef.current = true;
+    const elapsedSeconds =
+      startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
+    endGame("lost", guesses.length, elapsedSeconds);
+    if (action === "back") {
+      goToMenu("play");
+    } else {
+      navigation.dispatch(action);
+    }
+  }, [endGame, goToMenu, guesses.length, leaveAction, navigation, startTime]);
 
   const gridShakeX = shakeAnim.interpolate({
     inputRange: [0, 1],
@@ -1498,10 +1527,22 @@ export default function WordleGame() {
         backgroundColor={CARD}
         textColor={TEXT}
       />
+      <ConfirmModal
+        visible={!!leaveAction}
+        title="Leave Daily Challenge?"
+        message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's result."
+        onCancel={() => setLeaveAction(null)}
+        onConfirm={confirmLeaveDaily}
+        backgroundColor={CARD}
+        textColor={TEXT}
+        secondaryText={SUBTEXT}
+        borderColor={BORDER}
+      />
       <View style={[styles.container, { backgroundColor: BG }]}>
         {/* MENU (Play / Stats) */}
         {screen === "menu" ? (
           <>
+            <FallingLetters />
             {/* Header (matches other games) */}
             <View style={styles.appHeader}>
               <Pressable style={styles.backToGamesButton} onPress={backToGames} hitSlop={8}>
@@ -2081,14 +2122,16 @@ export default function WordleGame() {
           timeSeconds={overlayTimeSeconds}
           currentStreak={overlayMode === "daily" ? stats.daily.currentStreak : null}
           bestStreak={overlayMode === "daily" ? stats.daily.bestStreak : null}
+          winPercentage={overlayMode === "daily" ? winRateDaily : winRatePractice}
+          gamesPlayed={overlayMode === "daily" ? stats.daily.gamesPlayed : stats.practice.gamesPlayed}
+          bestGuessCount={overlayMode === "daily" ? stats.daily.bestGuessCount : stats.practice.bestGuessCount}
+          guessDistribution={overlayMode === "daily" ? stats.daily.guessDistribution : stats.practice.guessDistribution}
           averageTimeSeconds={overlayMode === "daily" ? (avgTimeDaily ?? null) : (avgTimePractice ?? null)}
           averageGuesses={overlayMode === "daily" ? (avgGuessesDaily ?? null) : (avgGuessesPractice ?? null)}
           onClose={() => {
+            // Closing just dismisses the overlay so the player can look at
+            // their completed puzzle instead of being bounced to the menu.
             closeResult();
-            if (overlayOrigin === "game_end") {
-              // After a completed game, return to Play menu (per requested flow)
-              goToMenu("play");
-            }
           }}
           onPlayAgain={() => {
             if (overlayMode === "practice") {

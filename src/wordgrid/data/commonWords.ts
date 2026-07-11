@@ -1,5 +1,6 @@
 // src/wordgrid/data/commonWords.ts
-// ~4711 common English words (3-7 letters, no Q/X/Z/J).
+// ~4709 common English words (3-7 letters, no Q/X/Z/J). Kept as a strict
+// subset of shared/words.ts so every seeded grid word also validates.
 // Source: google-10000-english-usa-no-swears, filtered to game dictionary.
 // Used by the grid generator to verify grids contain recognizable words.
 
@@ -1317,7 +1318,6 @@ const commonWords: string[] = [
   "easy",
   "eat",
   "eating",
-  "eau",
   "ebony",
   "echo",
   "eclipse",
@@ -2392,7 +2392,6 @@ const commonWords: string[] = [
   "lottery",
   "lotus",
   "loud",
-  "louis",
   "lounge",
   "love",
   "loved",

@@ -1,4 +1,4 @@
-// app/wordladder/index.tsx
+// app/anagrams/index.tsx
 
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,28 +23,35 @@ import { useTheme } from '../../src/shared/ThemeContext';
 import { FallingLetters } from '../../src/shared/FallingLetters';
 import { COLORS } from '../../src/shared/theme';
 import {
-  DIFFICULTY_CONFIG,
-  DIFFICULTY_ORDER,
-  type LadderDifficulty,
-} from '../../src/wordladder/utils/generator';
-import {
   formatDisplayDate,
   hasPlayedTodayDaily,
   loadDailyLock,
-  loadLadderStats,
+  loadAnagramsStats,
   useCountdownToMidnight,
+  type AnagramsStats,
   type DailyLockState,
-  type LadderStats,
-} from '../../src/wordladder/utils/ladderStorage';
+} from '../../src/anagrams/utils/anagramsStorage';
 import {
   getUnlockedAchievements,
-  LADDER_ACHIEVEMENTS,
+  getAchievementProgress,
+  ANAGRAMS_ACHIEVEMENTS,
   type Achievement,
-} from '../../src/wordladder/utils/ladderAchievements';
+} from '../../src/anagrams/utils/anagramsAchievements';
+import { AnagramsCubesTab } from '../../src/anagrams/components/AnagramsCubesTab';
 
 const { width } = Dimensions.get('window');
-type Tab = 'play' | 'stats';
-const TABS: Tab[] = ['play', 'stats'];
+// Same segment order as Word Builder's Play / Customize / Stats switcher.
+type Tab = 'play' | 'customize' | 'stats';
+const TABS: Tab[] = ['play', 'customize', 'stats'];
+const TAB_LABELS: Record<Tab, string> = { play: 'Play', customize: 'Customize', stats: 'Stats' };
+
+function formatSeconds(totalSeconds: number): string {
+  const seconds = Math.round(totalSeconds);
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}:${remaining.toString().padStart(2, '0')}`;
+}
 
 const DailyStatPill = ({
   label,
@@ -70,13 +77,7 @@ const DailyStatPill = ({
   </View>
 );
 
-const DIFFICULTY_COLORS: Record<LadderDifficulty, string> = {
-  easy: '#1D9E75',
-  medium: '#378ADD',
-  hard: '#D85A30',
-};
-
-export default function WordLadderEntryScreen() {
+export default function AnagramsEntryScreen() {
   const { background } = useTheme();
 
   const [activeTab, setActiveTab] = useState<Tab>('play');
@@ -84,7 +85,7 @@ export default function WordLadderEntryScreen() {
   const currentTabIdxRef = useRef(0);
   const dragBase = useRef(0);
 
-  const [stats, setStats] = useState<LadderStats | null>(null);
+  const [stats, setStats] = useState<AnagramsStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
@@ -93,7 +94,7 @@ export default function WordLadderEntryScreen() {
 
   const loadAll = useCallback(async () => {
     const [s, lock, played, ach] = await Promise.all([
-      loadLadderStats().catch(() => null),
+      loadAnagramsStats().catch(() => null),
       loadDailyLock().catch(() => null),
       hasPlayedTodayDaily().catch(() => false),
       getUnlockedAchievements().catch(() => []),
@@ -105,13 +106,10 @@ export default function WordLadderEntryScreen() {
     setLoadingStats(false);
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  // Refresh every time this screen regains focus (e.g. returning from a
-  // finished game) so stats/daily state never look stale.
   useFocusEffect(
     useCallback(() => {
       loadAll();
@@ -155,9 +153,11 @@ export default function WordLadderEntryScreen() {
 
   const handleShare = async () => {
     if (!dailyLock) return;
-    const result = dailyLock.result === 'won' ? `Solved in ${dailyLock.steps} steps (par ${dailyLock.par})` : `Gave up (par ${dailyLock.par})`;
+    const result = dailyLock.won
+      ? `Solved all 5 words — Score ${dailyLock.totalScore}${dailyLock.perfectBonusApplied ? ' (Perfect Run!)' : ''}`
+      : `Score ${dailyLock.totalScore}`;
     const streakLine = (stats?.daily.currentStreak ?? 0) > 1 ? `\n🔥 ${stats?.daily.currentStreak} day streak` : '';
-    const message = `Word Ladder Daily\n${formatDisplayDate()}\n${dailyLock.start.toUpperCase()} → ${dailyLock.end.toUpperCase()}\n${result}${streakLine}`;
+    const message = `Anagrams Daily\n${formatDisplayDate()}\n${result}${streakLine}`;
     try {
       await Share.share({ message });
     } catch {}
@@ -165,6 +165,13 @@ export default function WordLadderEntryScreen() {
 
   const practiceStats = stats?.practice;
   const combinedGames = (stats?.practice.gamesPlayed ?? 0) + (stats?.daily.gamesPlayed ?? 0);
+
+  const dailyWinRate =
+    stats && stats.daily.gamesPlayed > 0 ? Math.round((stats.daily.gamesWon / stats.daily.gamesPlayed) * 100) : 0;
+  const dailyAvgTime =
+    stats && stats.daily.gamesPlayed > 0 ? stats.daily.totalTimeSeconds / stats.daily.gamesPlayed : null;
+  const practiceAvgTime =
+    practiceStats && practiceStats.gamesPlayed > 0 ? practiceStats.totalTimeSeconds / practiceStats.gamesPlayed : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
@@ -175,7 +182,9 @@ export default function WordLadderEntryScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: background.textColor }]}>Word Ladder</Text>
+        <View style={styles.titleWrap} pointerEvents="box-none">
+          <Text style={[styles.title, { color: background.textColor }]}>Anagrams</Text>
+        </View>
         <View style={styles.headerPlaceholder} />
       </View>
 
@@ -195,7 +204,7 @@ export default function WordLadderEntryScreen() {
                   isActive && { color: background.textColor, fontWeight: '600' },
                 ]}
               >
-                {tab === 'play' ? 'Play' : 'Stats'}
+                {TAB_LABELS[tab]}
               </Text>
             </Pressable>
           );
@@ -206,7 +215,7 @@ export default function WordLadderEntryScreen() {
         <Animated.View
           style={[
             styles.tabStrip,
-            { transform: [{ translateX: tabAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -width] }) }] },
+            { width: width * TABS.length, transform: [{ translateX: Animated.multiply(tabAnim, -width) }] },
           ]}
         >
           {/* ── PLAY TAB ── */}
@@ -217,16 +226,14 @@ export default function WordLadderEntryScreen() {
                 { backgroundColor: background.cardColor, borderColor: dailyPlayed ? COLORS.accent : background.borderColor },
               ]}
             >
-              <Text style={[styles.dailyTitle, { color: background.textColor }]}>Daily Ladder</Text>
+              <Text style={[styles.dailyTitle, { color: background.textColor }]}>Daily Anagrams</Text>
               <Text style={[styles.dailySubtitle, { color: background.secondaryText }]}>{formatDisplayDate()}</Text>
 
               {dailyPlayed && dailyLock && (
                 <View style={styles.dailyCompletedInfo}>
-                  <Text style={styles.dailyCompletedScore}>
-                    {dailyLock.result === 'won' ? dailyLock.steps : '—'}
-                  </Text>
+                  <Text style={styles.dailyCompletedScore}>{dailyLock.totalScore}</Text>
                   <Text style={[styles.dailyCompletedLabel, { color: background.secondaryText }]}>
-                    {dailyLock.result === 'won' ? `Steps (par ${dailyLock.par})` : 'Gave up today'}
+                    {dailyLock.won ? 'All 5 solved' : 'Today\'s score'}
                   </Text>
                 </View>
               )}
@@ -252,10 +259,10 @@ export default function WordLadderEntryScreen() {
               {!dailyPlayed && (
                 <TouchableOpacity
                   style={[styles.dailyButton, { backgroundColor: background.backgroundColor, borderColor: background.borderColor, borderWidth: 2 }]}
-                  onPress={() => router.push('/wordladder/daily')}
+                  onPress={() => router.push('/anagrams/daily')}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>Play Today's Ladder</Text>
+                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>Play Today's Anagrams</Text>
                 </TouchableOpacity>
               )}
 
@@ -263,7 +270,7 @@ export default function WordLadderEntryScreen() {
                 <View style={styles.dailyActionRow}>
                   <TouchableOpacity
                     style={[styles.dailyActionButton, { backgroundColor: background.backgroundColor, borderColor: background.borderColor, borderWidth: 1.5 }]}
-                    onPress={() => router.push('/wordladder/daily')}
+                    onPress={() => router.push('/anagrams/daily')}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.dailyActionText, { color: background.textColor }]}>View Results</Text>
@@ -286,36 +293,29 @@ export default function WordLadderEntryScreen() {
               )}
             </View>
 
-            {/* Quick Play — difficulty picker */}
+            {/* Quick Play */}
             <Text style={[styles.sectionLabel, { color: background.textColor }]}>Quick Play</Text>
-            {DIFFICULTY_ORDER.map((diff) => {
-              const config = DIFFICULTY_CONFIG[diff];
-              const color = DIFFICULTY_COLORS[diff];
-              return (
-                <TouchableOpacity
-                  key={diff}
-                  style={[styles.modeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor, borderWidth: 2 }]}
-                  onPress={() => router.push({ pathname: '/wordladder/game', params: { difficulty: diff } })}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.modeAccent, { backgroundColor: color }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.modeTitle, { color: background.textColor }]}>{config.label}</Text>
-                    <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
-                      {config.wordLength}-letter words · usually {config.minSteps}-{config.maxSteps} steps
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            <TouchableOpacity
+              style={[styles.modeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor, borderWidth: 2 }]}
+              onPress={() => router.push('/anagrams/game')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.modeAccent, { backgroundColor: '#D4A017' }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modeTitle, { color: background.textColor }]}>5-Word Run</Text>
+                <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
+                  Unscramble 5 words, easiest to hardest — unlimited replays
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <View style={[styles.rulesCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
               <Text style={[styles.rulesTitle, { color: background.textColor }]}>How to Play</Text>
               {[
-                'Change exactly one letter to form a new word each step',
-                'Every word along the way must be a real dictionary word',
-                'Reach the target word in as few steps as possible',
-                'Stuck? Use a hint to reveal one letter of the next word',
+                'Unscramble each set of letters into a real word',
+                'Words get progressively longer and harder as you go',
+                'Solve fast and hint-free for the highest score',
+                'Stuck? Skip a word — it just won\'t count toward your score',
               ].map((rule, i) => (
                 <View key={i} style={styles.ruleRow}>
                   <Text style={[styles.ruleNum, { color: COLORS.accent }]}>{i + 1}</Text>
@@ -327,33 +327,46 @@ export default function WordLadderEntryScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
 
+          {/* ── CUSTOMIZE TAB ── */}
+          <View style={{ width }}>
+            <AnagramsCubesTab />
+          </View>
+
           {/* ── STATS TAB ── */}
           <ScrollView style={{ width }} contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator={false}>
             {loadingStats ? (
               <ActivityIndicator color={COLORS.accent} style={{ marginTop: 20 }} />
             ) : combinedGames > 0 ? (
               <>
-                {/* ── DAILY LADDER ── */}
-                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily Ladder</Text>
+                <Text style={[styles.sectionTitle, { color: background.textColor }]}>Daily Anagrams</Text>
+
+                {/* Streak highlight row */}
+                <View style={styles.streakRow}>
+                  <View style={[styles.streakBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                    <Text style={[styles.streakNum, { color: background.textColor }]}>{stats?.daily.currentStreak ?? 0}</Text>
+                    <Text style={[styles.streakLbl, { color: background.secondaryText }]}>Current Streak</Text>
+                  </View>
+                  <View style={[styles.streakBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                    <Text style={[styles.streakNum, { color: background.textColor }]}>{stats?.daily.bestStreak ?? 0}</Text>
+                    <Text style={[styles.streakLbl, { color: background.secondaryText }]}>Best Streak</Text>
+                  </View>
+                  <View style={[styles.streakBox, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                    <Text style={[styles.streakNum, { color: '#22c55e' }]}>{dailyWinRate}%</Text>
+                    <Text style={[styles.streakLbl, { color: background.secondaryText }]}>Win Rate</Text>
+                  </View>
+                </View>
+
                 <View style={styles.statsGrid}>
                   {[
-                    { label: 'Current Streak', value: (stats?.daily.currentStreak ?? 0).toString() },
-                    { label: 'Best Streak', value: (stats?.daily.bestStreak ?? 0).toString() },
                     { label: 'Games Played', value: (stats?.daily.gamesPlayed ?? 0).toString() },
                     { label: 'Won', value: (stats?.daily.gamesWon ?? 0).toString() },
-                    {
-                      label: 'Win Rate',
-                      value: `${
-                        stats && stats.daily.gamesPlayed > 0
-                          ? Math.round((stats.daily.gamesWon / stats.daily.gamesPlayed) * 100)
-                          : 0
-                      }%`,
-                    },
-                    { label: 'Perfect Solves', value: (stats?.daily.perfectSolves ?? 0).toString() },
-                    {
-                      label: 'Fastest Solve',
-                      value: stats?.daily.fastestTimeSeconds != null ? `${stats.daily.fastestTimeSeconds}s` : '—',
-                    },
+                    { label: 'Lost', value: ((stats?.daily.gamesPlayed ?? 0) - (stats?.daily.gamesWon ?? 0)).toString() },
+                    { label: 'Best Score', value: (stats?.daily.bestScore ?? 0).toString() },
+                    { label: 'Lifetime Score', value: (stats?.daily.totalScore ?? 0).toLocaleString() },
+                    { label: 'Perfect Runs', value: (stats?.daily.perfectRuns ?? 0).toString() },
+                    { label: 'Words Solved', value: (stats?.daily.wordsSolved ?? 0).toString() },
+                    { label: 'Avg Time / Run', value: dailyAvgTime != null ? formatSeconds(dailyAvgTime) : '--' },
+                    { label: 'Fastest Perfect', value: stats?.daily.fastestPerfectTimeSeconds != null ? formatSeconds(stats.daily.fastestPerfectTimeSeconds) : '--' },
                   ].map(({ label, value }) => (
                     <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
                       <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
@@ -362,27 +375,18 @@ export default function WordLadderEntryScreen() {
                   ))}
                 </View>
 
-                {/* ── QUICK PLAY ── */}
-                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 28 }]}>Quick Play</Text>
                 <View style={styles.statsGrid}>
                   {[
                     { label: 'Games Played', value: (practiceStats?.gamesPlayed ?? 0).toString() },
-                    {
-                      label: 'Won',
-                      value: `${practiceStats?.gamesWon ?? 0} (${
-                        practiceStats && practiceStats.gamesPlayed > 0
-                          ? Math.round((practiceStats.gamesWon / practiceStats.gamesPlayed) * 100)
-                          : 0
-                      }%)`,
-                    },
-                    { label: 'Easy Wins', value: (practiceStats?.easyWins ?? 0).toString() },
-                    { label: 'Medium Wins', value: (practiceStats?.mediumWins ?? 0).toString() },
-                    { label: 'Hard Wins', value: (practiceStats?.hardWins ?? 0).toString() },
-                    { label: 'Perfect Solves', value: (practiceStats?.perfectSolves ?? 0).toString() },
-                    {
-                      label: 'Fastest Solve',
-                      value: practiceStats?.fastestTimeSeconds != null ? `${practiceStats.fastestTimeSeconds}s` : '—',
-                    },
+                    { label: 'Won', value: (practiceStats?.gamesWon ?? 0).toString() },
+                    { label: 'Lost', value: ((practiceStats?.gamesPlayed ?? 0) - (practiceStats?.gamesWon ?? 0)).toString() },
+                    { label: 'Best Score', value: (practiceStats?.bestScore ?? 0).toString() },
+                    { label: 'Lifetime Score', value: (practiceStats?.totalScore ?? 0).toLocaleString() },
+                    { label: 'Perfect Runs', value: (practiceStats?.perfectRuns ?? 0).toString() },
+                    { label: 'Words Solved', value: (practiceStats?.wordsSolved ?? 0).toString() },
+                    { label: 'Avg Time / Run', value: practiceAvgTime != null ? formatSeconds(practiceAvgTime) : '--' },
+                    { label: 'Fastest Perfect', value: practiceStats?.fastestPerfectTimeSeconds != null ? formatSeconds(practiceStats.fastestPerfectTimeSeconds) : '--' },
                   ].map(({ label, value }) => (
                     <View key={label} style={[styles.statsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
                       <Text style={[styles.statsValue, { color: background.textColor }]}>{value}</Text>
@@ -393,18 +397,18 @@ export default function WordLadderEntryScreen() {
               </>
             ) : (
               <Text style={[styles.emptyText, { color: background.secondaryText }]}>
-                No stats yet. Play a ladder to get started!
+                No stats yet. Play an Anagrams run to get started!
               </Text>
             )}
 
             {/* Achievements — unlocked first, then locked */}
             <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>
-              Achievements ({unlocked.length}/{LADDER_ACHIEVEMENTS.length})
+              Achievements ({unlocked.length}/{ANAGRAMS_ACHIEVEMENTS.length})
             </Text>
 
             {unlocked.length > 0 && (
               <View style={styles.achievementsGrid}>
-                {LADDER_ACHIEVEMENTS.filter((a) => unlocked.some((u) => u.id === a.id)).map((achievement) => (
+                {ANAGRAMS_ACHIEVEMENTS.filter((a) => unlocked.some((u) => u.id === a.id)).map((achievement) => (
                   <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
                     <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
                     <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
@@ -414,7 +418,7 @@ export default function WordLadderEntryScreen() {
               </View>
             )}
 
-            {unlocked.length > 0 && unlocked.length < LADDER_ACHIEVEMENTS.length && (
+            {unlocked.length > 0 && unlocked.length < ANAGRAMS_ACHIEVEMENTS.length && (
               <View style={styles.lockedDivider}>
                 <View style={[styles.dividerLine, { backgroundColor: background.borderColor }]} />
                 <Text style={[styles.dividerText, { color: background.secondaryText }]}>Locked</Text>
@@ -422,18 +426,27 @@ export default function WordLadderEntryScreen() {
               </View>
             )}
 
-            {LADDER_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).length > 0 && (
+            {ANAGRAMS_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).length > 0 && (
               <View style={styles.achievementsGrid}>
-                {LADDER_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).map((achievement) => (
-                  <View
-                    key={achievement.id}
-                    style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
-                  >
-                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
-                    <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
-                    <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
-                  </View>
-                ))}
+                {ANAGRAMS_ACHIEVEMENTS.filter((a) => !unlocked.some((u) => u.id === a.id)).map((achievement) => {
+                  const progress = stats ? getAchievementProgress(achievement, stats) : undefined;
+                  const showProgress = progress !== undefined && progress > 0;
+                  return (
+                    <View
+                      key={achievement.id}
+                      style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+                    >
+                      <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                      <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
+                      <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
+                      {showProgress && (
+                        <View style={[styles.progressTrack, { backgroundColor: background.borderColor }]}>
+                          <View style={[styles.progressFill, { width: `${Math.round(progress! * 100)}%` }]} />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -454,10 +467,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
+    position: 'relative',
   },
-  backButton: { padding: 8 },
+  backButton: { padding: 8, zIndex: 1 },
   backText: { fontSize: 16, fontWeight: '500' },
-  headerPlaceholder: { width: 60 },
+  headerPlaceholder: { width: 60, zIndex: 1 },
+  titleWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   title: { fontSize: 22, fontWeight: 'bold' },
 
   segmentSwitcher: {
@@ -472,7 +487,7 @@ const styles = StyleSheet.create({
   segmentButtonText: { fontSize: 14, fontWeight: '500' },
 
   tabStripWrapper: { flex: 1, overflow: 'hidden', alignItems: 'flex-start' },
-  tabStrip: { width: width * 2, flexDirection: 'row' },
+  tabStrip: { flexDirection: 'row' },
   tabContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 },
 
   dailyCard: { borderRadius: 16, padding: 20, borderWidth: 2, marginBottom: 24 },
@@ -510,6 +525,12 @@ const styles = StyleSheet.create({
   ruleText: { fontSize: 14, flex: 1 },
 
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
+
+  streakRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  streakBox: { flex: 1, borderRadius: 12, borderWidth: 1, padding: 12, alignItems: 'center' },
+  streakNum: { fontSize: 28, fontWeight: '900' },
+  streakLbl: { fontSize: 11, textAlign: 'center', marginTop: 2 },
+
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
   statsCard: { width: '48%', borderRadius: 12, borderWidth: 1, padding: 15, alignItems: 'center' },
   statsValue: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
@@ -527,4 +548,19 @@ const styles = StyleSheet.create({
   lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 11, fontWeight: '600', marginHorizontal: 10, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  // Green progress bar for locked, progress-trackable achievements —
+  // same look as Wordle's achievement progress bars.
+  progressTrack: {
+    marginTop: 8,
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#22c55e',
+  },
 });

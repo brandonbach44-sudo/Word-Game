@@ -12,7 +12,7 @@ export interface Achievement {
 
 export const ACHIEVEMENTS: Achievement[] = [
   // Games played
-  { id: 'games_1',   emoji: '👋', name: 'First Swipe',      description: 'Play your first Grid Rush game' },
+  { id: 'games_1',   emoji: '👋', name: 'First Swipe',      description: 'Play your first Word Grid game' },
   { id: 'games_10',  emoji: '🎮', name: 'Getting Hooked',   description: 'Play 10 games' },
   { id: 'games_50',  emoji: '🕹️', name: 'Grid Grinder',     description: 'Play 50 games' },
   { id: 'games_100', emoji: '🎯', name: 'Dedicated',        description: 'Play 100 games' },

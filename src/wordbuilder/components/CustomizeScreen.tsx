@@ -69,7 +69,7 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     if (!tiles || !stats) return { unlocked: false, highestVariant: 0 };
     
     if (tierName === 'default' || tierName === 'classic') {
-      return { unlocked: true, highestVariant: 7 };
+      return { unlocked: true, highestVariant: tierName === 'classic' ? 6 : 1 };
     }
     
     const progress = tiles.tierProgress[tierName];
@@ -211,7 +211,9 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
     const status = getTierStatus(selectedTier);
     const isDefault = selectedTier === 'default';
     const isClassic = selectedTier === 'classic';
-    const maxVariant = (isDefault || isClassic) ? 7 : 2;
+    // Default is now a fixed cream look (no variants); Classic has 6 color
+    // styles (White was removed); every other tier is V1/V2.
+    const maxVariant = isDefault ? 1 : isClassic ? 6 : 2;
     
     // V2 progress data
     const v2Progress = tiles.tierProgress[selectedTier]?.scoreWithTier ?? 0;

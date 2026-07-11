@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Share2 } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Share2, X } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../shared/ThemeContext";
 
@@ -15,6 +16,10 @@ type Props = {
   timeSeconds: number | null;
   currentStreak: number | null;
   bestStreak: number | null;
+  winPercentage: number | null;
+  gamesPlayed: number | null;
+  bestGuessCount: number | null;
+  guessDistribution: Record<number, number> | null;
   averageTimeSeconds: number | null;
   averageGuesses: number | null;
   onClose: () => void;
@@ -65,23 +70,88 @@ const StatPill = ({
   );
 };
 
+const BigStat = ({
+  value,
+  label,
+  textColor,
+  secondaryText,
+}: {
+  value: string;
+  label: string;
+  textColor: string;
+  secondaryText: string;
+}) => {
+  return (
+    <View style={styles.bigStat}>
+      <Text style={[styles.bigStatValue, { color: textColor }]}>{value}</Text>
+      <Text style={[styles.bigStatLabel, { color: secondaryText }]}>{label}</Text>
+    </View>
+  );
+};
+
+const GuessDistributionChart = ({
+  distribution,
+  highlightGuess,
+  textColor,
+  secondaryText,
+}: {
+  distribution: Record<number, number>;
+  highlightGuess: number | null;
+  textColor: string;
+  secondaryText: string;
+}) => {
+  const maxCount = Math.max(1, ...[1, 2, 3, 4, 5, 6].map((n) => distribution[n] ?? 0));
+  return (
+    <View style={styles.distWrap}>
+      {[1, 2, 3, 4, 5, 6].map((n) => {
+        const count = distribution[n] ?? 0;
+        const pct = count > 0 ? Math.max(0.08, count / maxCount) : 0.08;
+        const isHighlighted = highlightGuess === n;
+        return (
+          <View key={n} style={styles.distRow}>
+            <Text style={[styles.distRowLabel, { color: secondaryText }]}>{n}</Text>
+            <View style={styles.distBarTrack}>
+              <View
+                style={[
+                  styles.distBarFill,
+                  {
+                    flex: pct,
+                    backgroundColor: isHighlighted ? "#22c55e" : secondaryText,
+                    opacity: isHighlighted ? 1 : 0.55,
+                  },
+                ]}
+              >
+                <Text style={styles.distBarCount}>{count}</Text>
+              </View>
+              <View style={{ flex: 1 - pct }} />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 const PrimaryButton = ({
   label,
   onPress,
   borderColor,
   textColor,
   backgroundColor,
+  fullWidth,
 }: {
   label: string;
   onPress: () => void;
   borderColor: string;
   textColor: string;
   backgroundColor: string;
+  fullWidth?: boolean;
 }) => {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.primaryButton,
+        fullWidth && styles.primaryButtonFullWidth,
         { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 },
       ]}
       onPress={onPress}
@@ -102,6 +172,10 @@ const WordleResultOverlay = ({
   timeSeconds,
   currentStreak,
   bestStreak,
+  winPercentage,
+  gamesPlayed,
+  bestGuessCount,
+  guessDistribution,
   averageTimeSeconds,
   averageGuesses,
   onClose,
@@ -113,6 +187,7 @@ const WordleResultOverlay = ({
   evaluationRows,
 }: Props) => {
   const { background } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleShare = async () => {
     try {
@@ -172,11 +247,29 @@ const WordleResultOverlay = ({
     averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
 
   return (
-    <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.55)" }]}>
-      <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
-        {/* Brand */}
+    <View style={[styles.overlay, { backgroundColor: BG }]}>
+      {/* Page header — mirrors the app's other full-screen headers */}
+      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+        <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>WORDLE</Text>
+        <Pressable
+          style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={onClose}
+          hitSlop={10}
+        >
+          <X size={22} color={SUBTEXT} />
+        </Pressable>
+      </View>
 
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+      <View style={styles.card}>
         {/* Title + subtitle */}
         <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
         <Text style={[styles.subtitle, { color: SUBTEXT }]}>{subtitle}</Text>
@@ -202,7 +295,7 @@ const WordleResultOverlay = ({
                 value={`${guessesCount}`}
                 textColor={TEXT}
                 borderColor={BORDER}
-                backgroundColor={BG}
+                backgroundColor={CARD}
               />
               {timeText ? (
                 <StatPill
@@ -217,53 +310,78 @@ const WordleResultOverlay = ({
           </>
         )}
 
-        {/* Mode stats */}
+        {/* Mode stats — NYT-style STATISTICS block */}
         <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
-        <Text style={[styles.sectionTitle, { color: TEXT }]}>Stats</Text>
+        <Text style={[styles.sectionTitle, { color: TEXT }]}>Statistics</Text>
 
-        {isDaily ? (
-          <View style={styles.statsRow}>
-            {currentStreak != null && (
-              <StatPill
-                label="Streak"
-                value={`${currentStreak}`}
+        <View style={styles.bigStatsRow}>
+          <BigStat
+            value={gamesPlayed != null ? `${gamesPlayed}` : "--"}
+            label="Played"
+            textColor={TEXT}
+            secondaryText={SUBTEXT}
+          />
+          <BigStat
+            value={winPercentage != null ? `${winPercentage}` : "--"}
+            label="Win %"
+            textColor={TEXT}
+            secondaryText={SUBTEXT}
+          />
+          {isDaily ? (
+            <>
+              <BigStat
+                value={currentStreak != null ? `${currentStreak}` : "--"}
+                label={"Current\nStreak"}
                 textColor={TEXT}
-                borderColor={BORDER}
-                backgroundColor={BG}
+                secondaryText={SUBTEXT}
               />
-            )}
-            {bestStreak != null && (
-              <StatPill
-                label="Best"
-                value={`${bestStreak}`}
+              <BigStat
+                value={bestStreak != null ? `${bestStreak}` : "--"}
+                label={"Max\nStreak"}
                 textColor={TEXT}
-                borderColor={BORDER}
-                backgroundColor={BG}
+                secondaryText={SUBTEXT}
               />
-            )}
-          </View>
+            </>
+          ) : (
+            <>
+              <BigStat
+                value={bestGuessCount != null ? `${bestGuessCount}` : "--"}
+                label={"Best\nGuess"}
+                textColor={TEXT}
+                secondaryText={SUBTEXT}
+              />
+              <BigStat
+                value={averageGuesses != null ? averageGuesses.toFixed(1) : "--"}
+                label={"Avg\nGuesses"}
+                textColor={TEXT}
+                secondaryText={SUBTEXT}
+              />
+            </>
+          )}
+        </View>
+
+        {avgTimeText ? (
+          <Text style={[styles.avgTimeNote, { color: SUBTEXT }]}>
+            Avg time: {avgTimeText}
+          </Text>
         ) : null}
 
-        <View style={styles.statsRow}>
-          {avgTimeText ? (
-            <StatPill
-              label="Avg time"
-              value={avgTimeText}
-              textColor={TEXT}
-              borderColor={BORDER}
-              backgroundColor={BG}
+        {guessDistribution ? (
+          <>
+            <View
+              style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]}
             />
-          ) : null}
-          {averageGuesses != null ? (
-            <StatPill
-              label="Avg guesses"
-              value={averageGuesses.toFixed(1)}
+            <Text style={[styles.sectionTitle, { color: TEXT }]}>
+              Guess Distribution
+            </Text>
+            <GuessDistributionChart
+              distribution={guessDistribution}
+              highlightGuess={isWin ? guessesCount : null}
               textColor={TEXT}
-              borderColor={BORDER}
-              backgroundColor={BG}
+              secondaryText={SUBTEXT}
             />
-          ) : null}
-        </View>
+          </>
+        ) : null}
 
         {/* Countdown */}
         {isDaily && nextDailySecondsRemaining != null ? (
@@ -283,22 +401,14 @@ const WordleResultOverlay = ({
         {/* Buttons */}
         <View style={styles.buttonRow}>
           {isDaily ? (
-            <>
-              <PrimaryButton
-                label="Main Menu"
-                onPress={onGoHome}
-                borderColor={BORDER}
-                textColor={TEXT}
-                backgroundColor={BG}
-              />
-              <PrimaryButton
-                label="Play"
-                onPress={onGoPractice}
-                borderColor={BORDER}
-                textColor={TEXT}
-                backgroundColor={BG}
-              />
-            </>
+            <PrimaryButton
+              label="Main Menu"
+              onPress={onGoHome}
+              borderColor={BORDER}
+              textColor={TEXT}
+              backgroundColor={CARD}
+              fullWidth
+            />
           ) : (
             <>
               <PrimaryButton
@@ -306,14 +416,14 @@ const WordleResultOverlay = ({
                 onPress={onPlayAgain}
                 borderColor={BORDER}
                 textColor={TEXT}
-                backgroundColor={BG}
+                backgroundColor={CARD}
               />
               <PrimaryButton
                 label="Main Menu"
                 onPress={onGoHome}
                 borderColor={BORDER}
                 textColor={TEXT}
-                backgroundColor={BG}
+                backgroundColor={CARD}
               />
             </>
           )}
@@ -330,21 +440,8 @@ const WordleResultOverlay = ({
             </View>
           </Pressable>
         )}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            {
-              borderColor: BORDER,
-              backgroundColor: BG,
-              opacity: pressed ? 0.75 : 1,
-            },
-          ]}
-          onPress={onClose}
-        >
-          <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
-        </Pressable>
       </View>
+      </ScrollView>
     </View>
   );
 };
@@ -358,29 +455,45 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  pageHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: {
+    width: 22,
+  },
+  closeIconButton: {
+    width: 22,
+    alignItems: "flex-end",
+  },
+  scrollContent: {
+    alignItems: "center",
     padding: 18,
   },
   card: {
     width: "100%",
     maxWidth: 420,
     borderRadius: 18,
-    borderWidth: 2,
-    padding: 16,
+    padding: 4,
   },
   brand: {
     textAlign: "center",
     fontSize: 12,
     fontWeight: "900",
     letterSpacing: 2,
-    marginBottom: 6,
   },
   title: {
     textAlign: "center",
     fontSize: 22,
     fontWeight: "900",
     marginBottom: 4,
+    marginTop: 12,
   },
   subtitle: {
     textAlign: "center",
@@ -442,6 +555,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+  bigStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  bigStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  bigStatValue: {
+    fontSize: 32,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+  },
+  bigStatLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 2,
+    lineHeight: 14,
+  },
+  avgTimeNote: {
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 6,
+  },
+  distWrap: {
+    marginTop: 4,
+  },
+  distRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  distRowLabel: {
+    width: 14,
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "right",
+    marginRight: 6,
+  },
+  distBarTrack: {
+    flex: 1,
+    flexDirection: "row",
+    height: 22,
+  },
+  distBarFill: {
+    borderRadius: 4,
+    minWidth: 22,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: 6,
+  },
+  distBarCount: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
   countdownLabel: {
     textAlign: "center",
     fontSize: 12,
@@ -458,6 +632,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     justifyContent: "center",
+    width: "100%",
     gap: 10,
     marginTop: 12,
   },
@@ -468,6 +643,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minWidth: 120,
     alignItems: "center",
+  },
+  primaryButtonFullWidth: {
+    width: "100%",
+    paddingVertical: 12,
+    minWidth: undefined,
   },
   primaryButtonText: {
     fontSize: 13,

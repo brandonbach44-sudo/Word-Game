@@ -53,6 +53,10 @@ export type DailyLockState = {
   // Added for stats and result overlays
   guessesCount?: number;
   timeSeconds?: number | null;
+  // Persisted so the completed board can be viewed again later (e.g. via
+  // "View Result" from the menu) without needing an active play session.
+  guesses?: string[];
+  evaluations?: any[][];
 };
 
 function isDailyLockState(value: any): value is DailyLockState {

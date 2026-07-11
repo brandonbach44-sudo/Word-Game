@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -24,6 +23,8 @@ import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
 
 import { AchievementPopup } from '../shared/AchievementPopup';
+import { ConfirmModal } from '../shared/ConfirmModal';
+import { FallingLetters } from '../shared/FallingLetters';
 import { DailyChallengeCard } from './Components/DailyChallengeCard';
 import { DailyChallengePopup } from './Components/DailyChallengePopup';
 import { GameStatus } from './Components/GameStatus';
@@ -514,23 +515,17 @@ export default function HangmanScreen() {
     }
   };
 
+  const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
+  // lockInDailyResultOnLeave() updates isPlaying via setState, which won't
+  // be visible in this closure until React re-renders. Re-dispatching the
+  // nav action right after would otherwise hit the same still-true
+  // "playingDaily && isPlaying" guard and re-intercept itself, reopening
+  // the modal instead of leaving. This ref bypasses the guard immediately.
+  const isLeavingRef = useRef(false);
+
   const handleGameplayBackPress = () => {
     if (playingDaily && isPlaying) {
-      Alert.alert(
-        'Leave Daily Challenge?',
-        "You've only got one Daily attempt per day — leaving now will end your run and count today as a loss.",
-        [
-          { text: 'Keep Playing', style: 'cancel' },
-          {
-            text: 'Leave (Loss)',
-            style: 'destructive',
-            onPress: async () => {
-              await lockInDailyResultOnLeave();
-              handleBackToModeSelect();
-            },
-          },
-        ]
-      );
+      setLeaveAction('back');
       return;
     }
     handleBackToModeSelect();
@@ -541,23 +536,22 @@ export default function HangmanScreen() {
   // in-app "← Back" button — a gesture/hardware-back would otherwise skip
   // handleGameplayBackPress altogether and escape with no result recorded.
   const navigation = useNavigation();
-  usePreventRemove(playingDaily && isPlaying, ({ data }) => {
-    Alert.alert(
-      'Leave Daily Challenge?',
-      "You've only got one Daily attempt per day — leaving now will end your run and count today as a loss.",
-      [
-        { text: 'Keep Playing', style: 'cancel' },
-        {
-          text: 'Leave (Loss)',
-          style: 'destructive',
-          onPress: async () => {
-            await lockInDailyResultOnLeave();
-            navigation.dispatch(data.action);
-          },
-        },
-      ]
-    );
+  usePreventRemove(playingDaily && isPlaying && !isLeavingRef.current, ({ data }) => {
+    setLeaveAction(data.action);
   });
+
+  const confirmLeaveDaily = async () => {
+    const action = leaveAction;
+    setLeaveAction(null);
+    if (!action) return;
+    isLeavingRef.current = true;
+    await lockInDailyResultOnLeave();
+    if (action === 'back') {
+      handleBackToModeSelect();
+    } else {
+      navigation.dispatch(action);
+    }
+  };
 
   const handleBackToCategorySelect = () => setGameMode('category-select');
   
@@ -682,6 +676,18 @@ export default function HangmanScreen() {
           onDismiss={handleAchievementDismiss}
           backgroundColor={background.cardColor}
           textColor={background.textColor}
+        />
+        <ConfirmModal
+          visible={!!leaveAction}
+          title="Leave Daily Challenge?"
+          message="You've only got one Daily attempt per day — leaving now will end your run and count today as a loss."
+          confirmText="Leave (Loss)"
+          onCancel={() => setLeaveAction(null)}
+          onConfirm={confirmLeaveDaily}
+          backgroundColor={background.cardColor}
+          textColor={background.textColor}
+          secondaryText={background.secondaryText}
+          borderColor={background.borderColor}
         />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleGameplayBackPress}>
@@ -892,6 +898,7 @@ export default function HangmanScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
+      <FallingLetters />
       <AchievementPopup
         achievement={currentPopupAchievement}
         onDismiss={handleAchievementDismiss}

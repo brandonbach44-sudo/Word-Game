@@ -95,9 +95,20 @@ const GAMES = [
     icon: 'hexagon-multiple-outline' as const,
     iconSet: 'material' as const,
   },
+  {
+    name: 'Anagrams',
+    description: 'Unscramble 5 words, easiest to hardest',
+    route: '/anagrams',
+    accentColor: '#C0392B',
+    bgColor: '#FBE7E4',
+    borderColor: '#E8938A',
+    textColor: '#5C1810',
+    descColor: '#96382B',
+    icon: 'shuffle-outline' as const,
+  },
 ];
 
-const COMING_SOON = ['Anagrams', 'Crossword'];
+const COMING_SOON = ['Crossword'];
 
 export default function Home() {
   const { background } = useTheme();
@@ -116,7 +127,7 @@ export default function Home() {
         <View style={styles.header}>
           <View style={styles.headerPlaceholder} />
           <Text style={[styles.title, { color: background.textColor }]}>
-            Word Games
+            Word Fury
           </Text>
           <TouchableOpacity
             style={styles.settingsButton}

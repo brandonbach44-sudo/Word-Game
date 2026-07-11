@@ -25,6 +25,7 @@ import { Flame, Share2, Trophy } from 'lucide-react-native';
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
+import { FallingLetters } from '../../src/shared/FallingLetters';
 
 // Shared Managers
 import { SoundManager } from '../../src/shared/SoundManager';
@@ -1162,7 +1163,8 @@ export default function WordBuilder() {
   return (
     <SafeAreaView style={[styles.container, dynamicStyles.container]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-      
+      <FallingLetters />
+
       {/* Achievement Popup */}
       <AchievementPopup
         achievement={currentPopupAchievement}

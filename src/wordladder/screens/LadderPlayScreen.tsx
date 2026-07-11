@@ -3,7 +3,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup } from '../../shared/AchievementPopup';
+import { ConfirmModal } from '../../shared/ConfirmModal';
 
 import type { LadderDifficulty, LadderPuzzle } from '../utils/generator';
 import { getHintPath } from '../utils/generator';
@@ -338,25 +338,28 @@ const LadderPlayScreen: React.FC<Props> = ({
   // handler, which a swipe/hardware-back would otherwise bypass entirely.
   // Quick Play is unaffected: leaving there just resets, no confirmation.
   const navigation = useNavigation();
-  const isMidDailyGame = mode === 'daily' && !alreadyLocked && status === 'playing';
+  // finishGame() sets `status` via setState, which won't be visible in this
+  // closure until React re-renders. Re-dispatching the nav action right
+  // after would otherwise hit the same still-true "mid daily game" guard
+  // and re-intercept itself, reopening the modal instead of leaving. This
+  // ref bypasses the guard immediately.
+  const isLeavingRef = useRef(false);
+  const isMidDailyGame = mode === 'daily' && !alreadyLocked && status === 'playing' && !isLeavingRef.current;
+
+  const [leaveAction, setLeaveAction] = useState<any>(null);
 
   usePreventRemove(isMidDailyGame, ({ data }) => {
-    Alert.alert(
-      'Leave Daily Ladder?',
-      "You've only got one Daily attempt per day — leaving now will count as a loss.",
-      [
-        { text: 'Keep Playing', style: 'cancel' },
-        {
-          text: 'Leave (Loss)',
-          style: 'destructive',
-          onPress: async () => {
-            await finishGame('gave_up', chain, hintsUsed);
-            navigation.dispatch(data.action);
-          },
-        },
-      ]
-    );
+    setLeaveAction(data.action);
   });
+
+  const confirmLeaveDaily = async () => {
+    const action = leaveAction;
+    setLeaveAction(null);
+    if (!action) return;
+    isLeavingRef.current = true;
+    await finishGame('gave_up', chain, hintsUsed);
+    navigation.dispatch(action);
+  };
 
   const isWin = status === 'won';
   const displayChain = alreadyLocked && lockedResult ? [lockedResult.start] : chain;
@@ -382,6 +385,19 @@ const LadderPlayScreen: React.FC<Props> = ({
         onDismiss={() => setCurrentPopupAchievement(null)}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
+      />
+
+      <ConfirmModal
+        visible={!!leaveAction}
+        title="Leave Daily Ladder?"
+        message="You've only got one Daily attempt per day — leaving now will count as a loss."
+        confirmText="Leave (Loss)"
+        onCancel={() => setLeaveAction(null)}
+        onConfirm={confirmLeaveDaily}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
       />
 
       {/* Header */}

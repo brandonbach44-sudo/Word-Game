@@ -32,7 +32,7 @@ const WHATS_NEW = [
     version: '0.1.0',
     date: 'June 2026',
     changes: [
-      'Initial release of Word Games',
+      'Initial release of Word Fury',
       'Wordsmith game with Daily Challenge',
       'Customizable tile designs',
       'Achievement system with 41 badges',
@@ -342,7 +342,7 @@ export const SettingsScreen: React.FC = () => {
           
           <View style={[styles.aboutCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
             <Text style={[styles.appName, { color: background.textColor }]}>
-              Word Games
+              Word Fury
             </Text>
             <Text style={[styles.versionText, { color: background.secondaryText }]}>
               Version {APP_VERSION}

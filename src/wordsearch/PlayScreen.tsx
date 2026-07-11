@@ -1,10 +1,9 @@
 // src/wordsearch/PlayScreen.tsx
 
 import { router } from 'expo-router';
-import { Share2 } from 'lucide-react-native';
+import { Share2, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -40,6 +39,7 @@ import {
 } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
+import { ConfirmModal } from '../../src/shared/ConfirmModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -573,23 +573,25 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   // Quick Play (isDaily === false) is unaffected — leaving there just
   // discards the run, no confirmation.
   const navigation = useNavigation();
-  usePreventRemove(isDaily && !gameFinished, ({ data }) => {
-    Alert.alert(
-      'Leave Daily Challenge?',
-      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's result.",
-      [
-        { text: 'Keep Playing', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            await triggerFinish();
-            navigation.dispatch(data.action);
-          },
-        },
-      ]
-    );
+  const [leaveAction, setLeaveAction] = useState<any>(null);
+  // triggerFinish() sets gameFinished via setState, which won't be visible
+  // in this closure until React re-renders. Re-dispatching the nav action
+  // right after would otherwise hit the same still-true "isDaily &&
+  // !gameFinished" guard and re-intercept itself, reopening the modal
+  // instead of leaving. This ref bypasses the guard immediately.
+  const isLeavingRef = useRef(false);
+  usePreventRemove(isDaily && !gameFinished && !isLeavingRef.current, ({ data }) => {
+    setLeaveAction(data.action);
   });
+
+  const confirmLeaveDaily = async () => {
+    const action = leaveAction;
+    setLeaveAction(null);
+    if (!action) return;
+    isLeavingRef.current = true;
+    await triggerFinish();
+    navigation.dispatch(action);
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -775,15 +777,39 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         textColor={background.textColor}
       />
 
+      <ConfirmModal
+        visible={!!leaveAction}
+        title="Leave Daily Challenge?"
+        message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's result."
+        onCancel={() => setLeaveAction(null)}
+        onConfirm={confirmLeaveDaily}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+      />
+
       {/* ── Results overlay (replaces separate results route) ── */}
       {resultData && (
         <Modal visible animationType="slide">
           <SafeAreaView style={[overlayStyles.container, { backgroundColor: background.backgroundColor }]} edges={['top', 'bottom']}>
             <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-            <ScrollView contentContainerStyle={overlayStyles.scroll} showsVerticalScrollIndicator={false}>
-              <View style={[overlayStyles.card, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
 
-                <Text style={[overlayStyles.brand, { color: background.secondaryText }]}>WORD SEARCH</Text>
+            {/* Page header — brand + X close (X reveals the completed, highlighted grid underneath) */}
+            <View style={[overlayStyles.pageHeader, { borderColor: background.borderColor }]}>
+              <View style={overlayStyles.headerSpacer} />
+              <Text style={[overlayStyles.brand, { color: background.secondaryText }]}>WORD SEARCH</Text>
+              <Pressable
+                style={({ pressed }) => [overlayStyles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+                onPress={() => setResultData(null)}
+                hitSlop={10}
+              >
+                <X size={22} color={background.secondaryText} />
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={overlayStyles.scroll} showsVerticalScrollIndicator={false}>
+              <View style={overlayStyles.card}>
 
                 {/* Title */}
                 <Text style={[overlayStyles.title, { color: background.textColor }]}>
@@ -812,12 +838,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                 <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
                 <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>THIS GAME</Text>
                 <View style={overlayStyles.statsRow}>
-                  <StatPill label="Found" value={`${resultData.foundWords}/${resultData.totalWords}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
-                  <StatPill label="Time" value={resultData.timeString} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                  <StatPill label="Found" value={`${resultData.foundWords}/${resultData.totalWords}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
+                  <StatPill label="Time" value={resultData.timeString} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
                 </View>
                 <View style={overlayStyles.statsRow}>
-                  <StatPill label="Score" value={resultData.score.toLocaleString()} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
-                  <StatPill label="Complete" value={`${Math.round((resultData.foundWords / Math.max(resultData.totalWords, 1)) * 100)}%`} textColor={resultData.allFound ? COLORS.accent : background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                  <StatPill label="Score" value={resultData.score.toLocaleString()} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.cardColor} />
+                  <StatPill label="Complete" value={`${Math.round((resultData.foundWords / Math.max(resultData.totalWords, 1)) * 100)}%`} textColor={resultData.allFound ? COLORS.accent : background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
                 </View>
 
                 {/* Score breakdown */}
@@ -826,12 +852,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                     <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
                     <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>SCORE BREAKDOWN</Text>
                     <View style={overlayStyles.statsRow}>
-                      <StatPill label="Words" value={`${resultData.score - resultData.timeBonus} pts`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
-                      <StatPill label="Time Bonus" value={`+${resultData.timeBonus}`} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                      <StatPill label="Words" value={`${resultData.score - resultData.timeBonus} pts`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
+                      <StatPill label="Time Bonus" value={`+${resultData.timeBonus}`} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.cardColor} />
                     </View>
                     {resultData.multiplier > 1 && (
                       <View style={overlayStyles.statsRow}>
-                        <StatPill label="Multiplier" value={`${resultData.multiplier}×`} textColor="#f59e0b" borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                        <StatPill label="Multiplier" value={`${resultData.multiplier}×`} textColor="#f59e0b" borderColor={background.borderColor} backgroundColor={background.cardColor} />
                       </View>
                     )}
                   </>
@@ -843,12 +869,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                     <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
                     <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>YOUR STATS</Text>
                     <View style={overlayStyles.statsRow}>
-                      <StatPill label="Best Score" value={lifetimeStats.bestScore.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
-                      <StatPill label="Streak" value={`${lifetimeStats.currentStreak}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                      <StatPill label="Best Score" value={lifetimeStats.bestScore.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
+                      <StatPill label="Streak" value={`${lifetimeStats.currentStreak}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
                     </View>
                     <View style={overlayStyles.statsRow}>
-                      <StatPill label="Games" value={`${lifetimeStats.gamesPlayed}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
-                      <StatPill label="Words Found" value={lifetimeStats.totalWordsFound.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.backgroundColor} />
+                      <StatPill label="Games" value={`${lifetimeStats.gamesPlayed}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
+                      <StatPill label="Words Found" value={lifetimeStats.totalWordsFound.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
                     </View>
                   </>
                 )}
@@ -873,14 +899,14 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                     onPress={() => router.navigate('/')}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
-                    backgroundColor={background.backgroundColor}
+                    backgroundColor={background.cardColor}
                   />
                   <PrimaryButton
                     label="Play Again"
                     onPress={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
-                    backgroundColor={background.backgroundColor}
+                    backgroundColor={background.cardColor}
                   />
                 </View>
 
@@ -900,17 +926,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                     <Share2 size={18} color="#fff" />
                     <Text style={overlayStyles.shareButtonText}>Share Result</Text>
                   </View>
-                </Pressable>
-
-                {/* Close — dismisses overlay, stays on the finished board */}
-                <Pressable
-                  style={({ pressed }) => [
-                    overlayStyles.secondaryButton,
-                    { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 },
-                  ]}
-                  onPress={() => setResultData(null)}
-                >
-                  <Text style={[overlayStyles.secondaryButtonText, { color: background.textColor }]}>Close</Text>
                 </Pressable>
 
               </View>
@@ -1042,10 +1057,21 @@ const styles = StyleSheet.create({
 
 const overlayStyles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24 },
-  card: { width: '100%', maxWidth: 420, borderRadius: 18, borderWidth: 2, padding: 16 },
-  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
-  title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: { width: 22 },
+  closeIconButton: { width: 22, alignItems: 'flex-end' },
+  scroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 18, paddingVertical: 24 },
+  card: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 4 },
+  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },
   subtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
   themePill: { alignSelf: 'center', borderWidth: 2, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 16, marginBottom: 4 },
   themePillText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },

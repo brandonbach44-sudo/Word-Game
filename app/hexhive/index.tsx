@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flame, Share2, Trophy } from 'lucide-react-native';
 
 import { useTheme } from '../../src/shared/ThemeContext';
+import { FallingLetters } from '../../src/shared/FallingLetters';
 import {
   formatDisplayDate,
   getDailyPuzzle,
@@ -323,6 +324,7 @@ export default function HexHiveEntryScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
+      <FallingLetters />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>

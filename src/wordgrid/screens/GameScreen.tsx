@@ -2,7 +2,6 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -24,6 +23,8 @@ import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
+import { ConfirmModal } from '../../shared/ConfirmModal';
+import { FallingLetters } from '../../shared/FallingLetters';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
@@ -330,7 +331,7 @@ export default function GameScreen() {
         await clearWordGridDailyProgress();
         const blocks = buildScoreBlocks(finalScore);
         const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
-        const text = `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${finalScore} pts · ${finalFoundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+        const text = `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${finalScore} pts · ${finalFoundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
         setDailyShareText(text);
         setShowDailyPopup(true);
         setScreen('results');
@@ -431,50 +432,46 @@ export default function GameScreen() {
     }
   }, [foundWords.length, score]);
 
+  // Pending leave-confirmation action: null when hidden, "back" for the
+  // in-app button, or a navigation action object (swipe/hardware back via
+  // usePreventRemove) when the themed ConfirmModal should show.
+  const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
+  // lockInDailyResultOnLeave never flips `gameOver`, so re-dispatching the
+  // nav action right after it runs would otherwise hit the same still-true
+  // "daily && !gameOver" guard and re-intercept itself — reopening the
+  // modal instead of actually leaving. This ref bypasses the guard the
+  // instant "Leave" is confirmed.
+  const isLeavingRef = useRef(false);
+
   const handleGameplayBackPress = useCallback(() => {
     if (gameMode === 'daily' && !gameOver) {
-      Alert.alert(
-        'Leave Daily Challenge?',
-        "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
-        [
-          { text: 'Keep Playing', style: 'cancel' },
-          {
-            text: 'Leave',
-            style: 'destructive',
-            onPress: async () => {
-              await lockInDailyResultOnLeave();
-              handleBackToMenu();
-            },
-          },
-        ]
-      );
+      setLeaveAction('back');
       return;
     }
     handleBackToMenu();
-  }, [gameMode, gameOver, handleBackToMenu, lockInDailyResultOnLeave]);
+  }, [gameMode, gameOver, handleBackToMenu]);
 
   // Same protection as above, but for leaving the Word Grid screen entirely
   // (iOS swipe-back gesture, Android hardware back button) rather than the
   // in-app "← Back" button — a gesture/hardware-back would otherwise skip
   // handleGameplayBackPress altogether and escape with no result recorded.
   const navigation = useNavigation();
-  usePreventRemove(gameMode === 'daily' && !gameOver, ({ data }) => {
-    Alert.alert(
-      'Leave Daily Challenge?',
-      "You've only got one Daily attempt per day — leaving now will end your run and lock in today's score.",
-      [
-        { text: 'Keep Playing', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            await lockInDailyResultOnLeave();
-            navigation.dispatch(data.action);
-          },
-        },
-      ]
-    );
+  usePreventRemove(gameMode === 'daily' && !gameOver && !isLeavingRef.current, ({ data }) => {
+    setLeaveAction(data.action);
   });
+
+  const confirmLeaveDaily = useCallback(async () => {
+    const action = leaveAction;
+    setLeaveAction(null);
+    if (!action) return;
+    isLeavingRef.current = true;
+    await lockInDailyResultOnLeave();
+    if (action === 'back') {
+      handleBackToMenu();
+    } else {
+      navigation.dispatch(action);
+    }
+  }, [handleBackToMenu, leaveAction, lockInDailyResultOnLeave, navigation]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -724,6 +721,18 @@ export default function GameScreen() {
           textColor={bg.textColor}
         />
 
+        <ConfirmModal
+          visible={!!leaveAction}
+          title="Leave Daily Challenge?"
+          message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's score."
+          onCancel={() => setLeaveAction(null)}
+          onConfirm={confirmLeaveDaily}
+          backgroundColor={bg.cardColor}
+          textColor={bg.textColor}
+          secondaryText={bg.secondaryText}
+          borderColor={bg.borderColor}
+        />
+
         {/* Header: Back | Timer | Score */}
         <View style={styles.gameHeader}>
           <TouchableOpacity onPress={handleGameplayBackPress}>
@@ -781,6 +790,7 @@ export default function GameScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
       <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
+      <FallingLetters />
 
       <AchievementPopup
         achievement={currentAchievement}
@@ -794,7 +804,7 @@ export default function GameScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={[styles.backText, { color: bg.secondaryText }]}>← Games</Text>
         </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: bg.textColor }]}>Grid Rush</Text>
+        <Text style={[styles.appTitle, { color: bg.textColor }]}>Word Grid</Text>
         <View style={{ width: 70 }} />
       </View>
 
@@ -851,14 +861,14 @@ export default function GameScreen() {
                 if (!dailyStats) return '';
                 const blocks = buildScoreBlocks(dailyStats.lastScore);
                 const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                return `🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+                return `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
               })()}
               onPlay={dailyPlayedToday
                 ? () => {
                     if (!dailyShareText && dailyStats) {
                       const blocks = buildScoreBlocks(dailyStats.lastScore);
                       const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                      setDailyShareText(`🔠 Grid Rush Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
+                      setDailyShareText(`🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
                     }
                     setShowDailyPopup(true);
                     setScreen('results');
@@ -903,7 +913,7 @@ export default function GameScreen() {
             contentContainerStyle={styles.statsContainer}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={[styles.statsTitle, { color: bg.textColor }]}>Daily Grid Rush</Text>
+            <Text style={[styles.statsTitle, { color: bg.textColor }]}>Daily Word Grid</Text>
 
             {dailyStats ? (
               <View style={styles.statsGrid}>
