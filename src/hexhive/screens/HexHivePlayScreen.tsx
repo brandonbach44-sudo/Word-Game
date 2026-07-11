@@ -14,7 +14,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Share2 } from 'lucide-react-native';
+import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import HexGrid, { type Feedback } from '../components/HexGrid';
@@ -375,9 +375,21 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
       </ScrollView>
 
       {mode === 'practice' && gameOver && resultsVisible && (
-        <View style={styles.overlay}>
-          <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+        <View style={[styles.overlay, { backgroundColor: BG }]}>
+          <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+            <View style={styles.headerSpacer} />
             <Text style={[styles.brand, { color: SUBTEXT }]}>HEX HIVE</Text>
+            <Pressable
+              style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+              onPress={() => setResultsVisible(false)}
+              hitSlop={10}
+            >
+              <X size={22} color={SUBTEXT} />
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.card}>
             <Text style={[styles.title2, { color: TEXT }]}>Time&apos;s Up!</Text>
             <Text style={[styles.subtitle, { color: SUBTEXT }]}>
               You found {foundWords.length} word{foundWords.length === 1 ? '' : 's'} this round.
@@ -391,9 +403,9 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
             <View style={[styles.divider, { backgroundColor: BORDER }]} />
             <Text style={[styles.sectionTitle, { color: TEXT }]}>This Round</Text>
             <View style={styles.statsRow}>
-              <StatPill label="Score" value={`${score}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-              <StatPill label="Words" value={`${foundWords.length}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-              <StatPill label="Pangrams" value={`${pangramsFound}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              <StatPill label="Score" value={`${score}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+              <StatPill label="Words" value={`${foundWords.length}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+              <StatPill label="Pangrams" value={`${pangramsFound}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
             </View>
 
             {finalStats && (
@@ -406,22 +418,22 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
                     value={`${finalStats.practiceBestScore}`}
                     textColor={TEXT}
                     borderColor={BORDER}
-                    backgroundColor={BG}
+                    backgroundColor={CARD}
                   />
                   <StatPill
                     label="Rounds Played"
                     value={`${finalStats.practicePuzzlesPlayed}`}
                     textColor={TEXT}
                     borderColor={BORDER}
-                    backgroundColor={BG}
+                    backgroundColor={CARD}
                   />
                 </View>
               </>
             )}
 
             <View style={styles.buttonRow}>
-              <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
-              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+              <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
+              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
             </View>
 
             <Pressable
@@ -433,21 +445,27 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
                 <Text style={styles.shareButtonText}>Share Result</Text>
               </View>
             </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.secondaryButton, { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 }]}
-              onPress={() => setResultsVisible(false)}
-            >
-              <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
-            </Pressable>
           </View>
+          </ScrollView>
         </View>
       )}
 
       {mode === 'daily' && showFullClearCelebration && (
-        <View style={styles.overlay}>
-          <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+        <View style={[styles.overlay, { backgroundColor: BG }]}>
+          <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+            <View style={styles.headerSpacer} />
             <Text style={[styles.brand, { color: SUBTEXT }]}>HEX HIVE</Text>
+            <Pressable
+              style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+              onPress={() => setShowFullClearCelebration(false)}
+              hitSlop={10}
+            >
+              <X size={22} color={SUBTEXT} />
+            </Pressable>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.card}>
             <Text style={[styles.title2, { color: TEXT }]}>Full Clear! 🐝</Text>
             <Text style={[styles.subtitle, { color: SUBTEXT }]}>
               You found every word in today&apos;s hive.
@@ -461,9 +479,9 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
             <View style={[styles.divider, { backgroundColor: BORDER }]} />
             <Text style={[styles.sectionTitle, { color: TEXT }]}>Today</Text>
             <View style={styles.statsRow}>
-              <StatPill label="Score" value={`${score}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-              <StatPill label="Words" value={`${foundWords.length}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-              <StatPill label="Pangrams" value={`${pangramsFound}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+              <StatPill label="Score" value={`${score}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+              <StatPill label="Words" value={`${foundWords.length}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+              <StatPill label="Pangrams" value={`${pangramsFound}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
             </View>
 
             <View style={styles.buttonRow}>
@@ -472,9 +490,9 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
                 onPress={() => setShowFullClearCelebration(false)}
                 borderColor={BORDER}
                 textColor={TEXT}
-                backgroundColor={BG}
+                backgroundColor={CARD}
               />
-              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
             </View>
 
             <Pressable
@@ -487,6 +505,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
               </View>
             </Pressable>
           </View>
+          </ScrollView>
         </View>
       )}
     </SafeAreaView>
@@ -515,27 +534,34 @@ const styles = StyleSheet.create({
   },
   wordListWrap: { flex: 1, marginTop: 14 },
 
-  // Result overlay — mirrors Wordle's WordleResultOverlay layout/colors.
+  // Result overlay — mirrors Wordle's full-page WordleResultOverlay layout/colors.
   overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    backgroundColor: 'rgba(0,0,0,0.55)',
   },
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: { width: 22 },
+  closeIconButton: { width: 22, alignItems: 'flex-end' },
+  scrollContent: { alignItems: 'center', padding: 18 },
   card: {
     width: '100%',
     maxWidth: 420,
     borderRadius: 18,
-    borderWidth: 2,
-    padding: 16,
+    padding: 4,
   },
-  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
-  title2: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  title2: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },
   subtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
   rankBox: { borderWidth: 2, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
   rankBoxLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },

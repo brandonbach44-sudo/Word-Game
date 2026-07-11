@@ -121,6 +121,9 @@ export type DailyLockState = {
   hintsUsed: number;
   start: string;
   end: string;
+  // Persisted so the completed ladder chain can be viewed again later
+  // (e.g. reopening the results screen from the menu) without an active session.
+  chain?: string[];
 };
 
 export async function loadDailyLock(): Promise<DailyLockState | null> {

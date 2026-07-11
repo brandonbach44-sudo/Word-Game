@@ -223,6 +223,7 @@ const LadderPlayScreen: React.FC<Props> = ({
         hintsUsed: finalHints,
         start: puzzle.start,
         end: puzzle.end,
+        chain: finalChain,
       });
       await clearDailyProgress();
     }
@@ -362,7 +363,12 @@ const LadderPlayScreen: React.FC<Props> = ({
   };
 
   const isWin = status === 'won';
-  const displayChain = alreadyLocked && lockedResult ? [lockedResult.start] : chain;
+  const displayChain =
+    alreadyLocked && lockedResult
+      ? lockedResult.chain && lockedResult.chain.length > 0
+        ? lockedResult.chain
+        : [lockedResult.start]
+      : chain;
   const displayEnd = alreadyLocked && lockedResult ? lockedResult.end : puzzle.end;
   const displaySteps = alreadyLocked && lockedResult ? lockedResult.steps : chain.length - 1;
 
@@ -612,8 +618,9 @@ const LadderPlayScreen: React.FC<Props> = ({
         nextDailySecondsRemaining={mode === 'daily' ? parseCountdownSeconds(countdown) : null}
         shareText={shareText}
         onClose={() => {
+          // Just dismiss the overlay — the ladder chain built above stays
+          // visible instead of bouncing the player back to the menu.
           setShowResult(false);
-          onGoHome();
         }}
         onPlayAgain={() => {
           setShowResult(false);

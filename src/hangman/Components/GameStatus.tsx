@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 
 type GameStatusProps = {
@@ -95,12 +96,25 @@ export const GameStatus: React.FC<GameStatusProps> = ({
     : `The word was revealed below.`;
 
   return (
-    <Modal transparent visible={isVisible} animationType="fade" statusBarTranslucent>
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+    <Modal visible={isVisible} animationType="slide">
+      <SafeAreaView style={[styles.container, { backgroundColor: BG }]} edges={['top', 'bottom']}>
+        <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
 
-          {/* Brand */}
+        {/* Page header — no persistent board to look back at, so X just acts like Close */}
+        <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+          <View style={styles.headerSpacer} />
           <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
+          <Pressable
+            style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+            onPress={onClose}
+            hitSlop={10}
+          >
+            <X size={22} color={SUBTEXT} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
 
           {/* Title + subtitle */}
           <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
@@ -117,17 +131,17 @@ export const GameStatus: React.FC<GameStatusProps> = ({
           <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
           <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
           <View style={styles.statsRow}>
-            <StatPill label="Wrong" value={`${incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-            <StatPill label="Total" value={`${totalGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Wrong" value={`${incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+            <StatPill label="Total" value={`${totalGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           </View>
           <View style={styles.statsRow}>
-            <StatPill label="Lives Left" value={`${maxAttempts - incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Lives Left" value={`${maxAttempts - incorrectGuesses}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           </View>
 
           {/* Buttons */}
           <View style={styles.buttonRow}>
-            <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
-            <PrimaryButton label="Main Menu" onPress={onBackToMenu} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+            <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
+            <PrimaryButton label="Main Menu" onPress={onBackToMenu} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
           </View>
 
           <Pressable
@@ -140,27 +154,29 @@ export const GameStatus: React.FC<GameStatusProps> = ({
             </View>
           </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
-            ]}
-            onPress={onClose}
-          >
-            <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
-          </Pressable>
-
         </View>
-      </View>
+        </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
+  },
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: { width: 22 },
+  closeIconButton: { width: 22, alignItems: 'flex-end' },
+  scrollContent: {
     alignItems: 'center',
     padding: 18,
   },
@@ -168,21 +184,20 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: 18,
-    borderWidth: 2,
-    padding: 16,
+    padding: 4,
   },
   brand: {
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 2,
-    marginBottom: 6,
   },
   title: {
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '900',
     marginBottom: 4,
+    marginTop: 12,
   },
   subtitle: {
     textAlign: 'center',

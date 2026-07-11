@@ -1700,7 +1700,7 @@ export default function WordleGame() {
                     { backgroundColor: CARD, borderColor: BORDER, opacity: pressed ? 0.75 : 1, marginTop: 18 },
                   ]}
                 >
-                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Play</Text>
+                  <Text style={[styles.modeCardTitle, { color: TEXT }]}>Quick Play</Text>
                   <Text style={[styles.modeCardSubtitle, { color: SUBTEXT }]}>
                     A fresh 5-letter word whenever you want.
                   </Text>
@@ -1713,6 +1713,7 @@ export default function WordleGame() {
                     <View style={styles.toggleInfo}>
                       <Text style={[styles.toggleLabel,{color:TEXT}]}>Hard Mode</Text>
                       <Text style={[styles.toggleSub,{color:SUBTEXT}]}>Revealed letters must be used in future guesses</Text>
+                      <Text style={[styles.toggleSub,{color:SUBTEXT}]}>(Only applies to Quick Play)</Text>
                     </View>
                     <View style={[styles.toggleTrack,{backgroundColor:prefs.hardMode?COLOR_CORRECT:BORDER}]}>
                       <View style={[styles.toggleThumb,{left:prefs.hardMode?18:2}]}/>

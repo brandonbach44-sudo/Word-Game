@@ -3,8 +3,9 @@
 // Wordle's result overlay (brand tag, stat pills, share button, close).
 
 import React from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Share2, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
 
@@ -68,16 +69,19 @@ const PrimaryButton = ({
   borderColor,
   textColor,
   backgroundColor,
+  fullWidth,
 }: {
   label: string;
   onPress: () => void;
   borderColor: string;
   textColor: string;
   backgroundColor: string;
+  fullWidth?: boolean;
 }) => (
   <Pressable
     style={({ pressed }) => [
       styles.primaryButton,
+      fullWidth && styles.primaryButtonFullWidth,
       { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 },
     ]}
     onPress={onPress}
@@ -105,6 +109,7 @@ const LadderResultOverlay: React.FC<Props> = ({
   onGoHome,
 }) => {
   const { background } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleShare = async () => {
     try {
@@ -135,10 +140,25 @@ const LadderResultOverlay: React.FC<Props> = ({
     : `You gave up — the shortest path took ${par} step${par === 1 ? '' : 's'}.`;
 
   return (
-    <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-      <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
+    <View style={[styles.overlay, { backgroundColor: BG }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+        <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>WORD LADDER</Text>
+        <Pressable
+          style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={onClose}
+          hitSlop={10}
+        >
+          <X size={22} color={SUBTEXT} />
+        </Pressable>
+      </View>
 
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+      <View style={styles.card}>
         <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
         <Text style={[styles.subtitle, { color: SUBTEXT }]}>{subtitle}</Text>
 
@@ -152,13 +172,13 @@ const LadderResultOverlay: React.FC<Props> = ({
         <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
         <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
         <View style={styles.statsRow}>
-          <StatPill label="Steps" value={`${steps}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
-          <StatPill label="Par" value={`${par}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+          <StatPill label="Steps" value={`${steps}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+          <StatPill label="Par" value={`${par}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           {timeSeconds != null && (
-            <StatPill label="Time" value={formatSeconds(timeSeconds)} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Time" value={formatSeconds(timeSeconds)} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           )}
           {hintsUsed > 0 && (
-            <StatPill label="Hints" value={`${hintsUsed}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+            <StatPill label="Hints" value={`${hintsUsed}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           )}
         </View>
 
@@ -168,10 +188,10 @@ const LadderResultOverlay: React.FC<Props> = ({
             <Text style={[styles.sectionTitle, { color: TEXT }]}>Streak</Text>
             <View style={styles.statsRow}>
               {currentStreak != null && (
-                <StatPill label="Current" value={`${currentStreak}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+                <StatPill label="Current" value={`${currentStreak}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
               )}
               {bestStreak != null && (
-                <StatPill label="Best" value={`${bestStreak}`} textColor={TEXT} borderColor={BORDER} backgroundColor={BG} />
+                <StatPill label="Best" value={`${bestStreak}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
               )}
             </View>
           </>
@@ -189,11 +209,11 @@ const LadderResultOverlay: React.FC<Props> = ({
 
         <View style={styles.buttonRow}>
           {isDaily ? (
-            <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+            <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} fullWidth />
           ) : (
             <>
-              <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
-              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={BG} />
+              <PrimaryButton label="Play Again" onPress={onPlayAgain} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
+              <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
             </>
           )}
         </View>
@@ -204,14 +224,8 @@ const LadderResultOverlay: React.FC<Props> = ({
             <Text style={styles.shareButtonText}>Share Result</Text>
           </View>
         </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.secondaryButton, { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 }]}
-          onPress={onClose}
-        >
-          <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
-        </Pressable>
       </View>
+      </ScrollView>
     </View>
   );
 };
@@ -219,10 +233,22 @@ const LadderResultOverlay: React.FC<Props> = ({
 export default LadderResultOverlay;
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 18 },
-  card: { width: '100%', maxWidth: 420, borderRadius: 18, borderWidth: 2, padding: 16 },
-  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
-  title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: { width: 22 },
+  closeIconButton: { width: 22, alignItems: 'flex-end' },
+  scrollContent: { alignItems: 'center', padding: 18 },
+  card: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 4 },
+  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },
   subtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
   solutionBox: { borderWidth: 2, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
   solutionLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
@@ -235,12 +261,11 @@ const styles = StyleSheet.create({
   statPillValue: { fontSize: 14, fontWeight: '900' },
   countdownLabel: { textAlign: 'center', fontSize: 12, fontWeight: '800', marginBottom: 4, letterSpacing: 1 },
   countdownValue: { textAlign: 'center', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', width: '100%', gap: 10, marginTop: 12 },
   primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  primaryButtonFullWidth: { width: '100%', paddingVertical: 12, minWidth: undefined },
   primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
-  secondaryButton: { marginTop: 10, borderWidth: 2, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
-  secondaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Share2, X } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
@@ -51,6 +52,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
 }) => {
   const { background } = useTheme();
   const countdown = useCountdownToMidnight();
+  const insets = useSafeAreaInsets();
 
   if (!visible) return null;
 
@@ -89,11 +91,25 @@ export const DailyChallengePopup: React.FC<Props> = ({
   };
 
   return (
-    <View style={styles.overlay}>
-      <View style={[styles.card, { backgroundColor: CARD, borderColor: BORDER }]}>
-
-        {/* Brand */}
+    <View style={[styles.overlay, { backgroundColor: BG }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+        <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
+        <Pressable
+          style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
+          onPress={onClose}
+          hitSlop={10}
+        >
+          <X size={22} color={SUBTEXT} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+      <View style={styles.card}>
 
         {/* Title + subtitle */}
         <Text style={[styles.title, { color: TEXT }]}>{title}</Text>
@@ -115,14 +131,14 @@ export const DailyChallengePopup: React.FC<Props> = ({
             value={`${incorrectCount}`}
             textColor={TEXT}
             borderColor={BORDER}
-            backgroundColor={BG}
+            backgroundColor={CARD}
           />
           <StatPill
             label="Max"
             value={`${maxAttempts}`}
             textColor={TEXT}
             borderColor={BORDER}
-            backgroundColor={BG}
+            backgroundColor={CARD}
           />
         </View>
 
@@ -135,14 +151,14 @@ export const DailyChallengePopup: React.FC<Props> = ({
             value={`${streak}`}
             textColor={TEXT}
             borderColor={BORDER}
-            backgroundColor={BG}
+            backgroundColor={CARD}
           />
           <StatPill
             label="Best"
             value={`${bestStreak}`}
             textColor={TEXT}
             borderColor={BORDER}
-            backgroundColor={BG}
+            backgroundColor={CARD}
           />
         </View>
 
@@ -156,7 +172,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
           <Pressable
             style={({ pressed }) => [
               styles.primaryButton,
-              { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
+              { borderColor: BORDER, backgroundColor: CARD, opacity: pressed ? 0.75 : 1 },
             ]}
             onPress={onBackToMenu}
           >
@@ -175,18 +191,8 @@ export const DailyChallengePopup: React.FC<Props> = ({
           </View>
         </Pressable>
 
-        {/* Close — dismisses overlay, stays on game board */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
-          ]}
-          onPress={onClose}
-        >
-          <Text style={[styles.secondaryButtonText, { color: TEXT }]}>Close</Text>
-        </Pressable>
-
       </View>
+      </ScrollView>
     </View>
   );
 };
@@ -198,31 +204,41 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
     zIndex: 100,
+  },
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  headerSpacer: { width: 22 },
+  closeIconButton: { width: 22, alignItems: 'flex-end' },
+  scrollContent: {
+    alignItems: 'center',
+    padding: 18,
   },
   card: {
     width: '100%',
     maxWidth: 420,
     borderRadius: 18,
-    borderWidth: 2,
-    padding: 16,
+    padding: 4,
   },
   brand: {
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 2,
-    marginBottom: 6,
   },
   title: {
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '900',
     marginBottom: 4,
+    marginTop: 12,
   },
   subtitle: {
     textAlign: 'center',

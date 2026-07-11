@@ -732,6 +732,45 @@ const AnagramsPlayScreen: React.FC<Props> = ({
         </>
       )}
 
+      {/* Completed round recap — shown behind the results overlay once it's
+          closed, since Anagrams has no persistent board like Wordle's grid;
+          this word-by-word summary is the closest analog to "view the
+          completed puzzle." */}
+      {(runStatus === 'complete' || alreadyLocked) && !showResult && (
+        <View style={styles.recapWrap}>
+          <Text style={[styles.recapTitle, { color: background.secondaryText }]}>Round Recap</Text>
+          <View style={[styles.recapWordsBox, { borderColor: background.borderColor }]}>
+            {displayWords.map((w, i) => {
+              const result = displayResults[i];
+              const solved = result?.solved && !result?.skipped;
+              return (
+                <View key={`${w}-${i}`} style={styles.recapWordRow}>
+                  <Text
+                    style={[
+                      styles.recapWordText,
+                      { color: background.textColor },
+                      !solved && styles.recapWordTextMissed,
+                    ]}
+                  >
+                    {w.toUpperCase()}
+                  </Text>
+                  <Text style={styles.recapWordIcon}>{solved ? '✅' : '⏭️'}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.viewResultsButton,
+              { borderColor: background.borderColor, backgroundColor: background.cardColor, opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={() => setShowResult(true)}
+          >
+            <Text style={[styles.viewResultsButtonText, { color: background.textColor }]}>View Results</Text>
+          </Pressable>
+        </View>
+      )}
+
       <AnagramsResultOverlay
         visible={showResult}
         mode={mode}
@@ -745,8 +784,9 @@ const AnagramsPlayScreen: React.FC<Props> = ({
         nextDailySecondsRemaining={isDaily ? parseCountdownSeconds(countdown) : null}
         shareText={shareText}
         onClose={() => {
+          // Just dismiss the overlay — the Round Recap above stays visible
+          // instead of bouncing the player back to the menu.
           setShowResult(false);
-          onGoHome();
         }}
         onPlayAgain={() => {
           setShowResult(false);
@@ -786,6 +826,16 @@ const styles = StyleSheet.create({
   scoreText: { fontSize: 15, fontWeight: '600' },
 
   roundLabel: { textAlign: 'center', fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+
+  recapWrap: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  recapTitle: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 12 },
+  recapWordsBox: { borderWidth: 2, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 16, marginBottom: 20 },
+  recapWordRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  recapWordText: { fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+  recapWordTextMissed: { opacity: 0.5, textDecorationLine: 'line-through' },
+  recapWordIcon: { fontSize: 16 },
+  viewResultsButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
+  viewResultsButtonText: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
 
   // Fills the space between the header and the controls, then centers its
   // children (slots + tray) in that space — lower-middle of the screen,

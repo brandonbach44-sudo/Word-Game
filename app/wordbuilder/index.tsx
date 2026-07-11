@@ -19,7 +19,7 @@ import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Flame, Share2, Trophy } from 'lucide-react-native';
+import { Flame, Share2, Trophy, X } from 'lucide-react-native';
 
 // Components
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
@@ -878,7 +878,21 @@ export default function WordBuilder() {
           backgroundColor={background.cardColor}
           textColor={background.textColor}
         />
-        
+
+        {/* Page header — Wordsmith has no persistent board to look back at,
+            so X just acts like Main Menu. */}
+        <View style={[styles.resultsPageHeader, { borderColor: background.borderColor }]}>
+          <View style={styles.resultsHeaderSpacer} />
+          <Text style={[styles.brand, { color: background.secondaryText }]}>WORDSMITH</Text>
+          <Pressable
+            style={({ pressed }) => [styles.resultsCloseIconButton, { opacity: pressed ? 0.6 : 1 }]}
+            onPress={backToMenu}
+            hitSlop={10}
+          >
+            <X size={22} color={background.secondaryText} />
+          </Pressable>
+        </View>
+
         {/* Horizontal Swipe Carousel */}
         <ScrollView
           ref={gameOverScrollRef}
@@ -895,9 +909,6 @@ export default function WordBuilder() {
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.resultsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-
-                {/* Brand */}
-                <Text style={[styles.brand, { color: background.secondaryText }]}>WORDSMITH</Text>
 
                 {/* Title + subtitle */}
                 <Text style={[styles.gameOverTitle, { color: background.textColor }]}>
@@ -1005,7 +1016,11 @@ export default function WordBuilder() {
             </Pressable>
           )}
           <Pressable
-            style={({ pressed }) => [styles.primaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              isDaily && styles.primaryButtonFullWidth,
+              { borderColor: background.borderColor, backgroundColor: background.backgroundColor, opacity: pressed ? 0.75 : 1 },
+            ]}
             onPress={backToMenu}
           >
             <Text style={[styles.primaryButtonText, { color: background.textColor }]}>Main Menu</Text>
@@ -2205,6 +2220,22 @@ const styles = StyleSheet.create({
   gameOverContainer: {
     flex: 1,
   },
+  resultsPageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  resultsHeaderSpacer: {
+    width: 22,
+  },
+  resultsCloseIconButton: {
+    width: 22,
+    alignItems: 'flex-end',
+  },
   carousel: {
     flex: 1,
   },
@@ -2340,6 +2371,8 @@ const styles = StyleSheet.create({
   resultsButtonRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 18,
     gap: 10,
     marginTop: 12,
   },
@@ -2350,6 +2383,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minWidth: 120,
     alignItems: 'center',
+  },
+  primaryButtonFullWidth: {
+    flex: 1,
+    paddingVertical: 12,
+    minWidth: undefined,
   },
   primaryButtonText: {
     fontSize: 13,

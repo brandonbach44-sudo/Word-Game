@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { Share2, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
@@ -547,6 +547,20 @@ export default function GameScreen() {
           onBackToMenu={handleBackToMenu}
         />
 
+        {/* Page header — Word Grid has no persistent board to look back at,
+            so X just acts like Main Menu. */}
+        <View style={[styles.resultsPageHeader, { borderColor: bg.borderColor }]}>
+          <View style={styles.resultsHeaderSpacer} />
+          <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
+          <Pressable
+            style={({ pressed }) => [styles.resultsCloseIconButton, { opacity: pressed ? 0.6 : 1 }]}
+            onPress={handleBackToMenu}
+            hitSlop={10}
+          >
+            <X size={22} color={bg.secondaryText} />
+          </Pressable>
+        </View>
+
         {/* Horizontal swipe carousel */}
         <ScrollView
           ref={resultsScrollRef}
@@ -563,9 +577,6 @@ export default function GameScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.resultsCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
-
-                {/* Brand */}
-                <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
 
                 <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
                 <Text style={[styles.gameOverSubtitle, { color: bg.secondaryText }]}>
@@ -1202,6 +1213,17 @@ const styles = StyleSheet.create({
   resultsDivider: { height: 1, marginVertical: 12, opacity: 0.35 },
   resultsSectionTitle: { fontSize: 14, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
   // Results page — Wordle/Hangman card style
+  resultsPageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+  },
+  resultsHeaderSpacer: { width: 22 },
+  resultsCloseIconButton: { width: 22, alignItems: 'flex-end' },
   brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
   gameOverTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
   gameOverSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 4 },
