@@ -24,7 +24,7 @@
 // category's own word list, so these still validate correctly. See
 // generateCategoryAnagrams and isValidAnagramGuess in ../utils/generator.ts.
 
-export type AnagramsCategoryId = 'animals' | 'food' | 'countries' | 'space' | 'nature';
+export type AnagramsCategoryId = 'animals' | 'food' | 'countries' | 'space' | 'nature' | 'sports_teams' | 'cities';
 
 export interface AnagramsCategory {
   id: AnagramsCategoryId;
@@ -108,12 +108,56 @@ const NATURE: string[] = [
   'CLIFFS', 'BLUFFS', 'BROOK', 'STREAM', 'CREEK', 'RIVULET', 'CASCADE', 'POND', 'SWAMPS', 'BOGS',
 ];
 
+// Team nicknames pooled across NBA, NFL, MLB, NHL, MLS, and several top
+// European soccer leagues — no single league has enough short nicknames on
+// its own (see the project's earlier NBA-only sizing problem), but pooling
+// across leagues clears 100+ once filtered to 4-7 letters. Many nicknames
+// (Heat, Magic, Thunder, Jazz, Bears, Eagles, Rangers, Tigers...) are also
+// ordinary dictionary words; the rest (Celtics, Cowboys, Yankees, Bayern...)
+// rely on the categoryId fallback in isValidAnagramGuess, same as Countries.
+const SPORTS_TEAMS: string[] = [
+  'LAKERS', 'CELTICS', 'BULLS', 'HEAT', 'SUNS', 'NETS', 'KINGS', 'BUCKS', 'HAWKS', 'HORNETS',
+  'MAGIC', 'PACERS', 'PISTONS', 'RAPTORS', 'ROCKETS', 'SPURS', 'JAZZ', 'THUNDER', 'WIZARDS', 'NUGGETS',
+  'KNICKS', 'SIXERS', 'BEARS', 'BILLS', 'BRONCOS', 'BROWNS', 'CHIEFS', 'COLTS', 'COWBOYS', 'EAGLES',
+  'FALCONS', 'GIANTS', 'JAGUARS', 'JETS', 'LIONS', 'PACKERS', 'RAIDERS', 'RAMS', 'RAVENS', 'SAINTS',
+  'TEXANS', 'TITANS', 'VIKINGS', 'ANGELS', 'ASTROS', 'BRAVES', 'BREWERS', 'CUBS', 'DODGERS', 'MARLINS',
+  'METS', 'ORIOLES', 'PADRES', 'PIRATES', 'RANGERS', 'RAYS', 'REDS', 'ROCKIES', 'ROYALS', 'TIGERS',
+  'TWINS', 'YANKEES', 'BLUES', 'BRUINS', 'CANUCKS', 'COYOTES', 'DEVILS', 'DUCKS', 'FLAMES', 'FLYERS',
+  'KRAKEN', 'OILERS', 'SABRES', 'SHARKS', 'STARS', 'WILD', 'ARSENAL', 'CHELSEA', 'EVERTON', 'FULHAM',
+  'WATFORD', 'BURNLEY', 'NORWICH', 'WOLVES', 'TIMBERS', 'DYNAMO', 'RAPIDS', 'GALAXY', 'FIRE', 'CREW',
+  'UNION', 'LOONS', 'HUSKIES', 'AGGIES', 'GATORS', 'SOONERS', 'BAYERN', 'NAPOLI', 'INTER', 'ROMA',
+  'LAZIO', 'GENOA', 'PARMA', 'EMPOLI', 'TORINO', 'BOLOGNA', 'UDINESE', 'BETIS', 'ALAVES', 'GETAFE',
+  'OSASUNA', 'CADIZ', 'ELCHE', 'GIRONA', 'LEVANTE', 'SEVILLA', 'MALAGA', 'LYON', 'NANTES', 'RENNES',
+  'MONACO', 'METZ', 'REIMS', 'NICE', 'LILLE', 'BREST', 'TROYES', 'ANGERS', 'AUXERRE',
+];
+
+// World cities — capitals and other major cities, filtered to single-word
+// 4-7 letter names. Heavily proper-noun (most aren't in VALID_WORDS), so
+// this category leans on the categoryId fallback validator, same as
+// Countries and most of Sports Teams.
+const CITIES: string[] = [
+  'LONDON', 'PARIS', 'TOKYO', 'BERLIN', 'MADRID', 'ROME', 'VIENNA', 'ATHENS', 'DUBLIN', 'LISBON',
+  'WARSAW', 'MOSCOW', 'BEIJING', 'SEOUL', 'BANGKOK', 'MANILA', 'JAKARTA', 'CAIRO', 'LAGOS', 'NAIROBI',
+  'TORONTO', 'OTTAWA', 'CHICAGO', 'HOUSTON', 'PHOENIX', 'DALLAS', 'DENVER', 'SEATTLE', 'BOSTON', 'ATLANTA',
+  'MIAMI', 'DETROIT', 'MEMPHIS', 'ORLANDO', 'TAMPA', 'OAKLAND', 'TUCSON', 'FRESNO', 'AUSTIN', 'DUBAI',
+  'DOHA', 'RIYADH', 'AMMAN', 'BEIRUT', 'MUMBAI', 'DELHI', 'CHENNAI', 'LAHORE', 'KARACHI', 'HANOI',
+  'TAIPEI', 'OSAKA', 'NAGOYA', 'SAPPORO', 'KOBE', 'BUSAN', 'GENEVA', 'ZURICH', 'MUNICH', 'HAMBURG',
+  'COLOGNE', 'NAPLES', 'MILAN', 'TURIN', 'VENICE', 'SEVILLE', 'PORTO', 'OSLO', 'ANTWERP', 'UTRECHT',
+  'BERGEN', 'KRAKOW', 'GDANSK', 'SOFIA', 'ZAGREB', 'VILNIUS', 'RIGA', 'TALLINN', 'MINSK', 'KIEV',
+  'ODESSA', 'QUEBEC', 'CALGARY', 'HALIFAX', 'SYDNEY', 'PERTH', 'BOGOTA', 'CARACAS', 'HAVANA', 'PANAMA',
+  'MANAGUA', 'QUITO', 'LIMA', 'CALI', 'RECIFE', 'MANAUS', 'BELEM', 'NATAL', 'MACEIO', 'SANTOS',
+  'NITEROI', 'MAPUTO', 'LUANDA', 'HARARE', 'LUSAKA', 'KAMPALA', 'KIGALI', 'ASMARA', 'TRIPOLI', 'TUNIS',
+  'RABAT', 'ACCRA', 'ABUJA', 'DAKAR', 'BAMAKO', 'NIAMEY', 'YAOUNDE', 'MASERU',
+];
+
 export const ANAGRAMS_CATEGORIES: AnagramsCategory[] = [
   { id: 'animals', name: 'Animals', emoji: '🦁', words: ANIMALS },
   { id: 'food', name: 'Food', emoji: '🍕', words: FOOD },
   { id: 'countries', name: 'Countries', emoji: '🌍', words: COUNTRIES },
   { id: 'space', name: 'Space', emoji: '🚀', words: SPACE },
   { id: 'nature', name: 'Nature', emoji: '⛰️', words: NATURE },
+  { id: 'sports_teams', name: 'Sports Teams', emoji: '🏆', words: SPORTS_TEAMS },
+  { id: 'cities', name: 'Cities', emoji: '🏙️', words: CITIES },
 ];
 
 export function getAnagramsCategory(id: AnagramsCategoryId): AnagramsCategory {
