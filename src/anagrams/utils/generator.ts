@@ -9,6 +9,7 @@
 
 import commonWords from '../../wordgrid/data/commonWords';
 import { VALID_WORDS } from '../../shared/words';
+import { AnagramsCategoryId, getCategoryWordsByLength } from '../data/categories';
 
 // Progressive difficulty: 4 → 5 → 6 → 6 → 7 letters across the 5 rounds.
 export const ROUND_LENGTHS: number[] = [4, 5, 6, 6, 7];
@@ -53,6 +54,19 @@ function getPool(length: number): string[] {
   return pool;
 }
 
+// Category pools are lowercased here (category data is stored uppercase for
+// display elsewhere) so they line up with commonWords/VALID_WORDS, which are
+// lowercase throughout this file.
+const categoryPoolByKey = new Map<string, string[]>();
+function getCategoryPool(categoryId: AnagramsCategoryId, length: number): string[] {
+  const key = `${categoryId}:${length}`;
+  const cached = categoryPoolByKey.get(key);
+  if (cached) return cached;
+  const pool = getCategoryWordsByLength(categoryId, length).map((w) => w.toLowerCase());
+  categoryPoolByKey.set(key, pool);
+  return pool;
+}
+
 /** Shuffles a word's letters, guaranteeing the result differs from the original order. */
 function scrambleWord(word: string, rand: () => number): string[] {
   const original = word.toUpperCase().split('');
@@ -72,8 +86,7 @@ function scrambleWord(word: string, rand: () => number): string[] {
   return shuffled;
 }
 
-function buildRound(length: number, rand: () => number, usedWords: Set<string>): AnagramRound {
-  const pool = getPool(length);
+function buildRound(length: number, rand: () => number, usedWords: Set<string>, pool: string[]): AnagramRound {
   let word = pickRandom(pool, rand);
   let tries = 0;
   while (usedWords.has(word) && tries < 50) {
@@ -86,7 +99,7 @@ function buildRound(length: number, rand: () => number, usedWords: Set<string>):
 
 function buildPuzzle(rand: () => number): AnagramPuzzle {
   const used = new Set<string>();
-  const rounds = ROUND_LENGTHS.map((length) => buildRound(length, rand, used));
+  const rounds = ROUND_LENGTHS.map((length) => buildRound(length, rand, used, getPool(length)));
   return { rounds };
 }
 
@@ -100,15 +113,44 @@ export function generateDailyAnagrams(date: Date = new Date()): AnagramPuzzle {
 }
 
 /**
- * A guess is correct if it's a real dictionary word AND uses exactly the
- * scrambled letters for this round (any valid anagram of the letter set is
- * accepted, not just the one intended word — more forgiving, occasionally
- * rewards a sharp-eyed player who spots an alternate answer).
+ * Categories Quick Play — same progressive 5-round structure as Classic,
+ * but every round's word is pulled only from the chosen category's list
+ * (src/anagrams/data/categories.ts) instead of the general commonWords
+ * pool. Always randomized (no daily/seeded variant — categories are a
+ * Quick Play-only mode per the Anagrams entry screen's Classic/Categories
+ * split).
  */
-export function isValidAnagramGuess(guess: string, scrambledLetters: string[]): boolean {
+export function generateCategoryAnagrams(categoryId: AnagramsCategoryId): AnagramPuzzle {
+  const used = new Set<string>();
+  const rounds = ROUND_LENGTHS.map((length) =>
+    buildRound(length, Math.random, used, getCategoryPool(categoryId, length))
+  );
+  return { rounds };
+}
+
+/**
+ * A guess is correct if it uses exactly the scrambled letters for this round
+ * AND is either a real dictionary word (any valid anagram of the letter set
+ * is accepted, not just the one intended word — more forgiving, occasionally
+ * rewards a sharp-eyed player who spots an alternate answer) OR, when
+ * playing a Categories round, one of that category's own words — several
+ * category entries (country names, star/planet names, etc.) are proper
+ * nouns that won't appear in the general English dictionary, so the
+ * category's own word list is consulted as a second source of truth.
+ * Passing categoryId is optional and has no effect on Classic/Daily mode.
+ */
+export function isValidAnagramGuess(
+  guess: string,
+  scrambledLetters: string[],
+  categoryId?: AnagramsCategoryId
+): boolean {
   const g = guess.trim().toLowerCase();
   if (g.length !== scrambledLetters.length) return false;
-  if (!VALID_WORDS.has(g)) return false;
+
+  const inDictionary = VALID_WORDS.has(g);
+  const inCategory = categoryId != null && getCategoryPool(categoryId, g.length).includes(g);
+  if (!inDictionary && !inCategory) return false;
+
   const sortLetters = (s: string) => s.split('').sort().join('');
   return sortLetters(g) === sortLetters(scrambledLetters.join('').toLowerCase());
 }

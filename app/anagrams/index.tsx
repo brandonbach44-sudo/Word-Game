@@ -302,9 +302,23 @@ export default function AnagramsEntryScreen() {
             >
               <View style={[styles.modeAccent, { backgroundColor: '#D4A017' }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modeTitle, { color: background.textColor }]}>5-Word Run</Text>
+                <Text style={[styles.modeTitle, { color: background.textColor }]}>Classic</Text>
                 <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
                   Unscramble 5 words, easiest to hardest — unlimited replays
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modeCard, { backgroundColor: background.cardColor, borderColor: background.borderColor, borderWidth: 2 }]}
+              onPress={() => router.push('/anagrams/categories')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.modeAccent, { backgroundColor: COLORS.accent }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modeTitle, { color: background.textColor }]}>Categories</Text>
+                <Text style={[styles.modeDesc, { color: background.secondaryText }]}>
+                  Same 5-word run, themed words — Animals, Food, Countries & more
                 </Text>
               </View>
             </TouchableOpacity>

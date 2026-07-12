@@ -31,6 +31,7 @@ import type { TierName } from '../../shared/tileTiers';
 
 import type { AnagramPuzzle } from '../utils/generator';
 import { getHintLetter, isValidAnagramGuess } from '../utils/generator';
+import type { AnagramsCategoryId } from '../data/categories';
 import { calculateRoundScore, calculateTotalScore, RoundResult } from '../utils/scoring';
 import {
   addDailyScoreToEquippedTier,
@@ -61,6 +62,11 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 type Props = {
   puzzle: AnagramPuzzle;
   mode: 'daily' | 'practice';
+  // Set when this puzzle came from generateCategoryAnagrams — lets the
+  // guess-checker also accept that category's own words (proper nouns like
+  // country/star names that aren't in the general dictionary). Undefined
+  // for Classic/Daily, which only ever validates against VALID_WORDS.
+  categoryId?: AnagramsCategoryId;
   lockedResult?: DailyLockState | null;
   initialProgress?: DailyProgressState | null;
   onGoHome: () => void;
@@ -77,6 +83,7 @@ function buildTray(letters: string[]): Tile[] {
 const AnagramsPlayScreen: React.FC<Props> = ({
   puzzle,
   mode,
+  categoryId,
   lockedResult,
   initialProgress,
   onGoHome,
@@ -201,7 +208,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     if (slots.some((s) => s === null)) return;
     const guess = slots.map((id) => tiles.find((t) => t.id === id)!.letter).join('');
     const letters = currentRound.scrambled;
-    if (isValidAnagramGuess(guess, letters)) {
+    if (isValidAnagramGuess(guess, letters, categoryId)) {
       const timeSeconds = Math.round((Date.now() - roundStartTimeRef.current) / 1000);
       // Brief pause with a green "solved" flash so the correct answer
       // actually registers before jumping to the next word.
