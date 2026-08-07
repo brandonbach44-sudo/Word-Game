@@ -197,25 +197,29 @@ export default function HexGrid({
           );
         })}
 
-        {/* Shuffle sits by itself in the bottom-right corner of the
-            honeycomb, away from Delete/Enter, so it isn't sandwiched
-            between the two primary action buttons below. */}
+      </View>
+
+      {/* Shuffle matches the standard used across every game with this
+          mechanism (Anagrams): an icon + "Shuffle" label sitting in the
+          bottom control row with the other action buttons, not a lone
+          floating icon in a corner. */}
+      <View style={styles.controlsRow}>
         <TouchableOpacity
-          style={[styles.shuffleButton, { borderColor }]}
+          style={[styles.controlButton, { borderColor }]}
           onPress={onShuffle}
           activeOpacity={0.7}
         >
-          <RotateCw size={22} color={textColor} />
+          <RotateCw size={18} color={textColor} />
+          <Text style={[styles.controlButtonText, { color: textColor }]} numberOfLines={1}>
+            Shuffle
+          </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.controlsRow}>
         <TouchableOpacity
           style={[styles.controlButton, { borderColor }]}
           onPress={onDelete}
           activeOpacity={0.7}
         >
-          <Delete size={24} color={textColor} />
+          <Delete size={20} color={textColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.enterButton, { backgroundColor: accentColor }]}
@@ -247,33 +251,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 28,
+    gap: 12,
     marginTop: 18,
+    paddingHorizontal: 8,
   },
   controlButton: {
-    borderWidth: 1.5,
-    borderRadius: 999,
-    width: 132,
-    height: 62,
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    height: 56,
   },
-  shuffleButton: {
-    position: 'absolute',
-    right: 4,
-    bottom: 2,
-    borderWidth: 1.5,
-    borderRadius: 999,
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.02)',
+  controlButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   enterButton: {
+    flex: 1.3,
     borderRadius: 999,
-    width: 132,
-    height: 62,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },

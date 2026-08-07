@@ -19,7 +19,7 @@ import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Flame, Share2, Trophy, X } from 'lucide-react-native';
+import { Flame, RotateCw, Share2, Trophy, X } from 'lucide-react-native';
 
 // Components
 import { GameTile } from '../../src/wordbuilder/components/GameTile';
@@ -1151,12 +1151,16 @@ export default function WordBuilder() {
           </TouchableOpacity>
         </View>
 
+        {/* Matches the "Shuffle" button standard used across every game with
+            this mechanism (Anagrams): an icon + "Shuffle" label, not a wide
+            text-only "Refresh Letters" button. */}
         {!isDaily && (
           <TouchableOpacity
             style={[styles.refreshButton, dynamicStyles.button]}
             onPress={handleRefresh}
           >
-            <Text style={[styles.refreshButtonText, dynamicStyles.textSecondary]}>↺ Refresh Letters</Text>
+            <RotateCw size={16} color={dynamicStyles.textSecondary.color} />
+            <Text style={[styles.refreshButtonText, dynamicStyles.textSecondary]}>Shuffle</Text>
           </TouchableOpacity>
         )}
 
@@ -2173,17 +2177,21 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   refreshButton: {
-    paddingHorizontal: 36,
-    paddingVertical: 14,
-    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 999,
     marginBottom: 12,
     borderWidth: 1.5,
-    alignItems: 'center',
-    minWidth: 180,
+    minWidth: 130,
   },
   refreshButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
   // Found words — fixed height so nothing shifts when words are added
   foundWordsSection: {
