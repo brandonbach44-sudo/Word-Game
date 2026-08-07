@@ -492,7 +492,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   scrollContent: {
+    flexGrow: 1,
     alignItems: "center",
+    justifyContent: "center",
     padding: 18,
   },
   card: {

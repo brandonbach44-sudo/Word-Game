@@ -1,6 +1,6 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
@@ -76,6 +76,7 @@ export const GameStatus: React.FC<GameStatusProps> = ({
   onDismissAchievement,
 }) => {
   const { background } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (!isVisible) return null;
 
@@ -101,13 +102,24 @@ export const GameStatus: React.FC<GameStatusProps> = ({
     ? `You guessed it with ${incorrectGuesses}/${maxAttempts} wrong guesses.`
     : `The word was revealed below.`;
 
+  // Same Modal setup as every other game's result overlay (transparent=false,
+  // statusBarTranslucent, presentationStyle="overFullScreen") with manual
+  // safe-area padding via useSafeAreaInsets() instead of SafeAreaView —
+  // SafeAreaView was found to report a 0 top inset inside this Modal on iOS,
+  // which is why the header used to render jammed under the notch with the
+  // brand title clipped and the close button sitting too high.
   return (
-    <Modal visible={isVisible} animationType="slide">
-      <SafeAreaView style={[styles.container, { backgroundColor: BG }]} edges={['top', 'bottom']}>
-        <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-
+    <Modal
+      visible={isVisible}
+      transparent={false}
+      animationType="slide"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.container, { backgroundColor: BG }]}>
         {/* Page header — no persistent board to look back at, so X just acts like Close */}
-        <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+        <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
           <View style={styles.headerSpacer} />
           <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
           <Pressable
@@ -119,7 +131,11 @@ export const GameStatus: React.FC<GameStatusProps> = ({
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.card}>
 
           {/* Title + subtitle */}
@@ -129,7 +145,14 @@ export const GameStatus: React.FC<GameStatusProps> = ({
           {/* Solution box */}
           <View style={[styles.solutionBox, { borderColor: BORDER }]}>
             <Text style={[styles.solutionLabel, { color: SUBTEXT }]}>The word was</Text>
-            <Text style={[styles.solutionWord, { color: TEXT }]}>{word.toUpperCase()}</Text>
+            <Text
+              style={[styles.solutionWord, { color: TEXT }]}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+              minimumFontScale={0.4}
+            >
+              {word.toUpperCase()}
+            </Text>
             <Text style={[styles.solutionCategory, { color: SUBTEXT }]}>{category}</Text>
           </View>
 
@@ -162,13 +185,13 @@ export const GameStatus: React.FC<GameStatusProps> = ({
 
         </View>
         </ScrollView>
-      </SafeAreaView>
-      <AchievementPopup
-        achievement={achievement}
-        onDismiss={onDismissAchievement ?? (() => {})}
-        backgroundColor={CARD}
-        textColor={TEXT}
-      />
+        <AchievementPopup
+          achievement={achievement}
+          onDismiss={onDismissAchievement ?? (() => {})}
+          backgroundColor={CARD}
+          textColor={TEXT}
+        />
+      </View>
     </Modal>
   );
 };
@@ -188,7 +211,9 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },
   scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 18,
   },
   card: {

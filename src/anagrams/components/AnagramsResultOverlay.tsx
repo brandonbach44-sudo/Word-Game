@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },
-  scrollContent: { alignItems: 'center', padding: 18 },
+  scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 18 },
   card: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 4 },
   brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
   title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },

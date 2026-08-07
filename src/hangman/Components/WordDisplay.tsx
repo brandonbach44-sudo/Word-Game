@@ -9,9 +9,16 @@ const DEFAULT_SLOT_WIDTH = 38;
 const DEFAULT_SLOT_MARGIN = 4; // marginHorizontal each side
 const DEFAULT_SLOT_TOTAL = DEFAULT_SLOT_WIDTH + DEFAULT_SLOT_MARGIN * 2; // 46
 const DEFAULT_FONT_SIZE = 26;
-const MIN_SLOT_WIDTH = 18;
+const MIN_SLOT_WIDTH = 12;
 const MIN_SLOT_MARGIN = 1;
-const MIN_FONT_SIZE = 12;
+const MIN_FONT_SIZE = 9;
+// Long phrases (Countries — "Saint Vincent and the Grenadines", Idioms —
+// "When in Rome do as the Romans do") used to wrap into 5+ lines at a fixed
+// slot size, which pushed the keyboard/guess controls off screen. Instead,
+// the wrap itself is now solved for: slot size shrinks until the phrase
+// fits within this many lines, not just until the longest single line fits
+// horizontally.
+const MAX_LINES = 3;
 
 type WordDisplayProps = {
   displayWord: string[];
@@ -76,23 +83,34 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   const { background } = useTheme();
 
   const availableWidth = SCREEN_WIDTH - 32; // paddingHorizontal 16 each side
-  const maxPerLine = Math.max(5, Math.floor(availableWidth / DEFAULT_SLOT_TOTAL));
 
   // Always use actualWord characters so text content never changes — only color changes
   const source = actualWord || displayWord.map(c => (c === '_' ? 'W' : c)).join('');
   const sourceChars = source.split('');
 
-  const lines = buildLines(sourceChars, maxPerLine);
+  // Shrink the slot size (which raises how many letters fit per line) until
+  // the whole phrase wraps within MAX_LINES, instead of wrapping at a fixed
+  // size and letting the line count grow unbounded for long phrases.
+  const MIN_SLOT_TOTAL = MIN_SLOT_WIDTH + MIN_SLOT_MARGIN * 2;
+  let slotTotal = DEFAULT_SLOT_TOTAL;
+  let maxPerLine = Math.max(5, Math.floor(availableWidth / slotTotal));
+  let lines = buildLines(sourceChars, maxPerLine);
+  while (lines.length > MAX_LINES && slotTotal > MIN_SLOT_TOTAL) {
+    slotTotal = Math.max(MIN_SLOT_TOTAL, slotTotal - 2);
+    maxPerLine = Math.max(5, Math.floor(availableWidth / slotTotal));
+    lines = buildLines(sourceChars, maxPerLine);
+  }
 
-  // Scale slot size down if the longest line is too wide to fit at default size
+  // Within that line count, shrink further if the longest line is still too
+  // wide to fit horizontally at the chosen slot size.
   const longestLineLength = lines.reduce(
     (max, line) => Math.max(max, line.filter(i => i !== -1).length),
     0
   );
-  const fitsDefault = longestLineLength * DEFAULT_SLOT_TOTAL <= availableWidth;
-  const slotTotal = fitsDefault
-    ? DEFAULT_SLOT_TOTAL
-    : Math.max(MIN_SLOT_WIDTH + MIN_SLOT_MARGIN * 2, availableWidth / longestLineLength);
+  const fitsAtChosenSize = longestLineLength * slotTotal <= availableWidth;
+  if (!fitsAtChosenSize) {
+    slotTotal = Math.max(MIN_SLOT_TOTAL, availableWidth / Math.max(1, longestLineLength));
+  }
   const ratio = slotTotal / DEFAULT_SLOT_TOTAL;
   const slotWidth = Math.max(MIN_SLOT_WIDTH, Math.floor(DEFAULT_SLOT_WIDTH * ratio));
   const slotMargin = Math.max(MIN_SLOT_MARGIN, Math.floor(DEFAULT_SLOT_MARGIN * ratio));

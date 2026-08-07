@@ -168,30 +168,21 @@ interface Props {
   disabled?: boolean;
 }
 
-// How long the finger must be still before the path auto-submits (ms).
-const PAUSE_SUBMIT_MS = 300;
-
 export default function GridWithGesture({ grid, onPathComplete, disabled = false }: Props) {
   const [selectedCells, setSelectedCells] = useState<Position[]>([]);
   const [livePoint, setLivePoint] = useState<{ x: number; y: number } | null>(null);
   const pathRef = useRef<Position[]>([]);
-  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Smoothed touch point used for cell-detection math (see SMOOTHING_ALPHA above).
   const smoothedRef = useRef<{ x: number; y: number } | null>(null);
   // Running estimate of swipe direction, used to bias corner ties (see DIRECTION_BIAS).
   const velocityRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Clear any pending pause-submit timer.
-  const clearPauseTimer = () => {
-    if (pauseTimerRef.current !== null) {
-      clearTimeout(pauseTimerRef.current);
-      pauseTimerRef.current = null;
-    }
-  };
-
-  // Submit the current path and reset state, used by both onEnd and the pause timer.
+  // Submit the current path and reset state. Only ever called from onEnd/
+  // onFinalize now — a word commits when the finger actually lifts (or the
+  // gesture is cancelled), never just from holding still mid-drag. A pause
+  // timer used to auto-submit after 300ms stationary, which cut a run short
+  // any time a player paused to think about where to go next.
   const submitPath = () => {
-    clearPauseTimer();
     const path = pathRef.current;
     pathRef.current = [];
     setSelectedCells([]);
@@ -199,18 +190,11 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
     if (path.length >= 3) onPathComplete(path);
   };
 
-  // Restart the pause-submit countdown. Called on every finger movement.
-  const resetPauseTimer = () => {
-    clearPauseTimer();
-    pauseTimerRef.current = setTimeout(submitPath, PAUSE_SUBMIT_MS);
-  };
-
   const panGesture = Gesture.Pan()
     .enabled(!disabled)
     .runOnJS(true)
     .minDistance(0)
     .onBegin((e) => {
-      clearPauseTimer();
       const cell = getClosestCell(e.x, e.y);
       pathRef.current = [cell];
       setSelectedCells([cell]);
@@ -223,7 +207,6 @@ export default function GridWithGesture({ grid, onPathComplete, disabled = false
     })
     .onUpdate((e) => {
       setLivePoint({ x: e.x, y: e.y });
-      resetPauseTimer(); // restart the pause countdown on every movement
 
       // Update the smoothed point (EMA) used for all cell-detection math below.
       // This is what removes corner jitter without penalizing genuine diagonal moves.

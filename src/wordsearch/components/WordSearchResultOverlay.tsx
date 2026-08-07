@@ -11,9 +11,9 @@
 // remembering to keep it in sync by hand.
 
 import React from 'react';
-import { Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Share2, X } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
@@ -119,6 +119,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
   onDismissAchievement,
 }) => {
   const { background } = useTheme();
+  const insets = useSafeAreaInsets();
   const isDaily = mode === 'daily';
 
   const BG = background.backgroundColor ?? '#f9f5ec';
@@ -165,10 +166,8 @@ const WordSearchResultOverlay: React.FC<Props> = ({
       presentationStyle="overFullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={[styles.overlay, { backgroundColor: BG }]} edges={['top', 'bottom']}>
-        <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-
-        <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+      <View style={[styles.overlay, { backgroundColor: BG }]}>
+        <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
           <View style={styles.headerSpacer} />
           <Text style={[styles.brand, { color: SUBTEXT }]}>WORD SEARCH</Text>
           <Pressable
@@ -182,7 +181,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.card}>
@@ -294,7 +293,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
           backgroundColor={CARD}
           textColor={TEXT}
         />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -313,7 +312,7 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },
-  scrollContent: { alignItems: 'center', padding: 18 },
+  scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 18 },
   card: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 4 },
   brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
   title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },

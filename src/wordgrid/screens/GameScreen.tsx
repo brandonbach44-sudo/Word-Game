@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import { Share2, X } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
 
@@ -103,6 +103,12 @@ const StatsCard = ({
 export default function GameScreen() {
   const { background } = useTheme();
   const bg = background;
+  // Manual insets (not SafeAreaView) for the results screen specifically —
+  // SafeAreaView was found to report a 0 top inset inside the results
+  // <Modal>, which jammed the header under the notch and clipped the brand
+  // title. The plain "game" screen below isn't in a Modal, so its
+  // SafeAreaView is unaffected and left as-is.
+  const insets = useSafeAreaInsets();
 
   // ── Screen / tab state ────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('menu');
@@ -550,7 +556,7 @@ export default function GameScreen() {
         presentationStyle="overFullScreen"
         onRequestClose={handleBackToMenu}
       >
-      <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
+      <View style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
         <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
 
         <AchievementPopup
@@ -573,7 +579,7 @@ export default function GameScreen() {
 
         {/* Page header — Word Grid has no persistent board to look back at,
             so X just acts like Main Menu. */}
-        <View style={[styles.resultsPageHeader, { borderColor: bg.borderColor }]}>
+        <View style={[styles.resultsPageHeader, { borderColor: bg.borderColor, paddingTop: insets.top + 10 }]}>
           <View style={styles.resultsHeaderSpacer} />
           <Text style={[styles.brand, { color: bg.secondaryText }]}>WORD GRID</Text>
           <Pressable
@@ -747,7 +753,8 @@ export default function GameScreen() {
             <Text style={[styles.swipeHintText, { color: bg.secondaryText }]}>Swipe to see words →</Text>
           )}
         </View>
-      </SafeAreaView>
+        <View style={{ height: insets.bottom }} />
+      </View>
       </Modal>
     );
   }
