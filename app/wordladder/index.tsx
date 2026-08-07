@@ -41,6 +41,7 @@ import {
   LADDER_ACHIEVEMENTS,
   type Achievement,
 } from '../../src/wordladder/utils/ladderAchievements';
+import { getGolfTerm } from '../../src/wordladder/utils/golfTerms';
 
 const { width } = Dimensions.get('window');
 type Tab = 'play' | 'stats';
@@ -227,11 +228,18 @@ export default function WordLadderEntryScreen() {
                     <Text style={[styles.dailyLadderArrow, { color: background.secondaryText }]}>→</Text>
                     <Text style={[styles.dailyLadderWord, { color: background.textColor }]}>{dailyLock.end.toUpperCase()}</Text>
                   </View>
-                  <Text style={styles.dailyCompletedScore}>
-                    {dailyLock.result === 'won' ? dailyLock.steps : '—'}
+                  <Text
+                    style={styles.dailyCompletedScore}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
+                    {dailyLock.result === 'won' ? getGolfTerm(dailyLock.steps, dailyLock.par) : '—'}
                   </Text>
                   <Text style={[styles.dailyCompletedLabel, { color: background.secondaryText }]}>
-                    {dailyLock.result === 'won' ? `Steps (par ${dailyLock.par})` : 'Gave up today'}
+                    {dailyLock.result === 'won'
+                      ? `${dailyLock.steps} step${dailyLock.steps === 1 ? '' : 's'} · Par ${dailyLock.par}`
+                      : 'Gave up today'}
                   </Text>
                 </View>
               )}
@@ -496,7 +504,7 @@ const styles = StyleSheet.create({
   },
   dailyLadderWord: { fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   dailyLadderArrow: { fontSize: 16, fontWeight: '700' },
-  dailyCompletedScore: { fontSize: 48, fontWeight: 'bold', color: COLORS.accent },
+  dailyCompletedScore: { fontSize: 32, fontWeight: 'bold', color: COLORS.accent, textAlign: 'center' },
   dailyCompletedLabel: { fontSize: 14, marginTop: 4, marginBottom: 8 },
   dailyStatPillRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 },
   dailyStatPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: '#f3e7d7', minWidth: 100, alignItems: 'center' },

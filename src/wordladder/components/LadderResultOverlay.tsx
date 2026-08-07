@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
+import { getGolfTerm } from '../utils/golfTerms';
 
 type Props = {
   visible: boolean;
@@ -141,7 +142,13 @@ const LadderResultOverlay: React.FC<Props> = ({
   const isDaily = mode === 'daily';
   const isWin = status === 'won';
 
-  const title = isWin ? (steps === par ? 'Perfect Climb!' : 'Nice!') : 'Ladder Revealed';
+  // Golf scoring relative to par (the shortest possible path) — since par
+  // is by definition the minimum, a finished ladder can only land exactly
+  // on par or over it, never under, so this only ever surfaces "Par",
+  // "Bogey", "Double Bogey", etc. in practice.
+  const golfTerm = getGolfTerm(steps, par);
+
+  const title = isWin ? `${golfTerm}!` : 'Ladder Revealed';
   const subtitle = isWin
     ? `You reached ${endWord.toUpperCase()} in ${steps} step${steps === 1 ? '' : 's'} (par ${par}).`
     : `You gave up — the shortest path took ${par} step${par === 1 ? '' : 's'}.`;
@@ -194,6 +201,9 @@ const LadderResultOverlay: React.FC<Props> = ({
         <View style={[styles.divider, { backgroundColor: BORDER, opacity: 0.35 }]} />
         <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
         <View style={styles.statsRow}>
+          {isWin && (
+            <StatPill label="Result" value={golfTerm} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+          )}
           <StatPill label="Steps" value={`${steps}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           <StatPill label="Par" value={`${par}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
           {timeSeconds != null && (
