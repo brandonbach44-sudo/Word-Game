@@ -80,7 +80,12 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   isLost = false,
   actualWord = '',
 }) => {
-  const { background } = useTheme();
+  const { background, colorBlindMode } = useTheme();
+  // Same orange/blue colorblind-safe pairing used everywhere else in the
+  // app instead of COLORS.accent (green) / COLORS.danger (red), which don't
+  // change for colorblind mode.
+  const wonColor = colorBlindMode ? '#f97316' : COLORS.accent;
+  const lostColor = colorBlindMode ? '#3b82f6' : COLORS.danger;
 
   const availableWidth = SCREEN_WIDTH - 32; // paddingHorizontal 16 each side
 
@@ -117,14 +122,14 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   const fontSize = Math.max(MIN_FONT_SIZE, Math.floor(DEFAULT_FONT_SIZE * ratio));
 
   const letterColor = (idx: number): string => {
-    if (isWon) return COLORS.accent;
-    if (isLost && displayWord[idx] === '_') return COLORS.danger;
+    if (isWon) return wonColor;
+    if (isLost && displayWord[idx] === '_') return lostColor;
     return background.textColor;
   };
 
   const dashColor = (idx: number): string => {
-    if (isWon) return COLORS.accent;
-    if (isLost && displayWord[idx] === '_') return COLORS.danger;
+    if (isWon) return wonColor;
+    if (isLost && displayWord[idx] === '_') return lostColor;
     return background.borderColor;
   };
 

@@ -108,10 +108,28 @@ const GAMES = [
   },
 ];
 
+// Colorblind-safe replacement for the 8 tile colors above, keyed by route so
+// it stays aligned with GAMES even if the array is reordered. Built from the
+// Okabe-Ito / Wong palette — the standard qualitative palette designed
+// specifically for this exact problem (up to 8 categories that all need to
+// stay visually distinct for every common form of color vision deficiency),
+// rather than reusing the original hand-picked brand hues which weren't
+// chosen with that constraint in mind.
+const COLORBLIND_GAME_COLORS: Record<string, { accentColor: string; bgColor: string; borderColor: string; textColor: string; descColor: string }> = {
+  '/wordbuilder': { accentColor: '#D55E00', bgColor: '#FBEAE0', borderColor: '#E8A87C', textColor: '#4A2000', descColor: '#7A3600' }, // vermillion
+  '/wordle':      { accentColor: '#009E73', bgColor: '#DFF5EE', borderColor: '#66C9AA', textColor: '#00382A', descColor: '#00614A' }, // bluish green
+  '/hangman':     { accentColor: '#CC79A7', bgColor: '#FAE9F1', borderColor: '#E3AECB', textColor: '#4A1F35', descColor: '#7A3A5C' }, // reddish purple
+  '/wordgrid':    { accentColor: '#0072B2', bgColor: '#DFF0FA', borderColor: '#6FB3DD', textColor: '#002E4A', descColor: '#004E7A' }, // blue
+  '/wordsearch':  { accentColor: '#E69F00', bgColor: '#FCF1DC', borderColor: '#F0CA70', textColor: '#4A3200', descColor: '#7A5300' }, // orange
+  '/wordladder':  { accentColor: '#56B4E9', bgColor: '#E7F5FC', borderColor: '#A7D9F2', textColor: '#0B3A52', descColor: '#135E82' }, // sky blue
+  '/hexhive':     { accentColor: '#E1C200', bgColor: '#FBF7DC', borderColor: '#E8D670', textColor: '#4A4000', descColor: '#7A6900' }, // yellow
+  '/anagrams':    { accentColor: '#3A3A3A', bgColor: '#EDEDED', borderColor: '#A8A8A8', textColor: '#1A1A1A', descColor: '#333333' }, // near-black (grayscale is always safe)
+};
+
 const COMING_SOON: string[] = ['Crossword'];
 
 export default function Home() {
-  const { background } = useTheme();
+  const { background, colorBlindMode } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
 
   return (
@@ -145,14 +163,15 @@ export default function Home() {
           <View style={styles.grid}>
             {GAMES.map((game, index) => {
               const isLastOdd = GAMES.length % 2 !== 0 && index === GAMES.length - 1;
+              const colors = colorBlindMode ? COLORBLIND_GAME_COLORS[game.route] ?? game : game;
               return (
                 <TouchableOpacity
                   key={game.name}
                   style={[
                     styles.tile,
                     {
-                      backgroundColor: game.bgColor,
-                      borderColor: game.borderColor,
+                      backgroundColor: colors.bgColor,
+                      borderColor: colors.borderColor,
                       width: isLastOdd ? '100%' : '48.5%',
                     },
                   ]}
@@ -160,22 +179,22 @@ export default function Home() {
                   onPress={() => router.push(game.route as any)}
                 >
                   {/* Color accent bar */}
-                  <View style={[styles.accentBar, { backgroundColor: game.accentColor }]} />
+                  <View style={[styles.accentBar, { backgroundColor: colors.accentColor }]} />
 
                   <View style={styles.tileBody}>
                     {/* Icon */}
-                    <View style={[styles.iconWrap, { backgroundColor: game.accentColor + '22' }]}>
+                    <View style={[styles.iconWrap, { backgroundColor: colors.accentColor + '22' }]}>
                       {'iconSet' in game && game.iconSet === 'material' ? (
-                        <MaterialCommunityIcons name={game.icon as any} size={18} color={game.accentColor} />
+                        <MaterialCommunityIcons name={game.icon as any} size={18} color={colors.accentColor} />
                       ) : (
-                        <Ionicons name={game.icon as any} size={18} color={game.accentColor} />
+                        <Ionicons name={game.icon as any} size={18} color={colors.accentColor} />
                       )}
                     </View>
 
-                    <Text style={[styles.gameName, { color: game.textColor }]}>
+                    <Text style={[styles.gameName, { color: colors.textColor }]}>
                       {game.name}
                     </Text>
-                    <Text style={[styles.gameDesc, { color: game.descColor }]}>
+                    <Text style={[styles.gameDesc, { color: colors.descColor }]}>
                       {game.description}
                     </Text>
                   </View>

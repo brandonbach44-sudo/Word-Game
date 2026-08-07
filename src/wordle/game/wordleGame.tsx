@@ -519,6 +519,19 @@ export default function WordleGame() {
 
   const [screen, setScreen] = useState<Screen>("menu");
   const [menuTab, setMenuTab] = useState<MenuTab>("play");
+  // Mirrors `screen` for the async hydration effect below, which fires once
+  // on mount but can resolve well after the user has already tapped into a
+  // game (its `[]` deps mean it can't just read `screen` directly — that
+  // closure is frozen at the initial "menu" value forever). Without this,
+  // a slow AsyncStorage read landing after the player already started Quick
+  // Play would silently overwrite their in-progress board with whatever the
+  // Daily's completed state was — including popping the Daily's results
+  // overlay open mid-Quick-Play if that overwrite raced with the game
+  // finishing.
+  const screenRef = useRef<Screen>("menu");
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
 
   const [gameMode, setGameMode] = useState<GameMode>("daily");
   const [solution, setSolution] = useState<string>(() => getDailySolution());
@@ -705,7 +718,14 @@ export default function WordleGame() {
           // "playing" and the "Leave Daily Challenge?" prompt (which only
           // guards an in-progress attempt) fires on every remount even
           // though there's nothing left to leave.
-          if (lockedToday) {
+          //
+          // Guarded on screenRef still being "menu": this hydration read is
+          // async and can resolve after the player has already tapped into
+          // a game (Quick Play or otherwise). Without this check, a slow
+          // resolution would silently overwrite their in-progress board
+          // with the Daily's old completed state from earlier — including
+          // yanking them into a stale results screen mid-Quick-Play.
+          if (lockedToday && screenRef.current === "menu") {
             setGameMode("daily");
             setStatus(loadedLock.result);
             setSolution(getDailySolution());
@@ -721,10 +741,11 @@ export default function WordleGame() {
         }
 
         // Resume an in-progress Daily attempt (app closed/backgrounded mid-game)
-        // unless today's Daily is already completed.
-        if (!lockedToday) {
+        // unless today's Daily is already completed. Same screenRef guard as
+        // above — don't clobber a game the player has already started.
+        if (!lockedToday && screenRef.current === "menu") {
           const savedProgress = await loadDailyProgress();
-          if (isMounted && savedProgress && savedProgress.dateISO === getTodayISODate()) {
+          if (isMounted && screenRef.current === "menu" && savedProgress && savedProgress.dateISO === getTodayISODate()) {
             setGameMode("daily");
             setSolution(getDailySolution());
             setGuesses(savedProgress.guesses);

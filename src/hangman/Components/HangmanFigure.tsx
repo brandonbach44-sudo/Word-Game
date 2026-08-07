@@ -103,12 +103,14 @@ export const HangmanFigure: React.FC<HangmanFigureProps> = ({
   figureSkin = 'classic',
   gallowsSkin = 'default',
 }) => {
-  const { background } = useTheme();
+  const { background, colorBlindMode } = useTheme();
 
+  // Same orange/blue colorblind-safe pairing used everywhere else in the
+  // app instead of COLORS.accent (green) / COLORS.danger (red).
   const figureColor = isWon
-    ? COLORS.accent
+    ? (colorBlindMode ? '#f97316' : COLORS.accent)
     : isLost
-    ? COLORS.danger
+    ? (colorBlindMode ? '#3b82f6' : COLORS.danger)
     : background.textColor;
 
   const skin = GALLOWS_SKINS.find(s => s.id === gallowsSkin) ?? GALLOWS_SKINS[0];

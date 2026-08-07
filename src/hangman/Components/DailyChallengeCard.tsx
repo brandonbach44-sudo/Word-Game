@@ -50,8 +50,12 @@ export const DailyChallengeCard: React.FC<Props> = ({
   maxAttempts,
   onPlay,
 }) => {
-  const { background } = useTheme();
+  const { background, colorBlindMode } = useTheme();
   const countdown = useCountdownToMidnight();
+  // Same orange/blue colorblind-safe pairing used everywhere else in the
+  // app instead of COLORS.accent (green) / COLORS.danger (red).
+  const wonColor = colorBlindMode ? '#f97316' : COLORS.accent;
+  const lostColor = colorBlindMode ? '#3b82f6' : COLORS.danger;
 
   const buildBlocks = () => {
     const blocks: string[] = [];
@@ -90,7 +94,7 @@ export const DailyChallengeCard: React.FC<Props> = ({
       {/* Result info — only when played */}
       {played && result !== '' && (
         <>
-          <Text style={[styles.resultText, { color: result === 'won' ? COLORS.accent : COLORS.danger }]}>
+          <Text style={[styles.resultText, { color: result === 'won' ? wonColor : lostColor }]}>
             {result === 'won' ? 'You Won!' : 'Better Luck Tomorrow'}
           </Text>
           <View style={[styles.wordBox, { backgroundColor: background.backgroundColor, borderColor: background.borderColor }]}>

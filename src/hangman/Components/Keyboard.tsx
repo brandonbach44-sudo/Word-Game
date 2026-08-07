@@ -38,12 +38,17 @@ export const Keyboard: React.FC<KeyboardProps> = ({
   isLetterIncorrect,
   disabled = false,
 }) => {
-  const { background } = useTheme();
+  const { background, colorBlindMode } = useTheme();
 
   const themeBg = background. backgroundColor ??  '#f5f0e6';
   const themeText = background.textColor;
   const themeBorder = background.borderColor;
   const isDark = background.isDark;
+
+  // Matches the orange used for "correct" everywhere else in the app when
+  // colorblind mode is on, instead of green.
+  const correctBg = colorBlindMode ? '#f97316' : '#22c55e';
+  const correctBorder = colorBlindMode ? '#ea580c' : '#16a34a';
 
   // Matching Wordle's subtle colors
   const subtleBorder = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.14)';
@@ -57,11 +62,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         borderColor: themeBorder,
       };
     }
-    // Correct guess (green)
+    // Correct guess
     if (isLetterCorrect(letter)) {
       return {
-        backgroundColor: '#22c55e',
-        borderColor: '#16a34a',
+        backgroundColor: correctBg,
+        borderColor: correctBorder,
       };
     }
     // Incorrect guess (gray)
