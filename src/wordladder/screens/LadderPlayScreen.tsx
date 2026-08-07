@@ -519,26 +519,29 @@ const LadderPlayScreen: React.FC<Props> = ({
       {/* Error message */}
       {error && <Text style={styles.errorText}>{error}</Text>}
 
-      {/* Controls — Daily has no hints, only Quick Play does */}
+      {/* Controls — Daily has no hints, only Quick Play does. Hint itself */}
+      {/* floats separately in the bottom-right corner (matches Anagrams). */}
       {status === 'playing' && !alreadyLocked && (
         <View style={styles.controlsRow}>
-          {mode !== 'daily' && (
-            <Pressable
-              style={[styles.controlButton, { borderColor: background.borderColor }, hintsUsed >= MAX_HINTS && styles.controlButtonDisabled]}
-              onPress={handleHint}
-              disabled={hintsUsed >= MAX_HINTS}
-            >
-              <Lightbulb size={16} color={background.textColor} />
-              <Text style={[styles.controlButtonText, { color: background.textColor }]}>
-                Hint ({MAX_HINTS - hintsUsed})
-              </Text>
-            </Pressable>
-          )}
           <Pressable style={[styles.controlButton, { borderColor: background.borderColor }]} onPress={handleGiveUp}>
             <FlagOff size={16} color={background.textColor} />
             <Text style={[styles.controlButtonText, { color: background.textColor }]}>Give Up</Text>
           </Pressable>
         </View>
+      )}
+
+      {mode !== 'daily' && status === 'playing' && !alreadyLocked && (
+        <Pressable
+          style={[
+            styles.hintFab,
+            { backgroundColor: background.cardColor, borderColor: background.borderColor },
+            hintsUsed >= MAX_HINTS && styles.controlButtonDisabled,
+          ]}
+          onPress={handleHint}
+          disabled={hintsUsed >= MAX_HINTS}
+        >
+          <Lightbulb size={22} color={background.textColor} />
+        </Pressable>
       )}
 
       {/* Keyboard — same sizing/spacing model as Wordle: keys stretch to fill */}
@@ -699,6 +702,19 @@ const styles = StyleSheet.create({
   },
   controlButtonDisabled: { opacity: 0.4 },
   controlButtonText: { fontSize: 13, fontWeight: '700' },
+  // Hint floats on its own in the bottom-right corner, matching Anagrams'
+  // floating hint button exactly — same size/position/border.
+  hintFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   bottomControls: {
     paddingHorizontal: KEYBOARD_HORIZONTAL_PADDING,
