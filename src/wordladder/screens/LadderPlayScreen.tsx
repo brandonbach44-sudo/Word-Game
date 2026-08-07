@@ -22,6 +22,7 @@ import { ConfirmModal } from '../../shared/ConfirmModal';
 
 import type { LadderDifficulty, LadderPuzzle } from '../utils/generator';
 import { getHintPath } from '../utils/generator';
+import { getGolfTerm } from '../utils/golfTerms';
 import { isOneLetterOff, isValidWord } from '../utils/wordGraph';
 import {
   clearDailyProgress,
@@ -372,14 +373,36 @@ const LadderPlayScreen: React.FC<Props> = ({
   const displayEnd = alreadyLocked && lockedResult ? lockedResult.end : puzzle.end;
   const displaySteps = alreadyLocked && lockedResult ? lockedResult.steps : chain.length - 1;
 
-  const shareText =
-    mode === 'daily'
-      ? `Word Ladder Daily — ${formatDisplayDate()}\n${puzzle.start.toUpperCase()} → ${puzzle.end.toUpperCase()}\n${
-          isWin ? `Solved in ${displaySteps} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
-        }${finalStreaks.current && finalStreaks.current > 1 ? `\n🔥 ${finalStreaks.current} day streak` : ''}`
-      : `Word Ladder — ${puzzle.start.toUpperCase()} → ${puzzle.end.toUpperCase()}\n${
-          isWin ? `Solved in ${displaySteps} steps (par ${puzzle.par})` : `Gave up (par ${puzzle.par})`
-        }`;
+  // Unlike Furdle/Anagrams, the start and end words are shown to the player
+  // from the very first screen — they're the puzzle prompt, not a secret —
+  // and any valid path between them counts, so showing the actual climbed
+  // chain isn't a spoiler the way a solution word would be. Safe to reveal
+  // for both Daily and Practice.
+  const shareHints = alreadyLocked && lockedResult ? lockedResult.hintsUsed : hintsUsed;
+  const shareTimeSeconds = alreadyLocked && lockedResult ? lockedResult.timeSeconds : elapsed;
+
+  const shareText = useMemo(() => {
+    const header = mode === 'daily' ? `🪜 WORD LADDER DAILY — ${formatDisplayDate()}` : '🪜 WORD LADDER';
+    const climbLine = displayChain.map((w) => w.toUpperCase()).join(' → ');
+    const minutes = Math.floor(shareTimeSeconds / 60);
+    const seconds = shareTimeSeconds % 60;
+    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    const stepWord = displaySteps === 1 ? 'step' : 'steps';
+
+    const resultLine = isWin
+      ? `${displaySteps} ${stepWord} (par ${puzzle.par}) · ${getGolfTerm(displaySteps, puzzle.par)}`
+      : `Gave up at ${displaySteps} ${stepWord} (par ${puzzle.par})`;
+
+    const statsLine = `${timeStr}${shareHints > 0 ? ` · ${shareHints} hint${shareHints === 1 ? '' : 's'}` : ''}`;
+
+    const lines: string[] = [header, climbLine, '', resultLine, statsLine];
+    if (mode === 'daily' && finalStreaks.current && finalStreaks.current > 1) {
+      lines.push(`🔥 ${finalStreaks.current} day streak`);
+    }
+    lines.push('', 'wordfury.app');
+
+    return lines.join('\n');
+  }, [mode, displayChain, displaySteps, puzzle.par, isWin, shareTimeSeconds, shareHints, finalStreaks]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
