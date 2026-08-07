@@ -28,7 +28,7 @@ export const HEXHIVE_ACHIEVEMENTS: Achievement[] = [
   // ── Milestone ───────────────────────────────────────────────────────
   { id: 'hh_first_word', emoji: '✏️', name: 'First Word', description: 'Find your first word in Hex Hive', requirement: 1, category: 'milestone' },
   { id: 'hh_first_pangram', emoji: '⭐', name: 'First Pangram', description: 'Find a word using all 7 letters', requirement: 1, category: 'milestone' },
-  { id: 'hh_first_full_clear', emoji: '🏆', name: 'Full Clear', description: 'Find every word in a daily puzzle', requirement: 1, category: 'milestone' },
+  { id: 'hh_first_full_clear', emoji: '🏆', name: 'First Win', description: 'Solve a daily puzzle (reach Genius rank)', requirement: 1, category: 'milestone' },
 
   // ── Volume (lifetime, daily + Quick Play combined) ───────────────────
   { id: 'hh_words_50', emoji: '📝', name: 'Wordsmith', description: 'Find 50 total words', requirement: 50, category: 'volume' },
@@ -53,15 +53,15 @@ export const HEXHIVE_ACHIEVEMENTS: Achievement[] = [
   { id: 'hh_streak_7', emoji: '🔥', name: 'Week Streak', description: 'Reach a 7-day streak', requirement: 7, category: 'streak' },
   { id: 'hh_streak_30', emoji: '🏅', name: 'Monthly Regular', description: 'Reach a 30-day streak', requirement: 30, category: 'streak' },
   { id: 'hh_streak_100', emoji: '💯', name: 'Devoted', description: 'Reach a 100-day streak', requirement: 100, category: 'streak' },
-  { id: 'hh_fullclear_streak_3', emoji: '🧹', name: 'Clean Sweep', description: 'Fully clear the daily puzzle 3 days in a row', requirement: 3, category: 'streak' },
-  { id: 'hh_fullclear_streak_7', emoji: '🧼', name: 'Perfectionist', description: 'Fully clear the daily puzzle 7 days in a row', requirement: 7, category: 'streak' },
+  { id: 'hh_fullclear_streak_3', emoji: '🧹', name: 'Clean Sweep', description: 'Solve the daily puzzle 3 days in a row', requirement: 3, category: 'streak' },
+  { id: 'hh_fullclear_streak_7', emoji: '🧼', name: 'Perfectionist', description: 'Solve the daily puzzle 7 days in a row', requirement: 7, category: 'streak' },
 
   // ── Daily ───────────────────────────────────────────────────────────
   { id: 'hh_days_10', emoji: '📅', name: 'Regular Player', description: 'Play 10 daily puzzles', requirement: 10, category: 'daily' },
   { id: 'hh_days_50', emoji: '🗓️', name: 'Dedicated', description: 'Play 50 daily puzzles', requirement: 50, category: 'daily' },
   { id: 'hh_days_100', emoji: '📆', name: 'Centurion', description: 'Play 100 daily puzzles', requirement: 100, category: 'daily' },
-  { id: 'hh_fullclears_10', emoji: '🎖️', name: 'Completionist', description: 'Fully clear 10 daily puzzles', requirement: 10, category: 'daily' },
-  { id: 'hh_fullclears_25', emoji: '🏵️', name: 'Puzzle Perfectionist', description: 'Fully clear 25 daily puzzles', requirement: 25, category: 'daily' },
+  { id: 'hh_fullclears_10', emoji: '🎖️', name: 'Completionist', description: 'Solve 10 daily puzzles', requirement: 10, category: 'daily' },
+  { id: 'hh_fullclears_25', emoji: '🏵️', name: 'Puzzle Perfectionist', description: 'Solve 25 daily puzzles', requirement: 25, category: 'daily' },
 
   // ── Quick Play ────────────────────────────────────────────────────────
   { id: 'hh_qp_first_round', emoji: '⚡', name: 'Quick Starter', description: 'Play your first Quick Play round', requirement: 1, category: 'practice' },

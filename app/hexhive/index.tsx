@@ -27,7 +27,7 @@ import {
   getPuzzleSolution,
   getTodayDateString,
 } from '../../src/hexhive/utils/generator';
-import { getRankProgress, scoreWordForPuzzle } from '../../src/hexhive/utils/scoring';
+import { getRankProgress, scoreWordForPuzzle, getEffectiveMaxScore } from '../../src/hexhive/utils/scoring';
 import {
   loadHexHiveStats,
   loadDailyProgress,
@@ -250,7 +250,7 @@ export default function HexHiveEntryScreen() {
       setDailyWordCount(progress.foundWords.length);
       setDailyScore(score);
       setDailyPlayed(true);
-      setDailyFullyCleared(solution.words.length > 0 && progress.foundWords.length >= solution.words.length);
+      setDailyFullyCleared(getRankProgress(score, getEffectiveMaxScore(solution.maxScore)).isMaxRank);
     } else {
       setDailyWordCount(0);
       setDailyScore(0);
@@ -308,7 +308,7 @@ export default function HexHiveEntryScreen() {
   const handleShare = async () => {
     const puzzle = getDailyPuzzle(new Date());
     const solution = getPuzzleSolution(puzzle);
-    const rank = getRankProgress(dailyScore, solution.maxScore);
+    const rank = getRankProgress(dailyScore, getEffectiveMaxScore(solution.maxScore));
     const streakLine = (stats?.currentStreak ?? 0) > 1 ? `\n🔥 ${stats?.currentStreak} day streak` : '';
     const message = `Hex Hive\n${formatDisplayDate()}\nRank: ${rank.name} (${dailyScore} pts)\n${dailyWordCount} words found${streakLine}`;
     try {
@@ -380,7 +380,7 @@ export default function HexHiveEntryScreen() {
                 <View style={styles.dailyCompletedInfo}>
                   {dailyFullyCleared && (
                     <View style={styles.fullClearBadge}>
-                      <Text style={styles.fullClearBadgeText}>🐝 Full Clear!</Text>
+                      <Text style={styles.fullClearBadgeText}>🐝 Solved!</Text>
                     </View>
                   )}
                   <Text style={[styles.dailyCompletedScore, { color: ACCENT }]}>{dailyScore}</Text>
@@ -487,9 +487,9 @@ export default function HexHiveEntryScreen() {
                     { label: 'Current Streak', value: (stats?.currentStreak ?? 0).toString() },
                     { label: 'Best Streak', value: (stats?.bestStreak ?? 0).toString() },
                     { label: 'Days Played', value: (stats?.daysPlayed ?? 0).toString() },
-                    { label: 'Full Clears', value: (stats?.fullClears ?? 0).toString() },
-                    { label: 'Full Clear Streak', value: (stats?.currentFullClearStreak ?? 0).toString() },
-                    { label: 'Best Full Clear Streak', value: (stats?.bestFullClearStreak ?? 0).toString() },
+                    { label: 'Daily Wins', value: (stats?.fullClears ?? 0).toString() },
+                    { label: 'Win Streak', value: (stats?.currentFullClearStreak ?? 0).toString() },
+                    { label: 'Best Win Streak', value: (stats?.bestFullClearStreak ?? 0).toString() },
                     { label: 'Best Daily Score', value: (stats?.bestDailyScore ?? 0).toString() },
                     { label: 'Best Daily Words', value: (stats?.bestDailyWordCount ?? 0).toString() },
                     { label: 'Words Found', value: (stats?.dailyWordsFound ?? 0).toString() },

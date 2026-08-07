@@ -21,7 +21,7 @@ import { TierConfig, TierName, TIER_ORDER, TIERS as SHARED_TIER_STYLES } from '.
 // lifetime score, for testing the customize screen without grinding weeks
 // of Daily runs. Same pattern as DEBUG_UNLOCK_ALL_HANGMAN in
 // hangman/utils/storage.ts. Must be false before App Store release.
-export const DEBUG_UNLOCK_ALL_ANAGRAMS_TILES = true;
+export const DEBUG_UNLOCK_ALL_ANAGRAMS_TILES = false;
 
 // Identical order to Word Builder's TIER_ORDER — Default, Classic, Copper,
 // Bronze, Silver, Gold, Platinum, Ruby, Emerald, Diamond, Legendary,

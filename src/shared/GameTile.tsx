@@ -194,7 +194,7 @@ export const GameTile = ({
       <TouchableOpacity onPress={() => onPress(index)} activeOpacity={0.8}>
         <View style={[styles.tileContainer, { width: tileSize, height: tileSize }]}>
           <LinearGradient
-            colors={tierConfig.gradient as unknown as string[]}
+            colors={tierConfig.gradient as unknown as [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: tierConfig.border }]}
@@ -227,7 +227,7 @@ export const GameTile = ({
           ]}
         >
           <LinearGradient
-            colors={tierConfig.gradient as unknown as string[]}
+            colors={tierConfig.gradient as unknown as [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.tile, styles.metalTile, { width: tileSize, height: tileSize, borderColor: '#ffffff' }]}

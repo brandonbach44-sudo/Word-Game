@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 
-const FeedbackForm = ({ visible, onClose, backendUrl = 'http://localhost:3000' }) => {
+const FEEDBACK_EMAIL = 'wordfurygame@gmail.com';
+
+const FeedbackForm = ({ visible, onClose }) => {
   const [rating, setRating] = useState(5);
   const [category, setCategory] = useState('bug');
   const [message, setMessage] = useState('');
@@ -26,21 +28,17 @@ const FeedbackForm = ({ visible, onClose, backendUrl = 'http://localhost:3000' }
     setError('');
 
     try {
-      const response = await fetch(`${backendUrl}/api/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rating,
-          category,
-          message: message.trim(),
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const categoryLabel = categories.find((c) => c.value === category)?.label || category;
+      const subject = `WordFury Feedback - ${categoryLabel} (${rating}/5)`;
+      const body = `Rating: ${rating}/5\nCategory: ${categoryLabel}\n\n${message.trim()}`;
+      const mailtoUrl = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to send feedback');
+      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      if (!canOpen) {
+        throw new Error('No email app is set up on this device.');
       }
+
+      await Linking.openURL(mailtoUrl);
 
       setSuccess(true);
       setTimeout(() => {
@@ -49,9 +47,9 @@ const FeedbackForm = ({ visible, onClose, backendUrl = 'http://localhost:3000' }
         setCategory('bug');
         setSuccess(false);
         onClose();
-      }, 1500);
+      }, 1200);
     } catch (err) {
-      setError(err.message || 'Network error. Check your backend connection.');
+      setError(err.message || 'Could not open your email app.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +63,7 @@ const FeedbackForm = ({ visible, onClose, backendUrl = 'http://localhost:3000' }
 
           {success ? (
             <View style={styles.successContainer}>
-              <Text style={styles.successText}>✓ Feedback sent!</Text>
+              <Text style={styles.successText}>✓ Opening Mail...</Text>
             </View>
           ) : (
             <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
@@ -134,7 +132,7 @@ const FeedbackForm = ({ visible, onClose, backendUrl = 'http://localhost:3000' }
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Send</Text>
+                    <Text style={styles.submitButtonText}>Open Mail</Text>
                   )}
                 </TouchableOpacity>
               </View>

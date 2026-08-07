@@ -12,8 +12,8 @@
 // sections → button row → share button → dismiss button.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Keyboard, Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup } from '../../shared/AchievementPopup';
@@ -23,7 +23,7 @@ import RankProgressBar from '../components/RankProgressBar';
 import type { HexHivePuzzle } from '../data/puzzles';
 import { getPuzzleSolution, shuffleLetters, getTodayDateString, formatDisplayDate } from '../utils/generator';
 import { checkGuess } from '../utils/validator';
-import { getRankProgress, scoreWordForPuzzle } from '../utils/scoring';
+import { getRankProgress, scoreWordForPuzzle, getEffectiveMaxScore } from '../utils/scoring';
 import {
   bumpStreakForToday,
   bumpFullClearStreakForToday,
@@ -99,7 +99,11 @@ const PrimaryButton = ({
 
 export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onGoHome, onPlayAgain }: HexHivePlayScreenProps) {
   const { background } = useTheme();
+  const insets = useSafeAreaInsets();
   const solution = useMemo(() => getPuzzleSolution(puzzle), [puzzle]);
+  // The rank ladder (and the win condition) is computed against this
+  // rescaled target, not solution.maxScore directly — see getEffectiveMaxScore.
+  const targetScore = useMemo(() => getEffectiveMaxScore(solution.maxScore), [solution]);
 
   const [foundWords, setFoundWords] = useState<string[]>(initialFoundWords ?? []);
   const foundSet = useMemo(() => new Set(foundWords), [foundWords]);
@@ -119,9 +123,25 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const [resultsVisible, setResultsVisible] = useState(false);
   const [finalStats, setFinalStats] = useState<HexHiveStats | null>(null);
 
-  // Daily only: one-time "Full Clear!" celebration the moment every word in
-  // today's hive has been found.
-  const [showFullClearCelebration, setShowFullClearCelebration] = useState(false);
+  // Daily only: one-time "Solved!" celebration the moment the player's score
+  // crosses the win threshold (see scoring.ts) — reaching it truly ends the
+  // round for today, so this can only fire once per day.
+  const [showWinCelebration, setShowWinCelebration] = useState(false);
+
+  // Daily only: true once the player has won today, either just now or from
+  // a previous session earlier today (derived from persisted foundWords).
+  // While true, no further guesses are accepted — matching Wordle's
+  // solve-it-once-and-you're-done daily lock, rather than letting players
+  // keep grinding past the win.
+  const [dailyWon, setDailyWon] = useState<boolean>(() => {
+    if (mode !== 'daily' || !initialFoundWords || initialFoundWords.length === 0) return false;
+    const sol = getPuzzleSolution(puzzle);
+    const initialScore = initialFoundWords.reduce(
+      (sum, w) => sum + scoreWordForPuzzle(w, sol.pangrams.includes(w)),
+      0
+    );
+    return getRankProgress(initialScore, getEffectiveMaxScore(sol.maxScore)).isMaxRank;
+  });
 
   useEffect(() => {
     loadHexHiveStats().then((s) => {
@@ -136,7 +156,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     () => foundWords.reduce((sum, w) => sum + scoreWordForPuzzle(w, solution.pangrams.includes(w)), 0),
     [foundWords, solution]
   );
-  const rank = getRankProgress(score, solution.maxScore);
+  const rank = getRankProgress(score, targetScore);
 
   const queueAchievements = (newOnes: Achievement[]) => {
     if (newOnes.length > 0) setAchievementQueue((q) => [...q, ...newOnes]);
@@ -179,6 +199,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
 
   const handleSubmit = async () => {
     if (gameOver) return;
+    if (mode === 'daily' && dailyWon) return;
     const result = checkGuess(currentGuess, puzzle, foundSet);
 
     if (result.status !== 'valid') {
@@ -205,8 +226,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     // from render still reflect the pre-submit state since setFoundWords
     // hasn't re-rendered yet.
     const newScore = score + scoreWordForPuzzle(word, result.isPangram);
-    const newRank = getRankProgress(newScore, solution.maxScore);
-    const newFullyCleared = newFound.length >= solution.words.length && solution.words.length > 0;
+    const newRank = getRankProgress(newScore, targetScore);
+    // Since input is blocked the instant dailyWon flips true, reaching this
+    // line with mode === 'daily' means the player hasn't won yet — so a
+    // crossing here is always the first (and only) time it happens today.
+    // Winning = reaching Master, the top of the (rescaled) rank ladder.
+    const justWon = mode === 'daily' && newRank.isMaxRank;
 
     if (mode === 'daily') {
       await saveDailyProgress({ dateISO: getTodayDateString(), foundWords: newFound });
@@ -234,7 +259,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
       stats.bestDailyScore = Math.max(stats.bestDailyScore, newScore);
       stats.bestDailyRankIndex = Math.max(stats.bestDailyRankIndex, newRank.index);
       stats.bestDailyWordCount = Math.max(stats.bestDailyWordCount, newFound.length);
-      if (newFullyCleared) {
+      if (justWon) {
         stats = bumpFullClearStreakForToday(stats);
         stats.fullClears += 1;
       }
@@ -249,21 +274,22 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
       await saveDailyHistoryEntry({
         dateISO: getTodayDateString(),
         score: newScore,
-        maxScore: solution.maxScore,
+        maxScore: targetScore,
         wordsFound: newFound.length,
         totalWords: solution.words.length,
         rankIndex: newRank.index,
         rankName: newRank.name,
-        fullyCleared: newFullyCleared,
+        fullyCleared: justWon,
       });
 
-      if (newFullyCleared) {
-        setShowFullClearCelebration(true);
+      if (justWon) {
+        setDailyWon(true);
+        setShowWinCelebration(true);
       }
     }
 
     const wordAch = await checkWordAchievements({ word, isPangram: result.isPangram }, stats);
-    const progressAch = await checkProgressAchievements(stats, newRank.index, newRank.name, newFullyCleared);
+    const progressAch = await checkProgressAchievements(stats, newRank.index, newRank.name, justWon);
     queueAchievements([...wordAch, ...progressAch]);
   };
 
@@ -281,8 +307,8 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     } catch {}
   };
 
-  const handleShareFullClear = async () => {
-    const message = `Hex Hive — Daily\n${formatDisplayDate()}\nFull Clear! ${rank.name} rank\n${solution.words.length} words · ${score} points`;
+  const handleShareWin = async () => {
+    const message = `Hex Hive — Daily\n${formatDisplayDate()}\nSolved! ${rank.name} rank\n${foundWords.length} words · ${score} points`;
     try {
       await Share.share({ message });
     } catch {}
@@ -339,24 +365,33 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         />
       </View>
 
-      <View style={styles.boardCard}>
-        <HexGrid
-          outerLetters={outerLetters}
-          center={puzzle.center}
-          currentGuess={currentGuess}
-          feedback={feedback}
-          onLetterPress={handleLetterPress}
-          onDelete={handleDelete}
-          onShuffle={handleShuffle}
-          onSubmit={handleSubmit}
-          accentColor={ACCENT}
-          textColor={TEXT}
-          secondaryTextColor={SUBTEXT}
-          tileColor={ACCENT + '17'}
-          cardColor={CARD}
-          borderColor={BORDER}
-        />
-      </View>
+      {mode === 'daily' && dailyWon ? (
+        <View style={[styles.boardCard, styles.solvedCard, { borderColor: BORDER, backgroundColor: CARD }]}>
+          <Text style={[styles.title2, { color: TEXT, marginTop: 0 }]}>🐝 Solved!</Text>
+          <Text style={[styles.subtitle, { color: SUBTEXT }]}>
+            You reached {rank.name} rank today. Come back tomorrow for a new hive.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.boardCard}>
+          <HexGrid
+            outerLetters={outerLetters}
+            center={puzzle.center}
+            currentGuess={currentGuess}
+            feedback={feedback}
+            onLetterPress={handleLetterPress}
+            onDelete={handleDelete}
+            onShuffle={handleShuffle}
+            onSubmit={handleSubmit}
+            accentColor={ACCENT}
+            textColor={TEXT}
+            secondaryTextColor={SUBTEXT}
+            tileColor={ACCENT + '17'}
+            cardColor={CARD}
+            borderColor={BORDER}
+          />
+        </View>
+      )}
 
       <ScrollView
         style={styles.wordListWrap}
@@ -374,15 +409,23 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
         />
       </ScrollView>
 
-      {mode === 'practice' && gameOver && resultsVisible && (
+      {mode === 'practice' && gameOver && (
+        <Modal
+          visible={resultsVisible}
+          transparent={false}
+          animationType="slide"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={() => setResultsVisible(false)}
+        >
         <View style={[styles.overlay, { backgroundColor: BG }]}>
-          <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+          <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
             <View style={styles.headerSpacer} />
             <Text style={[styles.brand, { color: SUBTEXT }]}>HEX HIVE</Text>
             <Pressable
               style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
               onPress={() => setResultsVisible(false)}
-              hitSlop={10}
+              hitSlop={16}
             >
               <X size={22} color={SUBTEXT} />
             </Pressable>
@@ -448,17 +491,25 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           </View>
           </ScrollView>
         </View>
+        </Modal>
       )}
 
-      {mode === 'daily' && showFullClearCelebration && (
+      <Modal
+        visible={mode === 'daily' && showWinCelebration}
+        transparent={false}
+        animationType="slide"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setShowWinCelebration(false)}
+      >
         <View style={[styles.overlay, { backgroundColor: BG }]}>
-          <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+          <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
             <View style={styles.headerSpacer} />
             <Text style={[styles.brand, { color: SUBTEXT }]}>HEX HIVE</Text>
             <Pressable
               style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
-              onPress={() => setShowFullClearCelebration(false)}
-              hitSlop={10}
+              onPress={() => setShowWinCelebration(false)}
+              hitSlop={16}
             >
               <X size={22} color={SUBTEXT} />
             </Pressable>
@@ -466,9 +517,9 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
-            <Text style={[styles.title2, { color: TEXT }]}>Full Clear! 🐝</Text>
+            <Text style={[styles.title2, { color: TEXT }]}>Solved! 🐝</Text>
             <Text style={[styles.subtitle, { color: SUBTEXT }]}>
-              You found every word in today&apos;s hive.
+              You reached {rank.name} rank — today&apos;s hive is complete.
             </Text>
 
             <View style={[styles.rankBox, { borderColor: BORDER }]}>
@@ -485,19 +536,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
             </View>
 
             <View style={styles.buttonRow}>
-              <PrimaryButton
-                label="Keep Playing"
-                onPress={() => setShowFullClearCelebration(false)}
-                borderColor={BORDER}
-                textColor={TEXT}
-                backgroundColor={CARD}
-              />
               <PrimaryButton label="Main Menu" onPress={onGoHome} borderColor={BORDER} textColor={TEXT} backgroundColor={CARD} />
             </View>
 
             <Pressable
               style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-              onPress={handleShareFullClear}
+              onPress={handleShareWin}
             >
               <View style={styles.shareButtonInner}>
                 <Share2 size={18} color="#fff" />
@@ -507,7 +551,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
           </View>
           </ScrollView>
         </View>
-      )}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -532,15 +576,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
+  solvedCard: {
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
   wordListWrap: { flex: 1, marginTop: 14 },
 
   // Result overlay — mirrors Wordle's full-page WordleResultOverlay layout/colors.
+  // Rendered inside a native Modal, so this just needs to fill it.
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
   },
   pageHeader: {
     flexDirection: 'row',

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { TierName, TIERS, getTierEmoji } from '../utils/tiers';
+import { TierName, TIERS } from '../utils/tiers';
 import { TierProgress } from '../utils/storage';
 import { GameTile } from './GameTile';
 

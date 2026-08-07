@@ -28,7 +28,6 @@ import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import { FallingLetters } from '../../src/shared/FallingLetters';
 
 // Shared Managers
-import { SoundManager } from '../../src/shared/SoundManager';
 import { HapticManager } from '../../src/shared/HapticManager';
 
 // Theme
@@ -384,11 +383,8 @@ export default function WordBuilder() {
   // Initialize managers and load all player data on mount
   useEffect(() => {
     const initializeApp = async () => {
-      // Initialize sound and haptic managers
-      await Promise.all([
-        SoundManager.init(),
-        HapticManager.init(),
-      ]);
+      // Initialize haptic manager
+      await HapticManager.init();
       
       if (DEBUG_UNLOCK_ALL) {
         await unlockAllTilesForTesting();
@@ -516,7 +512,6 @@ export default function WordBuilder() {
       // Timer warning at 10 seconds
       if (timeLeft === 10) {
         HapticManager.timerWarning();
-        SoundManager.countdown();
       }
     } else if (timeLeft === 0 && gameMode !== 'menu' && !gameOver) {
       setGameOver(true);
@@ -525,8 +520,7 @@ export default function WordBuilder() {
       
       // Game over feedback
       HapticManager.gameOver();
-      SoundManager.gameOver();
-      
+
       // Calculate all possible words
       const allPossible = findAllPossibleWords(letters, foundWords);
       setPossibleWords(allPossible);
@@ -577,7 +571,6 @@ export default function WordBuilder() {
           setPendingAchievements(prev => [...prev, ...newAchievements]);
           // Achievement feedback
           HapticManager.achievement();
-          SoundManager.achievement();
         }
         
         await refreshPlayerData();
@@ -667,8 +660,7 @@ export default function WordBuilder() {
     
     // Haptic & sound feedback on tile tap
     HapticManager.tap();
-    SoundManager.tap();
-    
+
     if (selectedIndices.includes(index)) {
       const newSelected = selectedIndices.filter((i: number) => i !== index);
       setSelectedIndices(newSelected);
@@ -686,14 +678,12 @@ export default function WordBuilder() {
     if (word.length < 3) {
       setMessage('Words must be at least 3 letters!');
       HapticManager.error();
-      SoundManager.error();
-      return; 
+      return;
     }
-    if (foundWords.includes(word)) { 
-      setMessage('Already found that word!'); 
+    if (foundWords.includes(word)) {
+      setMessage('Already found that word!');
       HapticManager.error();
-      SoundManager.error();
-      return; 
+      return;
     }
     if (VALID_WORDS.has(word)) {
       const { score: points, bonusApplied } = calculateWordScoreWithBonus(word, letterCount);
@@ -703,11 +693,9 @@ export default function WordBuilder() {
       if (bonusApplied) {
         setMessage(`+${points} points! 🎉 2x ALL LETTERS BONUS!`);
         HapticManager.bonus();
-        SoundManager.bonus();
       } else {
         setMessage(`+${points} points!`);
         HapticManager.validWord();
-        SoundManager.success();
       }
       setSelectedIndices([]);
       setCurrentWord('');
@@ -719,7 +707,6 @@ export default function WordBuilder() {
     } else {
       setMessage('Not a valid word!');
       HapticManager.invalidWord();
-      SoundManager.error();
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
       messageTimerRef.current = setTimeout(() => {
         setMessage('');
@@ -2487,7 +2474,6 @@ const styles = StyleSheet.create({
   },
 
   achievementCardLocked: { opacity: 0.5 },
-  achievementEmojiLocked: { opacity: 0.5 },
   achievementTextLocked: { opacity: 0.7 },
   lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1 },

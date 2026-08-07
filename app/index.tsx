@@ -28,7 +28,7 @@ const GAMES = [
     icon: 'hammer-outline' as const,
   },
   {
-    name: 'Wordle',
+    name: 'Furdle',
     description: 'Guess the 5-letter word in 6 tries',
     route: '/wordle',
     accentColor: '#1D9E75',
@@ -108,7 +108,7 @@ const GAMES = [
   },
 ];
 
-const COMING_SOON = ['Crossword'];
+const COMING_SOON: string[] = ['Crossword'];
 
 export default function Home() {
   const { background } = useTheme();
@@ -185,21 +185,25 @@ export default function Home() {
           </View>
 
           {/* Coming Soon */}
-          <Text style={[styles.comingSoonLabel, { color: background.secondaryText }]}>
-            Coming soon
-          </Text>
-          <View style={styles.chipsRow}>
-            {COMING_SOON.map((name) => (
-              <View
-                key={name}
-                style={[styles.chip, { borderColor: background.borderColor }]}
-              >
-                <Text style={[styles.chipText, { color: background.secondaryText }]}>
-                  {name}
-                </Text>
+          {COMING_SOON.length > 0 && (
+            <>
+              <Text style={[styles.comingSoonLabel, { color: background.secondaryText }]}>
+                Coming soon
+              </Text>
+              <View style={styles.chipsRow}>
+                {COMING_SOON.map((name) => (
+                  <View
+                    key={name}
+                    style={[styles.chip, { borderColor: background.borderColor }]}
+                  >
+                    <Text style={[styles.chipText, { color: background.secondaryText }]}>
+                      {name}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </View>

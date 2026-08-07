@@ -669,18 +669,20 @@ export default function GameScreen() {
 
         {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar */}
         <View style={styles.buttonRow}>
-          <Pressable
-            style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+          <TouchableOpacity
+            style={[styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}
             onPress={handleBackToMenu}
+            activeOpacity={0.7}
           >
             <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}
             onPress={handlePlayAgain}
+            activeOpacity={0.7}
           >
             <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         {foundWords.length > 0 && (
@@ -746,7 +748,7 @@ export default function GameScreen() {
 
         {/* Header: Back | Timer | Score */}
         <View style={styles.gameHeader}>
-          <TouchableOpacity onPress={handleGameplayBackPress}>
+          <TouchableOpacity onPress={handleGameplayBackPress} activeOpacity={0.6} hitSlop={10}>
             <Text style={[styles.backText, { color: bg.secondaryText }]}>← Back</Text>
           </TouchableOpacity>
           <Text style={[styles.timerText, { color: timerColor }, timeLeft <= 10 && styles.timerWarning]}>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Share2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -193,7 +193,7 @@ const WordleResultOverlay = ({
     try {
       const text = shareText && shareText.length > 0
         ? shareText
-        : `Wordle ${isWin ? `${guessesCount}/6` : "X/6"}`;
+        : `Furdle ${isWin ? `${guessesCount}/6` : "X/6"}`;
       const { Share } = require("react-native");
       await Share.share({ message: text });
     } catch (e) {
@@ -206,8 +206,6 @@ const WordleResultOverlay = ({
   const SUBTEXT = background.secondaryText ?? "#6b7280";
   const CARD = background.cardColor ?? "#ffffff";
   const BORDER = background.borderColor ?? "#e5e7eb";
-
-  if (!visible) return null;
 
   const isDaily = mode === "daily";
   const isWin = status === "won";
@@ -246,16 +244,27 @@ const WordleResultOverlay = ({
   const avgTimeText =
     averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
 
+  // Rendered in a native Modal so this always covers the full screen and
+  // always sits above everything else (including achievement toasts),
+  // regardless of the parent play screen's layout.
   return (
-    <View style={[styles.overlay, { backgroundColor: BG }]}>
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="slide"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.overlay, { backgroundColor: BG }]}>
       {/* Page header — mirrors the app's other full-screen headers */}
-      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
         <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>WORDLE</Text>
         <Pressable
           style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
         >
           <X size={22} color={SUBTEXT} />
         </Pressable>
@@ -442,7 +451,8 @@ const WordleResultOverlay = ({
         )}
       </View>
       </ScrollView>
-    </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -450,11 +460,7 @@ export default WordleResultOverlay;
 
 const styles = StyleSheet.create({
   overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
   },
   pageHeader: {
     flexDirection: "row",

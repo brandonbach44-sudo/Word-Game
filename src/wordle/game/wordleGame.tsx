@@ -742,26 +742,6 @@ export default function WordleGame() {
     };
   }, []);
 
-  // Capture baseline unlocked IDs once hydrated so we don't fire old achievements
-  useEffect(() => {
-    if (hydrated && sessionStartUnlockedRef.current === null) {
-      sessionStartUnlockedRef.current = new Set(
-        achievements.filter((a) => a.unlocked).map((a) => a.id)
-      );
-    }
-  }, [hydrated, achievements]);
-
-  // Detect newly unlocked achievements and queue popups
-  useEffect(() => {
-    if (!hydrated || sessionStartUnlockedRef.current === null) return;
-    const newlyUnlocked = achievements.filter(
-      (a) => a.unlocked && !sessionStartUnlockedRef.current!.has(a.id)
-    );
-    if (newlyUnlocked.length > 0) {
-      newlyUnlocked.forEach((a) => sessionStartUnlockedRef.current!.add(a.id));
-      setPendingAchievements((prev) => [...prev, ...newlyUnlocked]);
-    }
-  }, [achievements, hydrated]);
 
   // Show popups one at a time
   useEffect(() => {
@@ -996,7 +976,7 @@ export default function WordleGame() {
       setOverlayGuessesCount(guessesUsed);
       setOverlayTimeSeconds(elapsedSeconds);
 
-      // Build share text (matches real Wordle format)
+      // Build share text (own format/branding, not copying Wordle's exact layout)
       const emojiRows = finalEvaluations.map((row) =>
         row.map((cell) =>
           cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
@@ -1004,8 +984,8 @@ export default function WordleGame() {
       );
       const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
       const header = gameMode === "daily"
-        ? `Wordle ${getDailyIndex()} ${resultStr}`
-        : `Wordle ${resultStr}`;
+        ? `Furdle ${getDailyIndex()} ${resultStr}`
+        : `Furdle ${resultStr}`;
       const shareText = `${header}\n\n${emojiRows.join("\n")}`;
       setOverlayShareText(shareText);
       setOverlayEvaluationRows(finalEvaluations.map(row => row.map(cell => cell.state)));
@@ -1501,6 +1481,32 @@ export default function WordleGame() {
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
 
+  // Capture baseline unlocked IDs once hydrated so we don't fire old achievements.
+  // Must come after the `achievements` useMemo above — these depend on it, and
+  // referencing a const before its declaration in the same scope is a real
+  // temporal-dead-zone bug, not just a lint nitpick (it silently broke the
+  // dependency array comparison, so unlock popups never fired after the first
+  // load). See feedback memory / git history for context if this moves again.
+  useEffect(() => {
+    if (hydrated && sessionStartUnlockedRef.current === null) {
+      sessionStartUnlockedRef.current = new Set(
+        achievements.filter((a) => a.unlocked).map((a) => a.id)
+      );
+    }
+  }, [hydrated, achievements]);
+
+  // Detect newly unlocked achievements and queue popups
+  useEffect(() => {
+    if (!hydrated || sessionStartUnlockedRef.current === null) return;
+    const newlyUnlocked = achievements.filter(
+      (a) => a.unlocked && !sessionStartUnlockedRef.current!.has(a.id)
+    );
+    if (newlyUnlocked.length > 0) {
+      newlyUnlocked.forEach((a) => sessionStartUnlockedRef.current!.add(a.id));
+      setPendingAchievements((prev) => [...prev, ...newlyUnlocked]);
+    }
+  }, [achievements, hydrated]);
+
   // ======= PLAY MENU helpers =======
   const dailySummaryText = useMemo(() => {
     if (!isDailyCompletedToday || !dailyLock) return null;
@@ -1549,7 +1555,7 @@ export default function WordleGame() {
                 <Text style={[styles.backToGamesText, { color: SUBTEXT }]} numberOfLines={1}>← Games</Text>
               </Pressable>
 
-              <Text style={[styles.appTitle, { color: TEXT }]}>Wordle</Text>
+              <Text style={[styles.appTitle, { color: TEXT }]}>Furdle</Text>
 
               {/* Spacer keeps title centered */}
               <View style={styles.headerSpacer} />
@@ -1670,7 +1676,7 @@ export default function WordleGame() {
                       <Pressable
                         onPress={() => {
                           const text = dailyLock?.shareText
-                            ?? `Wordle Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+                            ?? `Furdle Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
                           Share.share({ message: text });
                         }}
                         style={({ pressed }) => [
@@ -1835,9 +1841,8 @@ export default function WordleGame() {
                 {/* Vertical tier list */}
                 <View style={styles.skinList}>
                   {KEY_SKIN_ORDER.map((skinName) => {
-                    const DEBUG_UNLOCK_ALL = true;
                     const skinCfg = KEY_SKINS[skinName];
-                    const unlocked = DEBUG_UNLOCK_ALL || isKeySkinUnlocked(skinName, stats.daily.bestStreak);
+                    const unlocked = isKeySkinUnlocked(skinName, stats.daily.bestStreak);
                     const active = (prefs.keySkin ?? 'default') === skinName;
                     const isGem = skinCfg.isGem;
                     const isMetal = !isGem && skinCfg.gradient !== null;
@@ -2640,6 +2645,9 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 2,
   },
+  lockedDivider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 15, fontSize: 14, fontWeight: '500' },
   achievementCard: {
     width: "48%",
     padding: 12,

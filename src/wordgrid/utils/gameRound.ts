@@ -13,7 +13,6 @@ export class GameRound {
     this.grid = generateGrid(4);
     this.timer = new GameTimer(duration, onTick, () => {
       onEnd();
-      console.log(`Final score: ${this.score}`);
     });
   }
 

@@ -31,7 +31,7 @@ export function getRandomWord(): { word: string; category: string } {
 
 // Maximum allowed incorrect attempts for Hangman
 export const MAX_ATTEMPTS = 6;
-export const categories = {
+export const categories: Record<string, string[]> = {
   "Animals": [
     "Lion", "Tiger", "Jaguar", "Leopard", "Cheetah", "Panther", "Cougar", "Snow Leopard",
     "Mountain Lion", "Serval", "Caracal", "Lynx", "Bobcat", "Polar Bear", "Grizzly Bear", "Brown Bear",

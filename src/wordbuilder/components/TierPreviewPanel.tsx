@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TierName, TIERS, getTierEmoji } from '../utils/tiers';
+import { TierName, TIERS } from '../utils/tiers';
 import { TierProgress } from '../utils/storage';
 import { GameTile } from './GameTile';
 
@@ -17,8 +17,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Default tier has 6 style options (all unlocked)
 const DEFAULT_STYLE_COUNT = 6;
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface TierPreviewPanelProps {
   visible: boolean;
@@ -82,7 +80,7 @@ export const TierPreviewPanel = ({
     }
   }, [visible]);
 
-  // Calculate progress for each variant
+  // Calculate progress for each variant (V1 and V2 only)
   const getVariantProgress = (v: number) => {
     if (v === 1) {
       return {
@@ -91,21 +89,13 @@ export const TierPreviewPanel = ({
         label: 'score',
         isUnlocked: lifetimeScore >= tier.baseThreshold || tierName === 'default',
       };
-    } else if (v === 2) {
-      return {
-        current: progress.scoreWithTier,
-        required: tier.v2ScoreThreshold,
-        label: 'score with tier equipped',
-        isUnlocked: progress.highestVariantUnlocked >= 2,
-      };
-    } else {
-      return {
-        current: progress.greatGamesWithTier,
-        required: tier.v3GreatThreshold,
-        label: 'great games with tier equipped',
-        isUnlocked: progress.highestVariantUnlocked >= 3,
-      };
     }
+    return {
+      current: progress.scoreWithTier,
+      required: tier.v2ScoreThreshold,
+      label: 'score with tier equipped',
+      isUnlocked: progress.highestVariantUnlocked >= 2,
+    };
   };
 
   const selectedProgress = getVariantProgress(selectedVariant);
@@ -153,7 +143,6 @@ export const TierPreviewPanel = ({
           >
             {/* Tier Info */}
             <View style={styles.tierInfo}>
-              <Text style={styles.tierEmoji}>{getTierEmoji(tierName)}</Text>
               {!isTierUnlocked && (
                 <View style={styles.lockedBadge}>
                   <Text style={styles.lockedBadgeText}>🔒 LOCKED</Text>
@@ -223,8 +212,8 @@ export const TierPreviewPanel = ({
                     );
                   })
                 ) : (
-                  // Other tiers: Show 3 variants
-                  [1, 2, 3].map((v) => {
+                  // Other tiers: Show 2 variants
+                  [1, 2].map((v) => {
                     const variantProgress = getVariantProgress(v);
                     const isSelected = selectedVariant === v;
                     
@@ -302,12 +291,6 @@ export const TierPreviewPanel = ({
                     {selectedVariant === 2 && (
                       <Text style={styles.requirementText}>
                         Earn {tier.v2ScoreThreshold.toLocaleString()} score while {tier.displayName} is equipped
-                      </Text>
-                    )}
-                    {selectedVariant === 3 && (
-                      <Text style={styles.requirementText}>
-                        Play {tier.v3GreatThreshold} great games while {tier.displayName} is equipped
-                        {'\n'}(Blitz ≥2,000 or Standard ≥4,000)
                       </Text>
                     )}
                   </View>

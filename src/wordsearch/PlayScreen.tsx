@@ -20,7 +20,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
-import { SoundManager } from '../../src/shared/SoundManager';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
@@ -72,12 +71,13 @@ function PrimaryButton({ label, onPress, borderColor, textColor, backgroundColor
   label: string; onPress: () => void; borderColor: string; textColor: string; backgroundColor: string;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [overlayStyles.primaryButton, { borderColor, backgroundColor, opacity: pressed ? 0.75 : 1 }]}
+    <TouchableOpacity
+      style={[overlayStyles.primaryButton, { borderColor, backgroundColor }]}
       onPress={onPress}
+      activeOpacity={0.7}
     >
       <Text style={[overlayStyles.primaryButtonText, { color: textColor }]}>{label}</Text>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
@@ -296,11 +296,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [gameFinished]);
 
-  // Sound
-  useEffect(() => {
-    SoundManager.init().catch(() => {});
-  }, []);
-
   const measureGrid = () => {
     // measureInWindow gives coordinates relative to the window, which matches
     // the pageX/pageY values from touch events — more reliable than measure().
@@ -390,7 +385,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           if (state.foundWords.some(fw => fw.word === placedWord.word)) continue;
           const wordCells = getWordCells(placedWord);
           if (selectionMatchesWord(line, wordCells)) {
-            SoundManager.success();
             const dc = DIFFICULTY_CONFIG[difficulty as keyof typeof DIFFICULTY_CONFIG];
             const diffMult = dc?.multiplier ?? 1;
 
@@ -437,7 +431,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         }
 
         if (!wordFound) {
-          SoundManager.error();
           setGameState(prev => ({ ...prev, currentSelection: [] }));
         }
       },
@@ -517,7 +510,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       .map(id => WS_ACHIEVEMENTS.find(a => a.id === id))
       .filter(Boolean) as WSAchievement[];
 
-    SoundManager.gameOver();
     loadWordSearchStats().then(setLifetimeStats);
     if (newAchievements.length > 0) setPendingAchievements(newAchievements);
 
@@ -614,8 +606,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={[styles.backText, { color: background.secondaryText }]}>← Games</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.6} hitSlop={10}>
+          <Text style={[styles.backText, { color: background.secondaryText }]}>← Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
         <View style={styles.headerPlaceholder} />
@@ -896,7 +888,10 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                 <View style={overlayStyles.buttonRow}>
                   <PrimaryButton
                     label="Main Menu"
-                    onPress={() => router.navigate('/')}
+                    onPress={() => {
+                      setResultData(null);
+                      router.push('/');
+                    }}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
                     backgroundColor={background.cardColor}

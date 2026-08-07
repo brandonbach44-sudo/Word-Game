@@ -4,7 +4,7 @@
 // button, close).
 
 import React from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -124,8 +124,6 @@ const AnagramsResultOverlay: React.FC<Props> = ({
   const CARD = background.cardColor ?? '#ffffff';
   const BORDER = background.borderColor ?? '#e5e7eb';
 
-  if (!visible) return null;
-
   const isDaily = mode === 'daily';
   const wordsSolved = roundResults.filter((r) => r.solved && !r.skipped).length;
   const allSolved = wordsSolved === roundResults.length && roundResults.length > 0;
@@ -135,15 +133,26 @@ const AnagramsResultOverlay: React.FC<Props> = ({
     ? `All ${roundResults.length} words, zero hints — flawless.`
     : `You solved ${wordsSolved}/${roundResults.length} words.`;
 
+  // Rendered in a native Modal so this always covers the full screen and
+  // always sits above everything else (including achievement toasts),
+  // regardless of the parent play screen's layout.
   return (
-    <View style={[styles.overlay, { backgroundColor: BG }]}>
-      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="slide"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.overlay, { backgroundColor: BG }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
         <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>ANAGRAMS</Text>
         <Pressable
           style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
         >
           <X size={22} color={SUBTEXT} />
         </Pressable>
@@ -225,14 +234,15 @@ const AnagramsResultOverlay: React.FC<Props> = ({
         </Pressable>
       </View>
       </ScrollView>
-    </View>
+      </View>
+    </Modal>
   );
 };
 
 export default AnagramsResultOverlay;
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlay: { flex: 1 },
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'center',

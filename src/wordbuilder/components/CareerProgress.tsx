@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { TierName, TIERS, getTierEmoji } from '../utils/tiers';
+import { TierName, TIERS } from '../utils/tiers';
 
 interface CareerProgressProps {
   nextTier: TierName | null;
@@ -21,7 +21,7 @@ export const CareerProgress = ({
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.label}>Career Progress</Text>
-          <Text style={styles.maxedLabel}>🏆 MAX</Text>
+          <Text style={styles.maxedLabel}>MAX</Text>
         </View>
         <View style={styles.maxedContainer}>
           <Text style={styles.maxedText}>All career tiles unlocked!</Text>
@@ -38,7 +38,6 @@ export const CareerProgress = ({
       <View style={styles.headerRow}>
         <Text style={styles.label}>Next Unlock</Text>
         <View style={styles.tierInfo}>
-          <Text style={styles.tierEmoji}>{getTierEmoji(nextTier)}</Text>
           <Text style={styles.tierName}>{tier.displayName}</Text>
         </View>
       </View>

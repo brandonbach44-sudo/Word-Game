@@ -7,7 +7,7 @@ const DAILY_KEY = 'wordbuilder_daily';
 
 // Debug flag - set to true to unlock all tiles/achievements for owner testing
 // ⚠️ SET BACK TO false BEFORE SHIPPING TO THE APP STORE
-export const DEBUG_UNLOCK_ALL = true;
+export const DEBUG_UNLOCK_ALL = false;
 
 // ==================== INTERFACES ====================
 

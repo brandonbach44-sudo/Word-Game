@@ -3,7 +3,7 @@
 // Wordle's result overlay (brand tag, stat pills, share button, close).
 
 import React from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -129,8 +129,6 @@ const LadderResultOverlay: React.FC<Props> = ({
   const CARD = background.cardColor ?? '#ffffff';
   const BORDER = background.borderColor ?? '#e5e7eb';
 
-  if (!visible) return null;
-
   const isDaily = mode === 'daily';
   const isWin = status === 'won';
 
@@ -139,15 +137,30 @@ const LadderResultOverlay: React.FC<Props> = ({
     ? `You reached ${endWord.toUpperCase()} in ${steps} step${steps === 1 ? '' : 's'} (par ${par}).`
     : `You gave up — the shortest path took ${par} step${par === 1 ? '' : 's'}.`;
 
+  // Rendered in a native Modal (instead of a plain absolutely-positioned
+  // View) so the results screen always covers the full device screen and
+  // always sits above everything else — including the achievement toast —
+  // regardless of how the parent play screen is laid out. A plain absolute
+  // View here was found to sometimes only cover part of the screen and let
+  // the close (X) button end up under other content where taps didn't
+  // register.
   return (
-    <View style={[styles.overlay, { backgroundColor: BG }]}>
-      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="slide"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.overlay, { backgroundColor: BG }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
         <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>WORD LADDER</Text>
         <Pressable
           style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
         >
           <X size={22} color={SUBTEXT} />
         </Pressable>
@@ -226,14 +239,15 @@ const LadderResultOverlay: React.FC<Props> = ({
         </Pressable>
       </View>
       </ScrollView>
-    </View>
+      </View>
+    </Modal>
   );
 };
 
 export default LadderResultOverlay;
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlay: { flex: 1 },
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'center',

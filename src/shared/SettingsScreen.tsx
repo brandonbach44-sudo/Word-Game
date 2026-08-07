@@ -60,9 +60,6 @@ export const SettingsScreen: React.FC = () => {
   // Only show light backgrounds in picker (dark mode is separate toggle)
   const lightBackgrounds = getLightBackgrounds();
 
-  // Update this URL to your backend server address (localhost:3000 for development, your production URL for production)
-  const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-
   const renderBackgroundOption = (option: BackgroundOption) => {
     const isSelected = option.id === selectedBackgroundId && !darkModeEnabled;
     
@@ -360,7 +357,6 @@ export const SettingsScreen: React.FC = () => {
       <FeedbackForm
         visible={showFeedback}
         onClose={() => setShowFeedback(false)}
-        backendUrl={BACKEND_URL}
       />
     </SafeAreaView>
   );
@@ -429,6 +425,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
+    marginBottom: 12,
   },
   settingInfo: {
     flex: 1,

@@ -101,7 +101,7 @@ export const HangmanFigure: React.FC<HangmanFigureProps> = ({
   isWon = false,
   isLost = false,
   figureSkin = 'classic',
-  gallowsSkin = 'classic',
+  gallowsSkin = 'default',
 }) => {
   const { background } = useTheme();
 

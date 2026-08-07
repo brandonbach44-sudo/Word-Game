@@ -45,7 +45,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
 
   if (!visible) return null;
 
-  const BG = background.backgroundColor;
+  const BG = background.backgroundColor ?? '#ffffff';
   const TEXT = background.textColor;
   const SUBTEXT = background.secondaryText;
   const CARD = background.cardColor;

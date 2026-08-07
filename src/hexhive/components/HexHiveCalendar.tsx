@@ -140,7 +140,7 @@ export default function HexHiveCalendar({
           </Text>
           <View style={styles.detailRow}>
             <Text style={[styles.detailRank, { color: accentColor }]}>{selectedEntry.rankName}</Text>
-            {selectedEntry.fullyCleared && <Text style={[styles.fullClearTag, { color: accentColor }]}>Full Clear ★</Text>}
+            {selectedEntry.fullyCleared && <Text style={[styles.fullClearTag, { color: accentColor }]}>Solved ★</Text>}
           </View>
           <Text style={[styles.detailStats, { color: secondaryTextColor }]}>
             {selectedEntry.score} / {selectedEntry.maxScore} points · {selectedEntry.wordsFound} / {selectedEntry.totalWords} words

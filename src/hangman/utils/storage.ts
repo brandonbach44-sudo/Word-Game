@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ⚠️ DEV ONLY — set to false before App Store release
-export const DEBUG_UNLOCK_ALL_HANGMAN = true;
+export const DEBUG_UNLOCK_ALL_HANGMAN = false;
 
 const STATS_KEY = 'hangman_stats';
 

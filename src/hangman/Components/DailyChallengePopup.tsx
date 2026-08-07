@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 
@@ -54,8 +54,6 @@ export const DailyChallengePopup: React.FC<Props> = ({
   const countdown = useCountdownToMidnight();
   const insets = useSafeAreaInsets();
 
-  if (!visible) return null;
-
   const BG = background.backgroundColor ?? '#f9f5ec';
   const TEXT = background.textColor ?? '#111827';
   const SUBTEXT = background.secondaryText ?? '#6b7280';
@@ -90,15 +88,26 @@ export const DailyChallengePopup: React.FC<Props> = ({
     } catch (e) {}
   };
 
+  // Rendered in a native Modal so this always covers the full screen and
+  // always sits above everything else (including achievement toasts),
+  // regardless of the parent play screen's layout.
   return (
-    <View style={[styles.overlay, { backgroundColor: BG }]}>
-      <View style={[styles.pageHeader, { borderColor: BORDER }]}>
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="slide"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.overlay, { backgroundColor: BG }]}>
+      <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
         <View style={styles.headerSpacer} />
         <Text style={[styles.brand, { color: SUBTEXT }]}>HANGMAN</Text>
         <Pressable
           style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onClose}
-          hitSlop={10}
+          hitSlop={16}
         >
           <X size={22} color={SUBTEXT} />
         </Pressable>
@@ -193,18 +202,14 @@ export const DailyChallengePopup: React.FC<Props> = ({
 
       </View>
       </ScrollView>
-    </View>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 100,
+    flex: 1,
   },
   pageHeader: {
     flexDirection: 'row',
