@@ -3,7 +3,7 @@ import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Flame, Share2, Trophy } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme'; // used for accent/danger on result text
-import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
+import { buildHangmanShareText, formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
 
 const DailyStatPill = ({
   label,
@@ -72,12 +72,13 @@ export const DailyChallengeCard: React.FC<Props> = ({
   };
 
   const handleShare = async () => {
-    const blocks = buildBlocks();
-    const resultLine = result === 'won'
-      ? `Won with ${incorrectCount}/${maxAttempts} wrong guesses!`
-      : `Lost — better luck tomorrow!`;
-    const streakLine = streak > 1 ? `Streak: ${streak} days\n` : '';
-    const message = `Hangman Daily\n${formatDisplayDate()}\n\n${result === 'won' ? '✅' : '💀'} ${resultLine}\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+    const message = buildHangmanShareText({
+      isDaily: true,
+      won: result === 'won',
+      incorrectCount,
+      maxAttempts,
+      streak,
+    });
     try {
       await Share.share({ message });
     } catch (e) {}

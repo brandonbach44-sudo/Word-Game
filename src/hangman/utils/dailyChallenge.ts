@@ -167,3 +167,51 @@ export async function clearDailyProgress(): Promise<void> {
     console.warn('clearDailyProgress error', e);
   }
 }
+
+// ─── Share Text ───────────────────────────────────────────────────────────
+// Single builder shared by GameStatus (Practice), DailyChallengePopup, and
+// DailyChallengeCard — those three used to each hand-roll a slightly
+// different version of the same string (missing emoji here, missing
+// Category there), which drifts out of sync every time one gets edited.
+// Daily never reveals the word (the Daily word is the same for everyone
+// that day, so it's a real spoiler); pass `word` only for Practice shares,
+// where there's no shared puzzle to spoil.
+export function buildHangmanShareText(params: {
+  isDaily: boolean;
+  won: boolean;
+  incorrectCount: number;
+  maxAttempts: number;
+  category?: string;
+  word?: string;
+  streak?: number;
+}): string {
+  const { isDaily, won, incorrectCount, maxAttempts, category, word, streak } = params;
+
+  const blocks: string[] = [];
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i < incorrectCount) {
+      blocks.push('❌');
+    } else if (won && i === incorrectCount) {
+      blocks.push('✅');
+    } else {
+      blocks.push('⬜');
+    }
+  }
+  const blockRow = blocks.join('');
+
+  const resultLine = won
+    ? `✅ Won with ${incorrectCount}/${maxAttempts} wrong guess${incorrectCount === 1 ? '' : 'es'}!`
+    : isDaily
+      ? '💀 Lost — better luck tomorrow!'
+      : '💀 Lost';
+
+  const lines: string[] = [isDaily ? '🎯 HANGMAN DAILY' : '🎯 HANGMAN'];
+  if (isDaily) lines.push(formatDisplayDate());
+  if (category) lines.push(`Category: ${category}`);
+  lines.push('', resultLine, blockRow);
+  if (word) lines.push(`Word: ${word.toUpperCase()}`);
+  if (isDaily && streak && streak > 1) lines.push(`🔥 ${streak} day streak`);
+  lines.push('', 'wordfury.app');
+
+  return lines.join('\n');
+}

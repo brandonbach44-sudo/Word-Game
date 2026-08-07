@@ -139,14 +139,38 @@ const WordSearchResultOverlay: React.FC<Props> = ({
     ? `You found all ${resultData.totalWords} words in ${resultData.timeString}!`
     : `You found ${resultData.foundWords}/${resultData.totalWords} words in ${resultData.timeString}.`;
 
+  // Progress bar instead of listing which words were found — the Daily
+  // theme's word list is shared by everyone that day, so naming specific
+  // found words would spoil valid answers for friends who haven't played
+  // yet (same reasoning as Furdle/Anagrams/Word Grid). The bar still
+  // communicates how close to a clean sweep the run was, spoiler-free.
   const handleShare = async () => {
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const result = resultData.allFound
-      ? `${resultData.foundWords}/${resultData.totalWords} ✅`
-      : `${resultData.foundWords}/${resultData.totalWords}`;
-    const text = isDaily
-      ? `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`
-      : `🔍 Word Search\n${themeName}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}`;
+    const pipCount = 10;
+    const totalForPips = Math.max(resultData.totalWords, 1);
+    const filledPips = Math.round((resultData.foundWords / totalForPips) * pipCount);
+    const progressBar = '🟩'.repeat(filledPips) + '⬜'.repeat(pipCount - filledPips);
+    const pct = Math.round((resultData.foundWords / totalForPips) * 100);
+
+    const header = isDaily ? `🔍 WORD SEARCH DAILY — ${dateStr}` : '🔍 WORD SEARCH';
+    const scoreLine = resultData.allFound && resultData.timeBonus > 0
+      ? `Score: ${resultData.score.toLocaleString()} (+${resultData.timeBonus} time bonus${resultData.multiplier > 1 ? `, ${resultData.multiplier}× multiplier` : ''})`
+      : `Score: ${resultData.score.toLocaleString()}`;
+
+    const lines: string[] = [
+      header,
+      themeName,
+      progressBar,
+      `${resultData.foundWords}/${resultData.totalWords} words · ${pct}% · ${resultData.timeString}`,
+      '',
+      scoreLine,
+    ];
+    if (isDaily && lifetimeStats && lifetimeStats.currentStreak > 1) {
+      lines.push(`🔥 ${lifetimeStats.currentStreak} day streak`);
+    }
+    lines.push('', 'wordfury.app');
+
+    const text = lines.join('\n');
     try {
       await Share.share({ message: text });
     } catch (e) {

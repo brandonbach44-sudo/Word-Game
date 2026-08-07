@@ -5,7 +5,7 @@ import { Share2, X } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
-import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
+import { buildHangmanShareText, useCountdownToMidnight } from '../utils/dailyChallenge';
 
 type Props = {
   visible: boolean;
@@ -72,22 +72,14 @@ export const DailyChallengePopup: React.FC<Props> = ({
     : "Better luck next time!";
 
   const handleShare = async () => {
-    const blocks: string[] = [];
-    for (let i = 0; i < maxAttempts; i++) {
-      if (i < incorrectCount) {
-        blocks.push('❌');
-      } else if (won && i === incorrectCount) {
-        blocks.push('✅');
-      } else {
-        blocks.push('⬜');
-      }
-    }
-    const blockRow = blocks.join('');
-    const resultLine = won
-      ? `✅ Won with ${incorrectCount}/${maxAttempts} wrong guesses!`
-      : `💀 Lost — better luck tomorrow!`;
-    const streakLine = streak > 1 ? `🔥 ${streak} day streak\n` : '';
-    const message = `🎯 Hangman Daily\n${formatDisplayDate()}\nCategory: ${category}\n\n${resultLine}\n${streakLine}\n${blockRow}\n\nPlay Word Fury!`;
+    const message = buildHangmanShareText({
+      isDaily: true,
+      won,
+      incorrectCount,
+      maxAttempts,
+      category,
+      streak,
+    });
     try {
       const { Share } = require('react-native');
       await Share.share({ message });

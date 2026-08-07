@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
+import { buildHangmanShareText } from '../utils/dailyChallenge';
 
 type GameStatusProps = {
   isVisible: boolean;
@@ -88,9 +89,16 @@ export const GameStatus: React.FC<GameStatusProps> = ({
 
   const handleShare = async () => {
     try {
-      const text = isWon
-        ? `Hangman: guessed "${word.toUpperCase()}" with ${incorrectGuesses}/${maxAttempts} wrong guesses.`
-        : `Hangman: the word was "${word.toUpperCase()}".`;
+      // Practice categories are randomly picked each game, not a shared
+      // daily puzzle, so revealing the word here is safe (unlike Daily).
+      const text = buildHangmanShareText({
+        isDaily: false,
+        won: isWon,
+        incorrectCount: incorrectGuesses,
+        maxAttempts,
+        category,
+        word,
+      });
       await Share.share({ message: text });
     } catch (e) {
       console.warn('Share failed', e);
