@@ -267,8 +267,17 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     });
   };
 
+  // Hints used to have no cap at all — you could tap Hint repeatedly and it
+  // would fill in every remaining letter, solving the word for you without
+  // any actual guessing. Capping at word length minus 2 means the last two
+  // letters always have to be solved by the player, so a hint can assist
+  // but never finish the word outright. (Short 4-letter rounds still get at
+  // least 1 hint available.)
+  const maxHintsThisRound = Math.max(1, currentRound.scrambled.length - 2);
+
   const handleHint = () => {
     if (runStatus !== 'playing' || shake || solved) return;
+    if (hintsUsedThisRound >= maxHintsThisRound) return;
     const firstEmpty = guessSlots.indexOf(null);
     if (firstEmpty === -1) return;
     const hint = getHintLetter(currentRound.word, guessSlots.map((id) => (id === null ? '' : tray.find((t) => t.id === id)!.letter)));
@@ -443,11 +452,43 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   const displayWords = alreadyLocked && lockedResult ? lockedResult.words : puzzle.rounds.map((r) => r.word);
   const displayResults = alreadyLocked && lockedResult ? lockedResult.roundResults : roundResults;
 
-  const shareText = isDaily
-    ? `Anagrams Daily — ${formatDisplayDate()}\nScore: ${runTotalScore}${
-        runPerfectBonus ? ' (Perfect Run!)' : ''
-      }${finalStreaks.current && finalStreaks.current > 1 ? `\n🔥 ${finalStreaks.current} day streak` : ''}`
-    : `Anagrams — Score: ${runTotalScore}${runPerfectBonus ? ' (Perfect Run!)' : ''}`;
+  // Wordle-style emoji grid so the share is instantly recognizable at a
+  // glance: 🟩 solved clean, 🟨 solved but needed a hint, ⬛ skipped/missed.
+  // Daily shares never print the actual words (same reasoning as Furdle's
+  // Daily share never printing the solution) so friends who haven't played
+  // yet aren't spoiled; Practice shares are safe to show words since that
+  // puzzle isn't a shared daily challenge.
+  const shareText = useMemo(() => {
+    const totalTimeSeconds = displayResults.reduce((sum, r) => sum + (r.timeSeconds || 0), 0);
+    const totalMin = Math.floor(totalTimeSeconds / 60);
+    const totalSec = totalTimeSeconds % 60;
+    const timeStr = `${totalMin}:${totalSec.toString().padStart(2, '0')}`;
+    const totalHints = displayResults.reduce((sum, r) => sum + (r.hintsUsed || 0), 0);
+    const wordsSolvedCount = displayResults.filter((r) => r.solved && !r.skipped).length;
+
+    const roundEmoji = (r: { solved: boolean; skipped: boolean; hintsUsed: number }) => {
+      if (!r.solved || r.skipped) return '⬛';
+      return r.hintsUsed > 0 ? '🟨' : '🟩';
+    };
+    const emojiRow = displayResults.map(roundEmoji).join(' ');
+
+    const lines: string[] = [];
+    lines.push(isDaily ? `🔤 ANAGRAMS DAILY — ${formatDisplayDate()}` : '🔤 ANAGRAMS');
+    if (!isDaily) {
+      lines.push(displayWords.map((w) => w.toUpperCase()).join(' · '));
+    }
+    lines.push(emojiRow);
+    lines.push('');
+    lines.push(`Score: ${runTotalScore.toLocaleString()}${runPerfectBonus ? ' ⭐ Perfect Run!' : ''}`);
+    lines.push(`${wordsSolvedCount}/${TOTAL_ROUNDS} solved · ${totalHints} hint${totalHints === 1 ? '' : 's'} · ${timeStr}`);
+    if (isDaily && finalStreaks.current && finalStreaks.current > 1) {
+      lines.push(`🔥 ${finalStreaks.current} day streak`);
+    }
+    lines.push('');
+    lines.push('wordfury.app');
+
+    return lines.join('\n');
+  }, [isDaily, displayResults, displayWords, runTotalScore, runPerfectBonus, finalStreaks]);
 
   const tileSize = useMemo(() => {
     const gap = 6;
@@ -730,8 +771,10 @@ const AnagramsPlayScreen: React.FC<Props> = ({
               style={[
                 styles.hintFab,
                 { backgroundColor: background.cardColor, borderColor: background.borderColor },
+                hintsUsedThisRound >= maxHintsThisRound && styles.controlButtonDisabled,
               ]}
               onPress={handleHint}
+              disabled={hintsUsedThisRound >= maxHintsThisRound}
             >
               <Lightbulb size={22} color={background.textColor} />
             </Pressable>
@@ -917,4 +960,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  controlButtonDisabled: { opacity: 0.4 },
 });

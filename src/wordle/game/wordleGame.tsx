@@ -1002,7 +1002,12 @@ export default function WordleGame() {
       setOverlayGuessesCount(guessesUsed);
       setOverlayTimeSeconds(elapsedSeconds);
 
-      // Build share text (own format/branding, not copying Wordle's exact layout)
+      // Build share text (own format/branding, not copying Wordle's exact layout).
+      // Keeps the classic emoji-grid centerpiece but wraps it with a proper
+      // header, time, and streak — same creative treatment as the other
+      // games' shares. Daily never reveals the solution word (so friends
+      // who haven't played yet aren't spoiled); Practice does, since that
+      // puzzle isn't a shared daily challenge.
       const emojiRows = finalEvaluations.map((row) =>
         row.map((cell) =>
           cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
@@ -1010,9 +1015,39 @@ export default function WordleGame() {
       );
       const resultStr = result === "won" ? `${guessesUsed}/6` : "X/6";
       const header = gameMode === "daily"
-        ? `Furdle ${getDailyIndex()} ${resultStr}`
-        : `Furdle ${resultStr}`;
-      const shareText = `${header}\n\n${emojiRows.join("\n")}`;
+        ? `🟩 FURDLE DAILY #${getDailyIndex()}`
+        : "🟩 FURDLE";
+
+      // Mirrors the streak math in the stats updater below, computed here
+      // (read-only, off current state) purely so the share text can include
+      // it without waiting on the async state update.
+      let shareStreakLine = "";
+      if (gameMode === "daily") {
+        const prevDailyStats = stats.daily;
+        const yesterdayForShare = new Date();
+        yesterdayForShare.setDate(yesterdayForShare.getDate() - 1);
+        const yesterdayISOForShare = `${yesterdayForShare.getFullYear()}-${String(yesterdayForShare.getMonth() + 1).padStart(2, "0")}-${String(yesterdayForShare.getDate()).padStart(2, "0")}`;
+        const playedYesterdayForShare = dailyLock?.dateISO === yesterdayISOForShare;
+        const shareCurrentStreak =
+          result === "won"
+            ? (prevDailyStats.currentStreak === 0 || playedYesterdayForShare ? prevDailyStats.currentStreak + 1 : 1)
+            : 0;
+        if (shareCurrentStreak > 1) shareStreakLine = `🔥 ${shareCurrentStreak} day streak`;
+      }
+
+      const statsLine = `${resultStr}${elapsedSeconds != null ? ` · ${formatSeconds(elapsedSeconds)}` : ""}`;
+      const wordLine = gameMode !== "daily" ? `Word: ${solution.toUpperCase()}` : "";
+
+      const shareText = [
+        header,
+        emojiRows.join("\n"),
+        "",
+        statsLine,
+        wordLine,
+        shareStreakLine,
+        "",
+        "wordfury.app",
+      ].filter((line) => line !== "").join("\n");
       setOverlayShareText(shareText);
       setOverlayEvaluationRows(finalEvaluations.map(row => row.map(cell => cell.state)));
 
@@ -1653,8 +1688,23 @@ export default function WordleGame() {
                       </Pressable>
                       <Pressable
                         onPress={() => {
+                          // Fallback only matters for a daily lock saved before
+                          // shareText existed — rebuilds the same creative
+                          // format (emoji grid if we have it, stats, streak).
+                          const fallbackGrid = Array.isArray((dailyLock as any)?.evaluations)
+                            ? ((dailyLock as any).evaluations as EvaluatedLetter[][])
+                                .map((row) => row.map((cell) =>
+                                  cell.state === "correct" ? "🟩" : cell.state === "present" ? "🟨" : "⬜"
+                                ).join(""))
+                                .join("\n")
+                            : "";
+                          const fallbackResultStr = dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6";
+                          const fallbackStatsLine = `${fallbackResultStr}${dailyLock?.timeSeconds != null ? ` · ${formatSeconds(dailyLock.timeSeconds)}` : ""}`;
+                          const fallbackStreakLine = stats.daily.currentStreak > 1 ? `🔥 ${stats.daily.currentStreak} day streak` : "";
                           const text = dailyLock?.shareText
-                            ?? `Furdle Daily ${dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6"}${dailyLock?.timeSeconds != null ? ` • ${formatSeconds(dailyLock.timeSeconds)}` : ""}\n\nPlay Word Fury!`;
+                            ?? [`🟩 FURDLE DAILY #${getDailyIndex()}`, fallbackGrid, "", fallbackStatsLine, fallbackStreakLine, "", "wordfury.app"]
+                              .filter((line) => line !== "")
+                              .join("\n");
                           Share.share({ message: text });
                         }}
                         style={({ pressed }) => [
