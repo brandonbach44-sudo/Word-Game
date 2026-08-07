@@ -1038,16 +1038,15 @@ export default function WordleGame() {
       const statsLine = `${resultStr}${elapsedSeconds != null ? ` · ${formatSeconds(elapsedSeconds)}` : ""}`;
       const wordLine = gameMode !== "daily" ? `Word: ${solution.toUpperCase()}` : "";
 
-      const shareText = [
-        header,
-        emojiRows.join("\n"),
-        "",
-        statsLine,
-        wordLine,
-        shareStreakLine,
-        "",
-        "wordfury.app",
-      ].filter((line) => line !== "").join("\n");
+      // Built imperatively (not array + filter-out-empties) so the
+      // deliberate blank-line spacers survive — filtering on `!== ""`
+      // was stripping out every blank line, not just the empty optional
+      // ones, which crammed the whole share into one dense block.
+      const shareLines: string[] = [header, emojiRows.join("\n"), "", statsLine];
+      if (wordLine) shareLines.push(wordLine);
+      if (shareStreakLine) shareLines.push(shareStreakLine);
+      shareLines.push("", "wordfury.app");
+      const shareText = shareLines.join("\n");
       setOverlayShareText(shareText);
       setOverlayEvaluationRows(finalEvaluations.map(row => row.map(cell => cell.state)));
 
@@ -1701,10 +1700,14 @@ export default function WordleGame() {
                           const fallbackResultStr = dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6";
                           const fallbackStatsLine = `${fallbackResultStr}${dailyLock?.timeSeconds != null ? ` · ${formatSeconds(dailyLock.timeSeconds)}` : ""}`;
                           const fallbackStreakLine = stats.daily.currentStreak > 1 ? `🔥 ${stats.daily.currentStreak} day streak` : "";
-                          const text = dailyLock?.shareText
-                            ?? [`🟩 FURDLE DAILY #${getDailyIndex()}`, fallbackGrid, "", fallbackStatsLine, fallbackStreakLine, "", "wordfury.app"]
-                              .filter((line) => line !== "")
-                              .join("\n");
+                          // Built imperatively so the blank-line spacers
+                          // survive — see the same fix in endGame() above.
+                          const fallbackLines: string[] = [`🟩 FURDLE DAILY #${getDailyIndex()}`];
+                          if (fallbackGrid) fallbackLines.push(fallbackGrid);
+                          fallbackLines.push("", fallbackStatsLine);
+                          if (fallbackStreakLine) fallbackLines.push(fallbackStreakLine);
+                          fallbackLines.push("", "wordfury.app");
+                          const text = dailyLock?.shareText ?? fallbackLines.join("\n");
                           Share.share({ message: text });
                         }}
                         style={({ pressed }) => [

@@ -148,7 +148,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const pipCount = 10;
     const totalForPips = Math.max(resultData.totalWords, 1);
-    const filledPips = Math.round((resultData.foundWords / totalForPips) * pipCount);
+    const filledPips = Math.min(pipCount, Math.max(0, Math.round((resultData.foundWords / totalForPips) * pipCount)));
     const progressBar = '🟩'.repeat(filledPips) + '⬜'.repeat(pipCount - filledPips);
     const pct = Math.round((resultData.foundWords / totalForPips) * 100);
 
