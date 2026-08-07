@@ -813,26 +813,71 @@ export default function WordBuilder() {
     return today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
-  const shareDailyFromMenu = async () => {
-    if (!dailyResult) return;
-    const streakText = dailyChallenge && dailyChallenge.dailyStreak > 1
-      ? `Streak: ${dailyChallenge.dailyStreak} days\n`
-      : '';
-    const msg = `Wordsmith Daily\n${formatDate()}\n\nScore: ${dailyResult.score}\nWords: ${dailyResult.words.length}\n${streakText}\nPlay Word Fury!`;
-    try { await Share.share({ message: msg }); } catch (e) {}
+  // Single share-text builder for both Daily and Practice (Blitz/Standard),
+  // replacing what used to be two near-duplicate strings (shareDaily and
+  // shareDailyFromMenu) that had already drifted slightly out of sync.
+  // Daily never lists the actual found words — the day's letter set is the
+  // same for everyone, so specific found words would give away valid
+  // answers to friends who haven't played yet. Practice reveals its best
+  // word since there's no shared puzzle to spoil.
+  const buildWordsmithShareText = (params: {
+    isDaily: boolean;
+    scoreValue: number;
+    wordsFound: number;
+    totalPossible?: number;
+    percentFound?: number;
+    streak?: number;
+    bestWord?: string;
+    modeLabel?: string;
+  }) => {
+    const { isDaily, scoreValue, wordsFound, totalPossible, percentFound, streak, bestWord, modeLabel } = params;
+    const lines: string[] = [isDaily ? `🔤 WORDSMITH DAILY — ${formatDate()}` : '🔤 WORDSMITH'];
+    if (!isDaily && modeLabel) lines.push(modeLabel);
+    lines.push(`Score: ${scoreValue.toLocaleString()} pts`);
+    lines.push(
+      totalPossible != null && percentFound != null
+        ? `${wordsFound}/${totalPossible} words · ${percentFound}%`
+        : `${wordsFound} word${wordsFound === 1 ? '' : 's'}`
+    );
+    if (!isDaily && bestWord) lines.push(`Best word: ${bestWord.toUpperCase()}`);
+    if (isDaily && streak && streak > 1) lines.push(`🔥 ${streak} day streak`);
+    lines.push('', 'wordfury.app');
+    return lines.join('\n');
   };
 
-  const shareDaily = async (totalFound: number, totalPossible: number, percentFound: number) => {
-    const streakText = dailyChallenge && dailyChallenge.dailyStreak > 1 
-      ? `Streak: ${dailyChallenge.dailyStreak} days\n` 
-      : '';
-    
-    const message = `Wordsmith Daily\n${formatDate()}\n\nScore: ${score}\nWords: ${totalFound}/${totalPossible} (${percentFound}%)\n${streakText}\nCan you beat my score?`;
-    
+  const shareDailyFromMenu = async () => {
+    if (!dailyResult) return;
+    const message = buildWordsmithShareText({
+      isDaily: true,
+      scoreValue: dailyResult.score,
+      wordsFound: dailyResult.words.length,
+      streak: dailyChallenge?.dailyStreak ?? 0,
+    });
+    try { await Share.share({ message }); } catch (e) {}
+  };
+
+  const shareResult = async (opts: {
+    isDaily: boolean;
+    totalFound: number;
+    totalPossible: number;
+    percentFound: number;
+    modeLabel?: string;
+  }) => {
+    const bestWord = !opts.isDaily && foundWords.length > 0
+      ? foundWords.reduce((longest, w) => (w.length > longest.length ? w : longest), foundWords[0])
+      : undefined;
+    const message = buildWordsmithShareText({
+      isDaily: opts.isDaily,
+      scoreValue: score,
+      wordsFound: opts.totalFound,
+      totalPossible: opts.totalPossible,
+      percentFound: opts.percentFound,
+      streak: dailyChallenge?.dailyStreak ?? 0,
+      bestWord,
+      modeLabel: opts.modeLabel,
+    });
     try {
-      await Share.share({
-        message,
-      });
+      await Share.share({ message });
     } catch (error) {
       console.error('Error sharing:', error);
     }
@@ -1026,18 +1071,23 @@ export default function WordBuilder() {
           </Pressable>
         </View>
 
-        {/* Share — daily only */}
-        {isDaily && (
-          <Pressable
-            style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-            onPress={() => shareDaily(stats.totalFound, stats.totalPossible, stats.percentFound)}
-          >
-            <View style={styles.shareButtonInner}>
-              <Share2 size={18} color="#fff" />
-              <Text style={styles.shareButtonText}>Share Result</Text>
-            </View>
-          </Pressable>
-        )}
+        {/* Share — now available for Blitz/Standard too, not just Daily, so
+            every game mode has the same "flex your result" option. */}
+        <Pressable
+          style={({ pressed }) => [styles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
+          onPress={() => shareResult({
+            isDaily,
+            totalFound: stats.totalFound,
+            totalPossible: stats.totalPossible,
+            percentFound: stats.percentFound,
+            modeLabel: !isDaily ? (gameMode === 'blitz' ? 'Blitz · 30s' : 'Standard · 60s') : undefined,
+          })}
+        >
+          <View style={styles.shareButtonInner}>
+            <Share2 size={18} color="#fff" />
+            <Text style={styles.shareButtonText}>Share Result</Text>
+          </View>
+        </Pressable>
 
         {/* Page Indicator Dots + Swipe Hint */}
         <View style={styles.pageIndicatorContainer}>

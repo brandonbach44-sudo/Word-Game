@@ -23,7 +23,7 @@ import RankProgressBar from '../components/RankProgressBar';
 import type { HexHivePuzzle } from '../data/puzzles';
 import { getPuzzleSolution, shuffleLetters, getTodayDateString, formatDisplayDate } from '../utils/generator';
 import { checkGuess } from '../utils/validator';
-import { getRankProgress, scoreWordForPuzzle, getEffectiveMaxScore } from '../utils/scoring';
+import { getRankProgress, scoreWordForPuzzle, getEffectiveMaxScore, RANKS } from '../utils/scoring';
 import {
   bumpStreakForToday,
   bumpFullClearStreakForToday,
@@ -300,17 +300,45 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const handleDelete = () => setCurrentGuess((g) => g.slice(0, -1));
   const handleShuffle = () => setOuterLetters((prev) => shuffleLetters(prev));
 
+  // Rank ladder as a pip bar — same "climb visualized as blocks" idea as
+  // the other games' shares, using the hive's own rank tiers instead of an
+  // arbitrary score threshold.
+  const buildRankBar = (rankIndex: number) => {
+    const filled = rankIndex + 1;
+    return '🔶'.repeat(filled) + '⬜'.repeat(Math.max(0, RANKS.length - filled));
+  };
+
   const handleShareResult = async () => {
-    const message = `Hex Hive — Quick Play\n${rank.name} rank\n${score} points · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}`;
+    const pangramCount = foundWords.filter((w) => solution.pangrams.includes(w)).length;
+    const lines = [
+      '🐝 HEX HIVE',
+      buildRankBar(rank.index),
+      `Rank: ${rank.name}`,
+      `${score} pts · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}${pangramCount > 0 ? ` · ${pangramCount} pangram${pangramCount === 1 ? '' : 's'}` : ''}`,
+      '',
+      'wordfury.app',
+    ];
     try {
-      await Share.share({ message });
+      await Share.share({ message: lines.join('\n') });
     } catch {}
   };
 
   const handleShareWin = async () => {
-    const message = `Hex Hive — Daily\n${formatDisplayDate()}\nSolved! ${rank.name} rank\n${foundWords.length} words · ${score} points`;
+    // Spoiler-safe: same reasoning as every other Daily share — the day's
+    // hive is shared by everyone, so the actual found words stay out of
+    // it. Rank/score/pangram COUNT don't give away which words they were.
+    const pangramCount = foundWords.filter((w) => solution.pangrams.includes(w)).length;
+    const streak = statsRef.current?.currentStreak ?? 0;
+    const lines = [
+      `🐝 HEX HIVE DAILY — ${formatDisplayDate()}`,
+      buildRankBar(rank.index),
+      `Rank: ${rank.name} ✓ Solved!`,
+      `${score} pts · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}${pangramCount > 0 ? ` · ${pangramCount} pangram${pangramCount === 1 ? '' : 's'}` : ''}`,
+    ];
+    if (streak > 1) lines.push(`🔥 ${streak} day streak`);
+    lines.push('', 'wordfury.app');
     try {
-      await Share.share({ message });
+      await Share.share({ message: lines.join('\n') });
     } catch {}
   };
 
