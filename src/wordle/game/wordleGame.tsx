@@ -511,6 +511,11 @@ export default function WordleGame() {
   const COLOR_PRESENT        = colorBlindMode ? "#60a5fa" : "#fde047";
   const COLOR_PRESENT_BORDER = colorBlindMode ? "#3b82f6" : "#facc15";
   const COLOR_PRESENT_TEXT   = colorBlindMode ? "#fff"    : "#1a1a1a";
+  // Won/lost indicator used outside the tile grid (e.g. the main menu's
+  // 7-day calendar strip) — same orange/blue colorblind-safe pairing as the
+  // tiles above, instead of leaving the "lost" side hardcoded red.
+  const COLOR_LOST          = colorBlindMode ? "#3b82f6" : "#ef4444";
+  const COLOR_LOST_BORDER    = colorBlindMode ? "#2563eb" : "#dc2626";
 
   const [screen, setScreen] = useState<Screen>("menu");
   const [menuTab, setMenuTab] = useState<MenuTab>("play");
@@ -1932,9 +1937,9 @@ export default function WordleGame() {
                           const won=result==="won";
                           const lost=result==="lost";
                           const attempted=won||lost;
-                          const tileBg=won?COLOR_CORRECT:lost?"#ef4444":"transparent";
+                          const tileBg=won?COLOR_CORRECT:lost?COLOR_LOST:"transparent";
                           const tileTextColor=attempted?"#fff":SUBTEXT;
-                          const borderCol=won?COLOR_CORRECT:lost?"#ef4444":BORDER;
+                          const borderCol=won?COLOR_CORRECT_BORDER:lost?COLOR_LOST_BORDER:BORDER;
                           return (
                             <View key={iso} style={styles.calendarCell}>
                               <Text style={[styles.calendarDayLabel,{color:SUBTEXT}]}>{label}</Text>
