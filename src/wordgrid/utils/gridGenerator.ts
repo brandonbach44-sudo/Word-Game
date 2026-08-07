@@ -14,7 +14,6 @@
 // Every grid is guaranteed to contain real recognisable words across all lengths.
 
 import commonWords from '../data/commonWords';
-import { isBlockedWord } from '../../shared/profanityFilter';
 
 // Trie
 
@@ -45,12 +44,9 @@ function buildTrie(): TrieNode {
 
 const TRIE = buildTrie();
 
-// Seed pool: 4-5 letter common words with no repeated letters (easiest to
-// place). Profanity is excluded here since these are the words deliberately
-// placed and highlighted in the grid — the general TRIE above (used only to
-// validate whatever word a player happens to trace) is left unfiltered.
+// Seed pool: 4-5 letter common words with no repeated letters (easiest to place)
 const SEED_POOL: string[] = commonWords
-  .filter(w => w.length >= 4 && w.length <= 5 && new Set(w).size === w.length && !isBlockedWord(w))
+  .filter(w => w.length >= 4 && w.length <= 5 && new Set(w).size === w.length)
   .map(w => w.toUpperCase());
 
 // Letter weights

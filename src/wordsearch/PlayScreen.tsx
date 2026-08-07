@@ -1,16 +1,12 @@
 // src/wordsearch/PlayScreen.tsx
 
 import { router } from 'expo-router';
-import { Share2, X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Modal,
   PanResponder,
-  Pressable,
   ScrollView,
-  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -39,55 +35,12 @@ import {
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import { ConfirmModal } from '../../src/shared/ConfirmModal';
+import WordSearchResultOverlay, { type WordSearchResultData } from '../../src/wordsearch/components/WordSearchResultOverlay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Result data shape ─────────────────────────────────────────────────────────
-interface ResultData {
-  score: number;
-  foundWords: number;
-  totalWords: number;
-  allFound: boolean;
-  timeString: string;
-  multiplier: number;
-  timeBonus: number;
-  newAchievements: WSAchievement[];
-}
-
-// ── Stat pill ─────────────────────────────────────────────────────────────────
-function StatPill({ label, value, textColor, borderColor, backgroundColor }: {
-  label: string; value: string; textColor: string; borderColor: string; backgroundColor: string;
-}) {
-  return (
-    <View style={[overlayStyles.statPill, { borderColor, backgroundColor }]}>
-      <Text style={[overlayStyles.statPillLabel, { color: textColor }]}>{label}</Text>
-      <Text style={[overlayStyles.statPillValue, { color: textColor }]}>{value}</Text>
-    </View>
-  );
-}
-
-// ── Primary button ────────────────────────────────────────────────────────────
-function PrimaryButton({ label, onPress, borderColor, textColor, backgroundColor, fullWidth }: {
-  label: string; onPress: () => void; borderColor: string; textColor: string; backgroundColor: string; fullWidth?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      style={[overlayStyles.primaryButton, fullWidth && overlayStyles.primaryButtonFullWidth, { borderColor, backgroundColor }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Text style={[overlayStyles.primaryButtonText, { color: textColor }]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function formatCountdown(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m ${sec.toString().padStart(2, '0')}s`;
-}
+type ResultData = WordSearchResultData;
 
 interface PlayScreenProps {
   themeId: WordSearchThemeId;
@@ -600,6 +553,14 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     ? formatTime(remainingSeconds)
     : formatTime(gameState.elapsedSeconds);
 
+  // "Next Daily in" countdown, converted from the "HH:MM:SS" display string
+  // to raw seconds for WordSearchResultOverlay (same shape every other
+  // game's result overlay expects).
+  const dailyCountdownSeconds = (() => {
+    const parts = countdown.split(':').map(Number);
+    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  })();
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: background.backgroundColor }]}>
       <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
@@ -783,162 +744,23 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 
       {/* ── Results overlay (replaces separate results route) ── */}
       {resultData && (
-        <Modal visible animationType="slide">
-          <SafeAreaView style={[overlayStyles.container, { backgroundColor: background.backgroundColor }]} edges={['top', 'bottom']}>
-            <StatusBar barStyle={background.statusBar === 'light' ? 'light-content' : 'dark-content'} />
-
-            {/* Page header — brand + X close (X reveals the completed, highlighted grid underneath) */}
-            <View style={[overlayStyles.pageHeader, { borderColor: background.borderColor }]}>
-              <View style={overlayStyles.headerSpacer} />
-              <Text style={[overlayStyles.brand, { color: background.secondaryText }]}>WORD SEARCH</Text>
-              <Pressable
-                style={({ pressed }) => [overlayStyles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
-                onPress={() => setResultData(null)}
-                hitSlop={10}
-              >
-                <X size={22} color={background.secondaryText} />
-              </Pressable>
-            </View>
-
-            <ScrollView contentContainerStyle={overlayStyles.scroll} showsVerticalScrollIndicator={false}>
-              <View style={overlayStyles.card}>
-
-                {/* Title */}
-                <Text style={[overlayStyles.title, { color: background.textColor }]}>
-                  {resultData.allFound
-                    ? 'Nice!'
-                    : resultData.foundWords / resultData.totalWords >= 0.75
-                    ? 'Great Job!'
-                    : resultData.foundWords / resultData.totalWords >= 0.5
-                    ? 'Good Effort!'
-                    : "Time's Up!"}
-                </Text>
-                <Text style={[overlayStyles.subtitle, { color: background.secondaryText }]}>
-                  {resultData.allFound
-                    ? `You found all ${resultData.totalWords} words in ${resultData.timeString}!`
-                    : `You found ${resultData.foundWords}/${resultData.totalWords} words in ${resultData.timeString}.`}
-                </Text>
-
-                {/* Theme pill */}
-                <View style={[overlayStyles.themePill, { borderColor: COLORS.accent }]}>
-                  <Text style={[overlayStyles.themePillText, { color: COLORS.accent }]}>
-                    {themeName}{difficulty ? ` · ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}${resultData.multiplier > 1 ? ` · ${resultData.multiplier}×` : ''}` : ''}
-                  </Text>
-                </View>
-
-                {/* This game */}
-                <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
-                <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>THIS GAME</Text>
-                <View style={overlayStyles.statsRow}>
-                  <StatPill label="Found" value={`${resultData.foundWords}/${resultData.totalWords}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                  <StatPill label="Time" value={resultData.timeString} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                </View>
-                <View style={overlayStyles.statsRow}>
-                  <StatPill label="Score" value={resultData.score.toLocaleString()} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                  <StatPill label="Complete" value={`${Math.round((resultData.foundWords / Math.max(resultData.totalWords, 1)) * 100)}%`} textColor={resultData.allFound ? COLORS.accent : background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                </View>
-
-                {/* Score breakdown */}
-                {resultData.allFound && (
-                  <>
-                    <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
-                    <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>SCORE BREAKDOWN</Text>
-                    <View style={overlayStyles.statsRow}>
-                      <StatPill label="Words" value={`${resultData.score - resultData.timeBonus} pts`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                      <StatPill label="Time Bonus" value={`+${resultData.timeBonus}`} textColor={COLORS.accent} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                    </View>
-                    {resultData.multiplier > 1 && (
-                      <View style={overlayStyles.statsRow}>
-                        <StatPill label="Multiplier" value={`${resultData.multiplier}×`} textColor="#f59e0b" borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                      </View>
-                    )}
-                  </>
-                )}
-
-                {/* Lifetime stats */}
-                {lifetimeStats && lifetimeStats.gamesPlayed > 0 && (
-                  <>
-                    <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
-                    <Text style={[overlayStyles.sectionTitle, { color: background.textColor }]}>YOUR STATS</Text>
-                    <View style={overlayStyles.statsRow}>
-                      <StatPill label="Best Score" value={lifetimeStats.bestScore.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                      <StatPill label="Streak" value={`${lifetimeStats.currentStreak}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                    </View>
-                    <View style={overlayStyles.statsRow}>
-                      <StatPill label="Games" value={`${lifetimeStats.gamesPlayed}`} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                      <StatPill label="Words Found" value={lifetimeStats.totalWordsFound.toLocaleString()} textColor={background.textColor} borderColor={background.borderColor} backgroundColor={background.cardColor} />
-                    </View>
-                  </>
-                )}
-
-                {/* Daily countdown */}
-                {isDaily && (() => {
-                  const parts = countdown.split(':').map(Number);
-                  const secs = (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
-                  return secs > 0 ? (
-                    <>
-                      <View style={[overlayStyles.divider, { backgroundColor: background.borderColor }]} />
-                      <Text style={[overlayStyles.countdownLabel, { color: background.secondaryText }]}>Next Daily in</Text>
-                      <Text style={[overlayStyles.countdownValue, { color: background.textColor }]}>{formatCountdown(secs)}</Text>
-                    </>
-                  ) : null;
-                })()}
-
-                {/* Buttons — Play Again only outside Daily (one attempt per day),
-                    same rule as every other game's results screen. Main Menu
-                    goes back to Word Search's own hub, not the app home. */}
-                <View style={overlayStyles.buttonRow}>
-                  <PrimaryButton
-                    label="Main Menu"
-                    onPress={() => {
-                      setResultData(null);
-                      router.replace('/wordsearch');
-                    }}
-                    borderColor={background.borderColor}
-                    textColor={background.textColor}
-                    backgroundColor={background.cardColor}
-                    fullWidth={isDaily}
-                  />
-                  {!isDaily && (
-                    <PrimaryButton
-                      label="Play Again"
-                      onPress={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
-                      borderColor={background.borderColor}
-                      textColor={background.textColor}
-                      backgroundColor={background.cardColor}
-                    />
-                  )}
-                </View>
-
-                {/* Share */}
-                <Pressable
-                  style={({ pressed }) => [overlayStyles.shareButton, { opacity: pressed ? 0.75 : 1 }]}
-                  onPress={async () => {
-                    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    const result = resultData.allFound ? `${resultData.foundWords}/${resultData.totalWords} ✅` : `${resultData.foundWords}/${resultData.totalWords}`;
-                    const text = isDaily
-                      ? `🔍 Word Search Daily\n${themeName} · ${dateStr}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}\n#WordFury`
-                      : `🔍 Word Search\n${themeName}\n${result} words · ${resultData.timeString}\nScore: ${resultData.score}`;
-                    try { await Share.share({ message: text }); } catch {}
-                  }}
-                >
-                  <View style={overlayStyles.shareButtonInner}>
-                    <Share2 size={18} color="#fff" />
-                    <Text style={overlayStyles.shareButtonText}>Share Result</Text>
-                  </View>
-                </Pressable>
-
-              </View>
-              <View style={{ height: 30 }} />
-            </ScrollView>
-            <AchievementPopup
-              achievement={currentPopup}
-              onDismiss={() => setCurrentPopup(null)}
-              backgroundColor={background.cardColor}
-              textColor={background.textColor}
-            />
-          </SafeAreaView>
-        </Modal>
+        <WordSearchResultOverlay
+          visible
+          mode={isDaily ? 'daily' : 'practice'}
+          themeName={themeName}
+          difficulty={difficulty}
+          resultData={resultData}
+          lifetimeStats={lifetimeStats}
+          nextDailySecondsRemaining={dailyCountdownSeconds}
+          onClose={() => setResultData(null)}
+          onPlayAgain={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
+          onGoHome={() => {
+            setResultData(null);
+            router.replace('/wordsearch');
+          }}
+          achievement={currentPopup}
+          onDismissAchievement={() => setCurrentPopup(null)}
+        />
       )}
     </SafeAreaView>
   );
@@ -1059,44 +881,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-});
-
-const overlayStyles = StyleSheet.create({
-  container: { flex: 1 },
-  pageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  headerSpacer: { width: 22 },
-  closeIconButton: { width: 22, alignItems: 'flex-end' },
-  scroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 18, paddingVertical: 24 },
-  card: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 4 },
-  brand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
-  title: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4, marginTop: 12 },
-  subtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
-  themePill: { alignSelf: 'center', borderWidth: 2, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 16, marginBottom: 4 },
-  themePillText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  divider: { height: 1, marginVertical: 12, opacity: 0.35 },
-  sectionTitle: { fontSize: 14, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
-  statsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 },
-  statPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
-  statPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },
-  statPillValue: { fontSize: 14, fontWeight: '900' },
-  countdownLabel: { textAlign: 'center', fontSize: 12, fontWeight: '800', marginBottom: 4, letterSpacing: 1 },
-  countdownValue: { textAlign: 'center', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', width: '100%', gap: 10, marginTop: 12 },
-  primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
-  primaryButtonFullWidth: { width: '100%', paddingVertical: 12, minWidth: undefined },
-  primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
-  shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
-  shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
-  secondaryButton: { marginTop: 10, borderWidth: 2, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
-  secondaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
 });
 
 export default PlayScreen;

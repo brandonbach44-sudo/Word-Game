@@ -27,7 +27,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
 // AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
-import { isBlockedWord } from "../../shared/profanityFilter";
 import {
   clearDailyProgress,
   loadDailyLock,
@@ -158,26 +157,13 @@ const KEYBOARD_ROWS: string[][] = [
 ];
 
 // ✅ Normalize dictionaries once so validation is case-insensitive and fast.
-// Profanity is filtered out of the SOLUTION pool only (never picked as the
-// daily/random word) — it's left in VALID_GUESSES below so a player typing
-// one of those words mid-guess still gets normal feedback instead of a
-// confusing "not a word" rejection, matching NYT Wordle's own split between
-// a curated solution list and a much broader valid-guess list.
-const SOLUTIONS_LC: string[] = SOLUTIONS
-  .map((w) => String(w).trim().toLowerCase())
-  .filter((w) => !isBlockedWord(w));
+const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => String(w).trim().toLowerCase());
 const VALID_GUESSES_SET: Set<string> = new Set(
   VALID_GUESSES.map((w) => String(w).trim().toLowerCase()).filter(Boolean)
 );
 
 // In case SOLUTIONS words should also always be valid guesses:
 for (const w of SOLUTIONS_LC) VALID_GUESSES_SET.add(w);
-// Also allow the (filtered-out) original solution words as guesses, since
-// removing them from SOLUTIONS_LC shouldn't make them unguessable.
-for (const w of SOLUTIONS) {
-  const lc = String(w).trim().toLowerCase();
-  if (lc) VALID_GUESSES_SET.add(lc);
-}
 
 // ✅ Daily word order: a fixed, seeded shuffle of SOLUTIONS indices, kept
 // separate from the raw array order. Relying on "day number % array length"

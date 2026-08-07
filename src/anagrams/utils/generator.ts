@@ -10,7 +10,6 @@
 import commonWords from '../../wordgrid/data/commonWords';
 import { VALID_WORDS } from '../../shared/words';
 import { AnagramsCategoryId, getCategoryWordsByLength } from '../data/categories';
-import { isBlockedWord } from '../../shared/profanityFilter';
 
 // Progressive difficulty: 4 → 5 → 6 → 6 → 7 letters across the 5 rounds.
 export const ROUND_LENGTHS: number[] = [4, 5, 6, 6, 7];
@@ -46,14 +45,11 @@ function pickRandom<T>(arr: T[], rand: () => number): T {
   return arr[Math.floor(rand() * arr.length)];
 }
 
-// Profanity excluded here since this pool is where each round's actual
-// target word gets picked from — the general VALID_WORDS check later on
-// (for scoring whatever the player types) is left unfiltered.
 const poolByLength = new Map<number, string[]>();
 function getPool(length: number): string[] {
   const cached = poolByLength.get(length);
   if (cached) return cached;
-  const pool = commonWords.filter((w) => w.length === length && !isBlockedWord(w));
+  const pool = commonWords.filter((w) => w.length === length);
   poolByLength.set(length, pool);
   return pool;
 }
@@ -66,7 +62,7 @@ function getCategoryPool(categoryId: AnagramsCategoryId, length: number): string
   const key = `${categoryId}:${length}`;
   const cached = categoryPoolByKey.get(key);
   if (cached) return cached;
-  const pool = getCategoryWordsByLength(categoryId, length).map((w) => w.toLowerCase()).filter((w) => !isBlockedWord(w));
+  const pool = getCategoryWordsByLength(categoryId, length).map((w) => w.toLowerCase());
   categoryPoolByKey.set(key, pool);
   return pool;
 }
