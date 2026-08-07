@@ -32,9 +32,8 @@ import { DailyChallengeCard } from '../components/DailyChallengeCard';
 import { DailyChallengePopup } from '../components/DailyChallengePopup';
 import { generateGrid } from '../utils/gridGenerator';
 import {
-  buildScoreBlocks,
+  buildWordGridDailyShareText,
   clearWordGridDailyProgress,
-  formatDisplayDate,
   generateDailyGrid,
   getTodayDateString,
   loadDailyWordGridStats,
@@ -336,9 +335,11 @@ export default function GameScreen() {
         setDailyStats(newDailyStats);
         resumedDailyRef.current = false;
         await clearWordGridDailyProgress();
-        const blocks = buildScoreBlocks(finalScore);
-        const streakLine = newDailyStats.streak > 1 ? `🔥 ${newDailyStats.streak} day streak\n` : '';
-        const text = `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${finalScore} pts · ${finalFoundWords.length} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
+        const text = buildWordGridDailyShareText({
+          score: finalScore,
+          wordsCount: finalFoundWords.length,
+          streak: newDailyStats.streak,
+        });
         setDailyShareText(text);
         setShowDailyPopup(true);
         setScreen('results');
@@ -417,12 +418,41 @@ export default function GameScreen() {
 
   const handleShareResult = useCallback(async () => {
     try {
-      const text = `Word Grid: ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''} · ${score} points`;
+      let text: string;
+      if (gameMode === 'daily') {
+        // Spoiler-safe: same reasoning as Furdle/Anagrams — the Daily grid
+        // is shared by everyone that day, so revealing which words were
+        // found would give away valid answers to friends who haven't
+        // played yet. Score/word-count/streak only.
+        text = buildWordGridDailyShareText({
+          score,
+          wordsCount: foundWords.length,
+          streak: dailyStats?.streak ?? 0,
+        });
+      } else {
+        // Quick Play grids are randomly generated per game, so there's no
+        // shared puzzle to spoil — safe to flex the actual best word found.
+        const bestLenForShare = foundWords.length > 0
+          ? foundWords.reduce((max, w) => Math.max(max, w.word.length), 0)
+          : 0;
+        const topWordForShare = foundWords.length > 0
+          ? foundWords.reduce((best, w) => (w.points > best.points ? w : best), foundWords[0])
+          : null;
+        const lines = [
+          '🔠 WORD GRID',
+          `Score: ${score} pts · ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''}`,
+        ];
+        if (topWordForShare) {
+          lines.push(`Best word: ${topWordForShare.word.toUpperCase()} (${topWordForShare.points} pts, ${bestLenForShare} letters)`);
+        }
+        lines.push('', 'wordfury.app');
+        text = lines.join('\n');
+      }
       await Share.share({ message: text });
     } catch (e) {
       console.warn('Share failed', e);
     }
-  }, [foundWords, score]);
+  }, [foundWords, score, gameMode, dailyStats]);
 
   // Daily only allows one attempt per day — leaving mid-game (while the
   // round is still running, not yet timed out) needs to actually lock in
@@ -910,18 +940,21 @@ export default function GameScreen() {
               wordsCount={dailyStats?.lastWordsCount ?? 0}
               streak={dailyStats?.streak ?? 0}
               bestStreak={dailyStats?.bestStreak ?? 0}
-              shareText={dailyShareText || (() => {
-                if (!dailyStats) return '';
-                const blocks = buildScoreBlocks(dailyStats.lastScore);
-                const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                return `🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`;
-              })()}
+              shareText={dailyShareText || (dailyStats
+                ? buildWordGridDailyShareText({
+                    score: dailyStats.lastScore,
+                    wordsCount: dailyStats.lastWordsCount,
+                    streak: dailyStats.streak,
+                  })
+                : '')}
               onPlay={dailyPlayedToday
                 ? () => {
                     if (!dailyShareText && dailyStats) {
-                      const blocks = buildScoreBlocks(dailyStats.lastScore);
-                      const streakLine = dailyStats.streak > 1 ? `🔥 ${dailyStats.streak} day streak\n` : '';
-                      setDailyShareText(`🔠 Word Grid Daily\n${formatDisplayDate()}\n\nScore: ${dailyStats.lastScore} pts · ${dailyStats.lastWordsCount} words\n${streakLine}\n${blocks}\n\nPlay Word Fury!`);
+                      setDailyShareText(buildWordGridDailyShareText({
+                        score: dailyStats.lastScore,
+                        wordsCount: dailyStats.lastWordsCount,
+                        streak: dailyStats.streak,
+                      }));
                     }
                     setShowDailyPopup(true);
                     setScreen('results');

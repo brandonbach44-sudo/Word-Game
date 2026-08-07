@@ -197,13 +197,43 @@ export async function clearWordGridDailyProgress(): Promise<void> {
 // ─── Share Emoji Blocks ───────────────────────────────────────────────────────
 
 /**
- * 5 blocks representing score tiers:
- *  ⬜ < 50  🟨 50-99  🟧 100-149  🟩 150-199  🟦 200+
- * Filled left-to-right: e.g. score=130 → 🟩🟩🟩⬜⬜
+ * 5 blocks, each one a milestone rung climbed, each its own color instead of
+ * a flat green bar — turns the share into a little heat-map of how far the
+ * score got: ⬜ unclaimed, then 🟨 50 · 🟧 100 · 🟩 150 · 🟦 200 · 🌟 250+.
+ * e.g. score=130 → 🟨🟧⬜⬜⬜
  */
 export function buildScoreBlocks(score: number): string {
+  const tierEmoji = ['🟨', '🟧', '🟩', '🟦', '🌟'];
   const thresholds = [50, 100, 150, 200, 250];
   return thresholds
-    .map(t => (score >= t ? '🟩' : '⬜'))
+    .map((t, i) => (score >= t ? tierEmoji[i] : '⬜'))
     .join('');
+}
+
+/**
+ * Shared Daily share text builder — used both right after finishing the
+ * Daily and when reopening an already-completed Daily from the menu, so all
+ * paths produce the exact same format instead of three near-duplicate
+ * inline strings drifting apart. Never reveals which words were found,
+ * since the Daily grid is the same for everyone that day and listing
+ * specific found words would spoil valid answers for friends who haven't
+ * played yet — only the score/word-count/streak are shown.
+ */
+export function buildWordGridDailyShareText(params: {
+  score: number;
+  wordsCount: number;
+  streak: number;
+  dateStr?: string;
+}): string {
+  const { score, wordsCount, streak, dateStr = formatDisplayDate() } = params;
+  const blocks = buildScoreBlocks(score);
+  const lines: string[] = [
+    `🔠 WORD GRID DAILY — ${dateStr}`,
+    blocks,
+    '',
+    `Score: ${score} pts · ${wordsCount} word${wordsCount === 1 ? '' : 's'}`,
+  ];
+  if (streak > 1) lines.push(`🔥 ${streak} day streak`);
+  lines.push('', 'wordfury.app');
+  return lines.join('\n');
 }
