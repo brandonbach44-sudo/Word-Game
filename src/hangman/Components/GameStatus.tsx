@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: 18,
-    padding: 4,
+    padding: 8,
   },
   brand: {
     textAlign: 'center',
@@ -230,21 +230,21 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: 'center',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
-    marginBottom: 4,
-    marginTop: 12,
+    marginBottom: 8,
+    marginTop: 20,
   },
   subtitle: {
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 20,
   },
   solutionBox: {
     borderWidth: 2,
     borderRadius: 14,
-    paddingVertical: 10,
+    paddingVertical: 18,
     paddingHorizontal: 12,
     alignItems: 'center',
   },
@@ -267,12 +267,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    marginVertical: 12,
+    marginVertical: 22,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '900',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
     letterSpacing: 1,
   },
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     flexWrap: 'wrap',
-    marginBottom: 6,
+    marginBottom: 14,
   },
   statPill: {
     borderWidth: 2,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 12,
+    marginTop: 24,
   },
   primaryButton: {
     borderWidth: 2,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   shareButton: {
-    marginTop: 10,
+    marginTop: 18,
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 20,
