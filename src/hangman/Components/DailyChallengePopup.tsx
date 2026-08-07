@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 import { formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
 
 type Props = {
@@ -17,6 +18,9 @@ type Props = {
   maxAttempts: number;
   onBackToMenu: () => void;
   onClose: () => void;
+  // Achievement toast to render inside this Modal — see AchievementPopup.
+  achievement?: AchievementLike | null;
+  onDismissAchievement?: () => void;
 };
 
 const StatPill = ({
@@ -49,6 +53,8 @@ export const DailyChallengePopup: React.FC<Props> = ({
   maxAttempts,
   onBackToMenu,
   onClose,
+  achievement = null,
+  onDismissAchievement,
 }) => {
   const { background } = useTheme();
   const countdown = useCountdownToMidnight();
@@ -88,9 +94,11 @@ export const DailyChallengePopup: React.FC<Props> = ({
     } catch (e) {}
   };
 
-  // Rendered in a native Modal so this always covers the full screen and
-  // always sits above everything else (including achievement toasts),
-  // regardless of the parent play screen's layout.
+  // Rendered in a native Modal so this always covers the full screen,
+  // regardless of the parent play screen's layout. The achievement toast is
+  // rendered again as the last child below, inside this same Modal, since a
+  // toast mounted only at the parent screen level would otherwise be hidden
+  // behind this overlay (native Modals always paint above plain views).
   return (
     <Modal
       visible={visible}
@@ -202,6 +210,12 @@ export const DailyChallengePopup: React.FC<Props> = ({
 
       </View>
       </ScrollView>
+      <AchievementPopup
+        achievement={achievement}
+        onDismiss={onDismissAchievement ?? (() => {})}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
       </View>
     </Modal>
   );

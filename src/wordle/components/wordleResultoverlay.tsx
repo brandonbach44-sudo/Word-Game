@@ -4,6 +4,7 @@ import { Share2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../shared/ThemeContext";
+import { AchievementPopup, AchievementLike } from "../../shared/AchievementPopup";
 
 type CellState = "correct" | "present" | "absent" | "empty";
 
@@ -29,6 +30,9 @@ type Props = {
   nextDailySecondsRemaining?: number | null;
   shareText?: string;
   evaluationRows?: CellState[][];
+  // Achievement toast to render inside this Modal — see AchievementPopup.
+  achievement?: AchievementLike | null;
+  onDismissAchievement?: () => void;
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -185,6 +189,8 @@ const WordleResultOverlay = ({
   nextDailySecondsRemaining,
   shareText,
   evaluationRows,
+  achievement = null,
+  onDismissAchievement,
 }: Props) => {
   const { background } = useTheme();
   const insets = useSafeAreaInsets();
@@ -244,9 +250,11 @@ const WordleResultOverlay = ({
   const avgTimeText =
     averageTimeSeconds != null ? formatSeconds(averageTimeSeconds) : undefined;
 
-  // Rendered in a native Modal so this always covers the full screen and
-  // always sits above everything else (including achievement toasts),
-  // regardless of the parent play screen's layout.
+  // Rendered in a native Modal so this always covers the full screen,
+  // regardless of the parent play screen's layout. The achievement toast is
+  // rendered again as the last child below, inside this same Modal, since a
+  // toast mounted only at the parent screen level would otherwise be hidden
+  // behind this overlay (native Modals always paint above plain views).
   return (
     <Modal
       visible={visible}
@@ -451,6 +459,12 @@ const WordleResultOverlay = ({
         )}
       </View>
       </ScrollView>
+      <AchievementPopup
+        achievement={achievement}
+        onDismiss={onDismissAchievement ?? (() => {})}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
       </View>
     </Modal>
   );

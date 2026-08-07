@@ -17,7 +17,6 @@ import FeedbackForm from '../../FeedbackForm';
 import {
   Newspaper,
   Palette,
-  Volume2,
   Mail,
   Info,
   ChevronRight,
@@ -46,11 +45,9 @@ export const SettingsScreen: React.FC = () => {
     background,
     selectedBackgroundId,
     darkModeEnabled,
-    soundEnabled,
     colorBlindMode,
     setBackgroundId,
     setDarkMode,
-    setSoundEnabled,
     setColorBlindMode,
   } = useTheme();
 
@@ -272,33 +269,6 @@ export const SettingsScreen: React.FC = () => {
             darkModeEnabled && styles.backgroundGridDisabled,
           ]}>
             {lightBackgrounds.map(renderBackgroundOption)}
-          </View>
-        </View>
-
-        {/* ==================== SOUND SECTION ==================== */}
-        <View style={styles.section}>
-          <View style={styles.sectionTitleRow}>
-            <Volume2 size={20} color={background.secondaryText} style={styles.sectionIcon} />
-            <Text style={[styles.sectionTitle, { color: background.textColor }]}>
-              Sound
-            </Text>
-          </View>
-          
-          <View style={[styles.settingRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-            <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, { color: background.textColor }]}>
-                Sound Effects
-              </Text>
-              <Text style={[styles.settingDescription, { color: background.secondaryText }]}>
-                Play sounds for actions and feedback
-              </Text>
-            </View>
-            <Switch
-              value={soundEnabled}
-              onValueChange={setSoundEnabled}
-              trackColor={{ false: '#d1d5db', true: COLORS.accent }}
-              thumbColor={soundEnabled ? '#ffffff' : '#f4f3f4'}
-            />
           </View>
         </View>
 

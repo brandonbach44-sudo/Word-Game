@@ -800,6 +800,8 @@ const AnagramsPlayScreen: React.FC<Props> = ({
           onPlayAgain?.();
         }}
         onGoHome={onGoHome}
+        achievement={currentPopupAchievement}
+        onDismissAchievement={() => setCurrentPopupAchievement(null)}
       />
     </SafeAreaView>
   );

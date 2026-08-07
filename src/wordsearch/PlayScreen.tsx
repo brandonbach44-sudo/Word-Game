@@ -926,6 +926,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
               </View>
               <View style={{ height: 30 }} />
             </ScrollView>
+            <AchievementPopup
+              achievement={currentPopup}
+              onDismiss={() => setCurrentPopup(null)}
+              backgroundColor={background.cardColor}
+              textColor={background.textColor}
+            />
           </SafeAreaView>
         </Modal>
       )}

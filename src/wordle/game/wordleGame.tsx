@@ -2157,6 +2157,8 @@ export default function WordleGame() {
           nextDailySecondsRemaining={overlayMode === "daily" && isDailyCompletedToday ? nextDailySeconds : null}
           shareText={overlayShareText}
           evaluationRows={overlayEvaluationRows}
+          achievement={currentPopupAchievement as any}
+          onDismissAchievement={() => setCurrentPopupAchievement(null)}
         />
       </View>
 

@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
+import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 
 type GameStatusProps = {
   isVisible: boolean;
@@ -15,6 +16,9 @@ type GameStatusProps = {
   onPlayAgain: () => void;
   onBackToMenu: () => void;
   onClose: () => void;
+  // Achievement toast to render inside this Modal — see AchievementPopup.
+  achievement?: AchievementLike | null;
+  onDismissAchievement?: () => void;
 };
 
 const StatPill = ({
@@ -68,6 +72,8 @@ export const GameStatus: React.FC<GameStatusProps> = ({
   onPlayAgain,
   onBackToMenu,
   onClose,
+  achievement = null,
+  onDismissAchievement,
 }) => {
   const { background } = useTheme();
 
@@ -157,6 +163,12 @@ export const GameStatus: React.FC<GameStatusProps> = ({
         </View>
         </ScrollView>
       </SafeAreaView>
+      <AchievementPopup
+        achievement={achievement}
+        onDismiss={onDismissAchievement ?? (() => {})}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
     </Modal>
   );
 };

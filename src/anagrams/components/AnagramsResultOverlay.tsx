@@ -9,6 +9,7 @@ import { Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 import type { RoundResult } from '../utils/scoring';
 
 type Props = {
@@ -26,6 +27,9 @@ type Props = {
   onClose: () => void;
   onPlayAgain: () => void;
   onGoHome: () => void;
+  // Achievement toast to render inside this Modal — see AchievementPopup.
+  achievement?: AchievementLike | null;
+  onDismissAchievement?: () => void;
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -105,6 +109,8 @@ const AnagramsResultOverlay: React.FC<Props> = ({
   onClose,
   onPlayAgain,
   onGoHome,
+  achievement = null,
+  onDismissAchievement,
 }) => {
   const { background } = useTheme();
   const insets = useSafeAreaInsets();
@@ -133,9 +139,11 @@ const AnagramsResultOverlay: React.FC<Props> = ({
     ? `All ${roundResults.length} words, zero hints — flawless.`
     : `You solved ${wordsSolved}/${roundResults.length} words.`;
 
-  // Rendered in a native Modal so this always covers the full screen and
-  // always sits above everything else (including achievement toasts),
-  // regardless of the parent play screen's layout.
+  // Rendered in a native Modal so this always covers the full screen,
+  // regardless of the parent play screen's layout. The achievement toast is
+  // rendered again as the last child below, inside this same Modal, since a
+  // toast mounted only at the parent screen level would otherwise be hidden
+  // behind this overlay (native Modals always paint above plain views).
   return (
     <Modal
       visible={visible}
@@ -234,6 +242,12 @@ const AnagramsResultOverlay: React.FC<Props> = ({
         </Pressable>
       </View>
       </ScrollView>
+      <AchievementPopup
+        achievement={achievement}
+        onDismiss={onDismissAchievement ?? (() => {})}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
       </View>
     </Modal>
   );

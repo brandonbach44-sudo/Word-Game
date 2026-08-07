@@ -197,4 +197,3 @@ export const getDarkBackgrounds = (): BackgroundOption[] => {
 // Default settings
 export const DEFAULT_BACKGROUND_ID = 'cream';
 export const DEFAULT_DARK_MODE = false;
-export const DEFAULT_SOUND_ENABLED = true;

@@ -627,6 +627,8 @@ const LadderPlayScreen: React.FC<Props> = ({
           onPlayAgain?.();
         }}
         onGoHome={onGoHome}
+        achievement={currentPopupAchievement}
+        onDismissAchievement={() => setCurrentPopupAchievement(null)}
       />
     </SafeAreaView>
   );

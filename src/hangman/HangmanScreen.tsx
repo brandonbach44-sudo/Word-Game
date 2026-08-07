@@ -828,9 +828,11 @@ export default function HangmanScreen() {
             onPlayAgain={handlePlayAgain}
             onBackToMenu={handleBackToModeSelect}
             onClose={() => setResultCardClosed(true)}
+            achievement={currentPopupAchievement}
+            onDismissAchievement={handleAchievementDismiss}
           />
         )}
-        
+
         {/* Daily Challenge End Popup */}
         {playingDaily && showDailyPopup && dailyStats && (
           <DailyChallengePopup
@@ -844,6 +846,8 @@ export default function HangmanScreen() {
             maxAttempts={maxAttempts}
             onBackToMenu={handleCloseDailyPopup}
             onClose={() => setShowDailyPopup(false)}
+            achievement={currentPopupAchievement}
+            onDismissAchievement={handleAchievementDismiss}
           />
         )}
       </SafeAreaView>

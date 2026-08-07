@@ -490,6 +490,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
             </Pressable>
           </View>
           </ScrollView>
+          <AchievementPopup
+            achievement={achievementQueue[0] ?? null}
+            onDismiss={() => setAchievementQueue((q) => q.slice(1))}
+            backgroundColor={CARD}
+            textColor={TEXT}
+          />
         </View>
         </Modal>
       )}
@@ -550,6 +556,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
             </Pressable>
           </View>
           </ScrollView>
+          <AchievementPopup
+            achievement={achievementQueue[0] ?? null}
+            onDismiss={() => setAchievementQueue((q) => q.slice(1))}
+            backgroundColor={CARD}
+            textColor={TEXT}
+          />
         </View>
       </Modal>
     </SafeAreaView>

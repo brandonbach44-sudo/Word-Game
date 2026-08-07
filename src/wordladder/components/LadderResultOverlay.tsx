@@ -8,6 +8,7 @@ import { Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 
 type Props = {
   visible: boolean;
@@ -26,6 +27,12 @@ type Props = {
   onClose: () => void;
   onPlayAgain: () => void;
   onGoHome: () => void;
+  // Achievement toast to render inside this Modal (see AchievementPopup —
+  // native Modals always render above plain views, so a toast mounted only
+  // at the parent screen level would be hidden behind this overlay whenever
+  // both are visible at once, e.g. finishing the puzzle unlocks something).
+  achievement?: AchievementLike | null;
+  onDismissAchievement?: () => void;
 };
 
 function formatSeconds(totalSeconds: number): string {
@@ -107,6 +114,8 @@ const LadderResultOverlay: React.FC<Props> = ({
   onClose,
   onPlayAgain,
   onGoHome,
+  achievement = null,
+  onDismissAchievement,
 }) => {
   const { background } = useTheme();
   const insets = useSafeAreaInsets();
@@ -239,6 +248,12 @@ const LadderResultOverlay: React.FC<Props> = ({
         </Pressable>
       </View>
       </ScrollView>
+      <AchievementPopup
+        achievement={achievement}
+        onDismiss={onDismissAchievement ?? (() => {})}
+        backgroundColor={CARD}
+        textColor={TEXT}
+      />
       </View>
     </Modal>
   );
