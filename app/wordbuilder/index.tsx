@@ -352,6 +352,10 @@ export default function WordBuilder() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [gameOverPage, setGameOverPage] = useState<GameOverPage>('results');
+  // Height of the pinned bottom footer (buttons + share + page dots), measured
+  // via onLayout so the scrollable pages above can pad themselves out by
+  // exactly that much and never render content underneath it.
+  const [resultsFooterHeight, setResultsFooterHeight] = useState(0);
   const [possibleWords, setPossibleWords] = useState<PossibleWord[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -892,7 +896,7 @@ export default function WordBuilder() {
           {/* ===== PAGE 1: RESULTS ===== */}
           <View style={[styles.carouselPage, { width }]}>
             <ScrollView
-              contentContainerStyle={styles.resultsPageContent}
+              contentContainerStyle={[styles.resultsPageContent, { paddingBottom: resultsFooterHeight + 24 }]}
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.resultsCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
@@ -969,7 +973,7 @@ export default function WordBuilder() {
               data={possibleWords}
               keyExtractor={(item) => item.word}
               style={styles.wordsList}
-              contentContainerStyle={styles.wordsListContent}
+              contentContainerStyle={[styles.wordsListContent, { paddingBottom: resultsFooterHeight + 24 }]}
               numColumns={2}
               renderItem={({ item }) => (
                 <View style={[
@@ -992,7 +996,15 @@ export default function WordBuilder() {
           </View>
         </ScrollView>
 
-        {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar */}
+        {/* Buttons + share + page dots — pinned to the bottom of the screen
+            via position:absolute (height measured through onLayout below) so
+            they never shift when the swipe carousel's two pages differ in
+            content height. The scrollable pages above pad themselves out by
+            resultsFooterHeight so their content never renders underneath. */}
+        <View
+          style={[styles.resultsFooter, { backgroundColor: background.backgroundColor }]}
+          onLayout={(e) => setResultsFooterHeight(e.nativeEvent.layout.height)}
+        >
         <View style={styles.resultsButtonRow}>
           {!isDaily && (
             <Pressable
@@ -1031,7 +1043,7 @@ export default function WordBuilder() {
         <View style={styles.pageIndicatorContainer}>
           <View style={styles.pageIndicatorLabels}>
             <Text style={[
-              styles.pageIndicatorLabel, 
+              styles.pageIndicatorLabel,
               { color: gameOverPage === 'results' ? background.textColor : background.secondaryText }
             ]}>
               Results
@@ -1053,7 +1065,8 @@ export default function WordBuilder() {
             </Text>
           )}
         </View>
-        
+        </View>
+
         {/* First-Time Swipe Tooltip */}
         {showSwipeTooltip && (
           <TouchableOpacity 
@@ -2217,7 +2230,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 1,
   },
   resultsHeaderSpacer: {
     width: 22,
@@ -2228,6 +2240,12 @@ const styles = StyleSheet.create({
   },
   carousel: {
     flex: 1,
+  },
+  resultsFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   carouselPage: {
     flex: 1,

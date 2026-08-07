@@ -196,6 +196,17 @@ export default function HexGrid({
             </View>
           );
         })}
+
+        {/* Shuffle sits by itself in the bottom-right corner of the
+            honeycomb, away from Delete/Enter, so it isn't sandwiched
+            between the two primary action buttons below. */}
+        <TouchableOpacity
+          style={[styles.shuffleButton, { borderColor }]}
+          onPress={onShuffle}
+          activeOpacity={0.7}
+        >
+          <RotateCw size={22} color={textColor} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.controlsRow}>
@@ -205,13 +216,6 @@ export default function HexGrid({
           activeOpacity={0.7}
         >
           <Delete size={24} color={textColor} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.shuffleButton, { borderColor }]}
-          onPress={onShuffle}
-          activeOpacity={0.7}
-        >
-          <RotateCw size={24} color={textColor} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.enterButton, { backgroundColor: accentColor }]}
@@ -243,7 +247,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 28,
     marginTop: 18,
   },
   controlButton: {
@@ -255,12 +259,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shuffleButton: {
+    position: 'absolute',
+    right: 4,
+    bottom: 2,
     borderWidth: 1.5,
     borderRadius: 999,
-    width: 62,
-    height: 62,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.02)',
   },
   enterButton: {
     borderRadius: 999,

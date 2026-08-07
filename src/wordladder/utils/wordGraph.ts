@@ -11,6 +11,7 @@
 // ~41k words.
 
 import { VALID_WORDS } from '../../shared/words';
+import { isBlockedWord } from '../../shared/profanityFilter';
 
 type PatternMap = Map<string, string[]>;
 
@@ -25,13 +26,17 @@ function isPlainWord(word: string): boolean {
   return /^[a-z]+$/.test(word);
 }
 
-/** All dictionary words of a given length (lowercase, letters only). */
+// Filtered out entirely (not just from the start/end pick) — a ladder is a
+// fixed generated chain the player must walk through step by step, so a
+// blocked word can never legally appear anywhere in it, not just as the
+// start or end.
+/** All dictionary words of a given length (lowercase, letters only), profanity excluded. */
 export function getWordsOfLength(length: number): string[] {
   const cached = wordsByLengthCache.get(length);
   if (cached) return cached;
   const words: string[] = [];
   VALID_WORDS.forEach((w) => {
-    if (w.length === length && isPlainWord(w)) words.push(w);
+    if (w.length === length && isPlainWord(w) && !isBlockedWord(w)) words.push(w);
   });
   wordsByLengthCache.set(length, words);
   return words;

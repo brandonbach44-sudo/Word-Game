@@ -69,10 +69,17 @@ export function generatePuzzle(
 
   const placedWords: PlacedWord[] = [];
   const directions: Direction[] = getAllowedDirections(allowBackwards, allowDiagonal);
+  const diagonalDirections: Direction[] = ['DOWNRIGHT', 'DOWNLEFT', 'UPRIGHT', 'UPLEFT'];
 
-  for (const word of selected) {
-    placeWordInGrid(word, grid, directions, placedWords);
-  }
+  selected.forEach((word, i) => {
+    // Roughly a third of words try diagonal placement first (falling back to
+    // any allowed direction if the grid won't cooperate) so a puzzle isn't
+    // left to pure chance for whether any diagonal words show up at all —
+    // with fully random direction picks, a meaningful fraction of puzzles
+    // ended up with zero diagonal words purely by luck.
+    const preferDiagonal = allowDiagonal && i % 3 === 0;
+    placeWordInGrid(word, grid, directions, placedWords, preferDiagonal ? diagonalDirections : undefined);
+  });
 
   fillEmptyCells(grid);
 
@@ -116,10 +123,15 @@ export function generatePuzzleWithSeed(
 
   const placedWords: PlacedWord[] = [];
   const directions: Direction[] = getAllowedDirections(allowBackwards, allowDiagonal);
+  const diagonalDirections: Direction[] = ['DOWNRIGHT', 'DOWNLEFT', 'UPRIGHT', 'UPLEFT'];
 
-  for (const word of selected) {
-    placeWordInGridSeeded(word, grid, directions, placedWords, seededRandom);
-  }
+  selected.forEach((word, i) => {
+    // Same reasoning as the non-seeded generator above: bias roughly a third
+    // of words toward diagonal placement so the Daily puzzle reliably has
+    // some diagonal words most days instead of it being a coin flip.
+    const preferDiagonal = allowDiagonal && i % 3 === 0;
+    placeWordInGridSeeded(word, grid, directions, placedWords, seededRandom, preferDiagonal ? diagonalDirections : undefined);
+  });
 
   fillEmptyCellsSeeded(grid, seededRandom);
 
@@ -159,14 +171,34 @@ function placeWordInGrid(
   word: string,
   grid: string[][],
   directions: Direction[],
-  placedWords: PlacedWord[]
+  placedWords: PlacedWord[],
+  preferredDirections?: Direction[]
 ): void {
   const rows = grid.length;
   const cols = grid[0].length;
-  const maxAttempts = 200;
+
+  // If this word is biased toward a preferred subset (e.g. diagonals), spend
+  // the first half of the attempt budget trying only those directions
+  // before falling back to the full set — guarantees a real, repeated shot
+  // at the preferred directions rather than a 1-in-N chance per attempt.
+  if (preferredDirections && preferredDirections.length > 0) {
+    const shuffledPreferred = shuffleArray(preferredDirections.slice());
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const direction = shuffledPreferred[attempt % shuffledPreferred.length];
+      const vec = DIRECTION_VECTORS[direction];
+      const startRow = randomInt(0, rows - 1);
+      const startCol = randomInt(0, cols - 1);
+      if (canPlaceWord(word, grid, startRow, startCol, vec.dr, vec.dc)) {
+        actuallyPlaceWord(word, grid, startRow, startCol, vec.dr, vec.dc);
+        placedWords.push({ word, row: startRow, col: startCol, direction, length: word.length });
+        return;
+      }
+    }
+  }
+
   const shuffledDirections = shuffleArray(directions.slice());
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     const direction = shuffledDirections[attempt % shuffledDirections.length];
     const vec = DIRECTION_VECTORS[direction];
     const startRow = randomInt(0, rows - 1);
@@ -191,14 +223,32 @@ function placeWordInGridSeeded(
   grid: string[][],
   directions: Direction[],
   placedWords: PlacedWord[],
-  random: () => number
+  random: () => number,
+  preferredDirections?: Direction[]
 ): void {
   const rows = grid.length;
   const cols = grid[0].length;
-  const maxAttempts = 200;
+
+  // Same reasoning as placeWordInGrid — give preferred (diagonal) directions
+  // a dedicated first pass before falling back to the full direction set.
+  if (preferredDirections && preferredDirections.length > 0) {
+    const shuffledPreferred = shuffleArraySeeded(preferredDirections.slice(), random);
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const direction = shuffledPreferred[attempt % shuffledPreferred.length];
+      const vec = DIRECTION_VECTORS[direction];
+      const startRow = Math.floor(random() * rows);
+      const startCol = Math.floor(random() * cols);
+      if (canPlaceWord(word, grid, startRow, startCol, vec.dr, vec.dc)) {
+        actuallyPlaceWord(word, grid, startRow, startCol, vec.dr, vec.dc);
+        placedWords.push({ word, row: startRow, col: startCol, direction, length: word.length });
+        return;
+      }
+    }
+  }
+
   const shuffledDirections = shuffleArraySeeded(directions.slice(), random);
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     const direction = shuffledDirections[attempt % shuffledDirections.length];
     const vec = DIRECTION_VECTORS[direction];
     const startRow = Math.floor(random() * rows);

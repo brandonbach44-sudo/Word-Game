@@ -67,12 +67,12 @@ function StatPill({ label, value, textColor, borderColor, backgroundColor }: {
 }
 
 // ── Primary button ────────────────────────────────────────────────────────────
-function PrimaryButton({ label, onPress, borderColor, textColor, backgroundColor }: {
-  label: string; onPress: () => void; borderColor: string; textColor: string; backgroundColor: string;
+function PrimaryButton({ label, onPress, borderColor, textColor, backgroundColor, fullWidth }: {
+  label: string; onPress: () => void; borderColor: string; textColor: string; backgroundColor: string; fullWidth?: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={[overlayStyles.primaryButton, { borderColor, backgroundColor }]}
+      style={[overlayStyles.primaryButton, fullWidth && overlayStyles.primaryButtonFullWidth, { borderColor, backgroundColor }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -884,25 +884,30 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                   ) : null;
                 })()}
 
-                {/* Buttons */}
+                {/* Buttons — Play Again only outside Daily (one attempt per day),
+                    same rule as every other game's results screen. Main Menu
+                    goes back to Word Search's own hub, not the app home. */}
                 <View style={overlayStyles.buttonRow}>
                   <PrimaryButton
                     label="Main Menu"
                     onPress={() => {
                       setResultData(null);
-                      router.push('/');
+                      router.replace('/wordsearch');
                     }}
                     borderColor={background.borderColor}
                     textColor={background.textColor}
                     backgroundColor={background.cardColor}
+                    fullWidth={isDaily}
                   />
-                  <PrimaryButton
-                    label="Play Again"
-                    onPress={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
-                    borderColor={background.borderColor}
-                    textColor={background.textColor}
-                    backgroundColor={background.cardColor}
-                  />
+                  {!isDaily && (
+                    <PrimaryButton
+                      label="Play Again"
+                      onPress={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
+                      borderColor={background.borderColor}
+                      textColor={background.textColor}
+                      backgroundColor={background.cardColor}
+                    />
+                  )}
                 </View>
 
                 {/* Share */}
@@ -1065,7 +1070,6 @@ const overlayStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 1,
   },
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },
@@ -1084,8 +1088,9 @@ const overlayStyles = StyleSheet.create({
   statPillValue: { fontSize: 14, fontWeight: '900' },
   countdownLabel: { textAlign: 'center', fontSize: 12, fontWeight: '800', marginBottom: 4, letterSpacing: 1 },
   countdownValue: { textAlign: 'center', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', width: '100%', gap: 10, marginTop: 12 },
   primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  primaryButtonFullWidth: { width: '100%', paddingVertical: 12, minWidth: undefined },
   primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },

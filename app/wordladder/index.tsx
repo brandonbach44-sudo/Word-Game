@@ -222,6 +222,11 @@ export default function WordLadderEntryScreen() {
 
               {dailyPlayed && dailyLock && (
                 <View style={styles.dailyCompletedInfo}>
+                  <View style={[styles.dailyLadderVisual, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+                    <Text style={[styles.dailyLadderWord, { color: background.textColor }]}>{dailyLock.start.toUpperCase()}</Text>
+                    <Text style={[styles.dailyLadderArrow, { color: background.secondaryText }]}>→</Text>
+                    <Text style={[styles.dailyLadderWord, { color: background.textColor }]}>{dailyLock.end.toUpperCase()}</Text>
+                  </View>
                   <Text style={styles.dailyCompletedScore}>
                     {dailyLock.result === 'won' ? dailyLock.steps : '—'}
                   </Text>
@@ -479,6 +484,18 @@ const styles = StyleSheet.create({
   dailyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4, textAlign: 'center' },
   dailySubtitle: { fontSize: 14, marginBottom: 16, textAlign: 'center' },
   dailyCompletedInfo: { alignItems: 'center', paddingVertical: 8 },
+  dailyLadderVisual: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  dailyLadderWord: { fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  dailyLadderArrow: { fontSize: 16, fontWeight: '700' },
   dailyCompletedScore: { fontSize: 48, fontWeight: 'bold', color: COLORS.accent },
   dailyCompletedLabel: { fontSize: 14, marginTop: 4, marginBottom: 8 },
   dailyStatPillRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 },

@@ -14,8 +14,6 @@ import {
 } from "react-native";
 import { Flame, Share2, Trophy } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { usePreventRemove } from "@react-navigation/core";
 import type { DailyLockState } from "../storage/wordleStorage";
 
 import { useTheme } from "../../shared/ThemeContext";
@@ -23,13 +21,13 @@ import { useTheme } from "../../shared/ThemeContext";
 import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
 import { AchievementPopup } from "../../shared/AchievementPopup";
-import { ConfirmModal } from "../../shared/ConfirmModal";
 import { FallingLetters } from "../../shared/FallingLetters";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
 import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
 // AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
+import { isBlockedWord } from "../../shared/profanityFilter";
 import {
   clearDailyProgress,
   loadDailyLock,
@@ -71,7 +69,10 @@ const COLS = 5;
 
 const HORIZONTAL_PADDING = 16;
 
-// Keyboard tuning (smaller height so it always fits)
+// Keyboard tuning — horizontal padding matches Word Ladder's keyboard
+// exactly (6, not the wider 16 used by the tile grid above) so every game's
+// on-screen keyboard is the same size; Furdle's used to run narrower.
+const KEYBOARD_HORIZONTAL_PADDING = 6;
 const KEY_GAP = 6;
 const KEY_MIN_HEIGHT = 54;
 const KEY_ROW_MARGIN_V = 3;
@@ -157,13 +158,26 @@ const KEYBOARD_ROWS: string[][] = [
 ];
 
 // ✅ Normalize dictionaries once so validation is case-insensitive and fast.
-const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => String(w).trim().toLowerCase());
+// Profanity is filtered out of the SOLUTION pool only (never picked as the
+// daily/random word) — it's left in VALID_GUESSES below so a player typing
+// one of those words mid-guess still gets normal feedback instead of a
+// confusing "not a word" rejection, matching NYT Wordle's own split between
+// a curated solution list and a much broader valid-guess list.
+const SOLUTIONS_LC: string[] = SOLUTIONS
+  .map((w) => String(w).trim().toLowerCase())
+  .filter((w) => !isBlockedWord(w));
 const VALID_GUESSES_SET: Set<string> = new Set(
   VALID_GUESSES.map((w) => String(w).trim().toLowerCase()).filter(Boolean)
 );
 
 // In case SOLUTIONS words should also always be valid guesses:
 for (const w of SOLUTIONS_LC) VALID_GUESSES_SET.add(w);
+// Also allow the (filtered-out) original solution words as guesses, since
+// removing them from SOLUTIONS_LC shouldn't make them unguessable.
+for (const w of SOLUTIONS) {
+  const lc = String(w).trim().toLowerCase();
+  if (lc) VALID_GUESSES_SET.add(lc);
+}
 
 // ✅ Daily word order: a fixed, seeded shuffle of SOLUTIONS indices, kept
 // separate from the raw array order. Relying on "day number % array length"
@@ -1178,53 +1192,16 @@ export default function WordleGame() {
     return map;
   }, [evaluations]);
 
-  // Daily only allows one attempt per day — leaving mid-game needs to
-  // actually lock in the attempt as a loss, otherwise you could dodge a bad
-  // run by backing out and trying again later.
-  // Pending leave-confirmation action: null when hidden, either the string
-  // "back" (in-app button) or a navigation action object (swipe/hardware
-  // back via usePreventRemove) when the themed ConfirmModal should show.
-  const [leaveAction, setLeaveAction] = useState<"back" | any>(null);
-  // usePreventRemove reads `status` from its own render's closure. When we
-  // confirm "Leave" we call endGame() (async setState) then immediately
-  // re-dispatch the nav action in the same tick — before React re-renders
-  // with the new status. Without this ref, the still-stale "playing"
-  // closure intercepts its own re-dispatched action and reopens the modal,
-  // so the user can never actually leave. The ref bypasses the guard
-  // synchronously, ahead of the re-render.
-  const isLeavingRef = useRef(false);
-
+  // Daily used to force a loss the moment you backed out mid-game ("one
+  // attempt per day, no dodging a bad run"). Changed per product decision:
+  // Daily now autosaves in-progress guesses (see the effect above, and
+  // hydration logic near the top of this component) and simply resumes
+  // exactly where you left off — same day only, resets with tomorrow's
+  // word. Leaving mid-game is no longer a punishable action, so there's
+  // nothing to confirm; back just goes back.
   const handleGameBackPress = useCallback(() => {
-    if (gameMode === "daily" && status === "playing") {
-      setLeaveAction("back");
-      return;
-    }
     goToMenu("play");
-  }, [gameMode, goToMenu, status]);
-
-  // Same protection as above, but for leaving the Wordle screen entirely
-  // (iOS swipe-back gesture, Android hardware back button) rather than the
-  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
-  // handleGameBackPress altogether and escape with no result recorded.
-  const navigation = useNavigation();
-  usePreventRemove(gameMode === "daily" && status === "playing" && !isLeavingRef.current, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = useCallback(() => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
-    const elapsedSeconds =
-      startTime != null ? Math.floor((Date.now() - startTime) / 1000) : null;
-    endGame("lost", guesses.length, elapsedSeconds);
-    if (action === "back") {
-      goToMenu("play");
-    } else {
-      navigation.dispatch(action);
-    }
-  }, [endGame, goToMenu, guesses.length, leaveAction, navigation, startTime]);
+  }, [goToMenu]);
 
   const gridShakeX = shakeAnim.interpolate({
     inputRange: [0, 1],
@@ -1337,7 +1314,7 @@ export default function WordleGame() {
     const totalWeight = weights.reduce((a, b) => a + b, 0);
 
     const availableWidth =
-      SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - KEY_GAP * (row.length - 1);
+      SCREEN_WIDTH - KEYBOARD_HORIZONTAL_PADDING * 2 - KEY_GAP * (row.length - 1);
 
     const unit = availableWidth / totalWeight;
 
@@ -1532,17 +1509,6 @@ export default function WordleGame() {
         onDismiss={() => setCurrentPopupAchievement(null)}
         backgroundColor={CARD}
         textColor={TEXT}
-      />
-      <ConfirmModal
-        visible={!!leaveAction}
-        title="Leave Daily Challenge?"
-        message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's result."
-        onCancel={() => setLeaveAction(null)}
-        onConfirm={confirmLeaveDaily}
-        backgroundColor={CARD}
-        textColor={TEXT}
-        secondaryText={SUBTEXT}
-        borderColor={BORDER}
       />
       <View style={[styles.container, { backgroundColor: BG }]}>
         {/* MENU (Play / Stats) */}
@@ -2769,7 +2735,7 @@ const styles = StyleSheet.create({
   },
 
   bottomControls: {
-    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingHorizontal: KEYBOARD_HORIZONTAL_PADDING,
     alignItems: "center",
     paddingTop: 4,
     paddingBottom: 6,

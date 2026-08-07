@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 
 const FEEDBACK_EMAIL = 'wordfurygame@gmail.com';
 
@@ -57,7 +57,10 @@ const FeedbackForm = ({ visible, onClose }) => {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.container}>
           <Text style={styles.title}>Send Feedback</Text>
 
@@ -66,7 +69,11 @@ const FeedbackForm = ({ visible, onClose }) => {
               <Text style={styles.successText}>✓ Opening Mail...</Text>
             </View>
           ) : (
-            <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.form}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* Rating */}
               <Text style={styles.label}>How would you rate your experience?</Text>
               <View style={styles.ratingContainer}>
@@ -139,7 +146,7 @@ const FeedbackForm = ({ visible, onClose }) => {
             </ScrollView>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

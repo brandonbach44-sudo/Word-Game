@@ -608,7 +608,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 1,
   },
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },

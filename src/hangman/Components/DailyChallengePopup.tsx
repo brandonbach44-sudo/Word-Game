@@ -189,6 +189,7 @@ export const DailyChallengePopup: React.FC<Props> = ({
           <Pressable
             style={({ pressed }) => [
               styles.primaryButton,
+              styles.primaryButtonFullWidth,
               { borderColor: BORDER, backgroundColor: CARD, opacity: pressed ? 0.75 : 1 },
             ]}
             onPress={onBackToMenu}
@@ -232,7 +233,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 1,
   },
   headerSpacer: { width: 22 },
   closeIconButton: { width: 22, alignItems: 'flex-end' },
@@ -342,6 +342,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    width: '100%',
     gap: 10,
     marginTop: 12,
   },
@@ -352,6 +353,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minWidth: 120,
     alignItems: 'center',
+  },
+  primaryButtonFullWidth: {
+    width: '100%',
+    paddingVertical: 12,
+    minWidth: undefined,
   },
   primaryButtonText: {
     fontSize: 13,

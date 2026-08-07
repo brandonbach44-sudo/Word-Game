@@ -4,8 +4,11 @@ import { useTheme } from '../../shared/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const HORIZONTAL_PADDING = 16;
-const KEY_GAP = 4;
+// Sizing matches Word Ladder's keyboard exactly (the standard for every
+// game with an on-screen keyboard) — only the extra buttons around it
+// (Guess the Word, Enter) are game-specific.
+const HORIZONTAL_PADDING = 6;
+const KEY_GAP = 6;
 
 // Keyboard layout matching Wordle (with BACK key)
 const KEYBOARD_ROWS: string[][] = [
@@ -90,14 +93,19 @@ export const Keyboard: React.FC<KeyboardProps> = ({
       {/* Keyboard Rows */}
       <View style={styles.keyboardContainer}>
         {KEYBOARD_ROWS.map((row, rowIndex) => {
-          const rowLength = row.length;
-          const totalGaps = KEY_GAP * (rowLength - 1);
+          // Weighted sizing (BACK counts as 1.6 keys) — same formula as
+          // Word Ladder/Furdle, so BACK is wider without the row overflowing
+          // past the available width.
+          const weights = row.map((k) => (k === 'BACK' ? 1.6 : 1));
+          const totalWeight = weights.reduce((a, b) => a + b, 0);
+          const totalGaps = KEY_GAP * (row.length - 1);
           const availableWidth = SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - totalGaps;
-          const keyWidth = availableWidth / rowLength;
+          const unit = availableWidth / totalWeight;
 
           return (
             <View key={rowIndex} style={styles. keyRow}>
-              {row. map((key) => {
+              {row.map((key, idx) => {
+                const keyWidth = unit * weights[idx];
                 if (key === 'BACK') {
                   return (
                     <Pressable
@@ -106,9 +114,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                       disabled={disabled || ! selectedLetter}
                       style={({ pressed }) => [
                         styles.key,
-                        styles.backKey,
                         {
-                          width: keyWidth * 1.6,
+                          width: keyWidth,
                           opacity: pressed ? 0.72 : disabled || !selectedLetter ? 0.5 : 1,
                           backgroundColor: softKeyBg,
                           borderColor: subtleBorder,
@@ -180,22 +187,21 @@ const styles = StyleSheet.create({
   keyRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 2,
+    marginVertical: 3,
   },
   key: {
-    minHeight: 44,
+    height: 52,
     borderRadius: 8,
     justifyContent:  'center',
     alignItems: 'center',
     marginHorizontal: KEY_GAP / 2,
-    paddingHorizontal: 4,
     borderWidth: 1,
   },
   backKey: {
     minWidth: 60,
   },
   keyLabel:  {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
   },
   enterContainer:  {

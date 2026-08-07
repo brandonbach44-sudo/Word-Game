@@ -5,6 +5,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Modal,
   PanResponder,
   Pressable,
   ScrollView,
@@ -455,8 +456,19 @@ export default function GameScreen() {
   // (iOS swipe-back gesture, Android hardware back button) rather than the
   // in-app "← Back" button — a gesture/hardware-back would otherwise skip
   // handleGameplayBackPress altogether and escape with no result recorded.
+  //
+  // Bug fix: this guard must also require screen === 'game'. An unfinished
+  // Daily attempt gets restored into gameMode/gameOver in the background as
+  // soon as the app loads (see the resume effect above), even while sitting
+  // on the menu — without the screen check, that alone was enough to make
+  // this guard block leaving the whole Word Grid route from the MENU
+  // screen too. But the ConfirmModal that's supposed to resolve leaveAction
+  // is only rendered inside the `screen === 'game'` block below, so on the
+  // menu the leave attempt was silently swallowed with no way to confirm
+  // it — the screen would start to navigate away, then get yanked right
+  // back with no explanation. Scoping this to actual gameplay fixes it.
   const navigation = useNavigation();
-  usePreventRemove(gameMode === 'daily' && !gameOver && !isLeavingRef.current, ({ data }) => {
+  usePreventRemove(screen === 'game' && gameMode === 'daily' && !gameOver && !isLeavingRef.current, ({ data }) => {
     setLeaveAction(data.action);
   });
 
@@ -525,7 +537,19 @@ export default function GameScreen() {
       setResultsPage(page === 0 ? 'results' : 'words');
     };
 
+    // Rendered in a native Modal — matching every other game's results
+    // presentation (slide up from the bottom, full page) instead of the old
+    // plain conditional swap, which looked like a flat popup rather than
+    // its own page.
     return (
+      <Modal
+        visible
+        transparent={false}
+        animationType="slide"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={handleBackToMenu}
+      >
       <SafeAreaView style={[styles.container, { backgroundColor: bg.backgroundColor }]}>
         <StatusBar barStyle={bg.statusBar === 'dark' ? 'dark-content' : 'light-content'} />
 
@@ -667,22 +691,30 @@ export default function GameScreen() {
           </View>
         </ScrollView>
 
-        {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar */}
+        {/* Buttons — persistent across both swipe pages, matching every other game's post-game bar.
+            Play Again only makes sense outside Daily (one attempt per day), same rule as every
+            other game's results screen. */}
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={[styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}
+            style={[
+              styles.primaryButton,
+              gameMode === 'daily' && styles.primaryButtonFullWidth,
+              { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor },
+            ]}
             onPress={handleBackToMenu}
             activeOpacity={0.7}
           >
             <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Main Menu</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}
-            onPress={handlePlayAgain}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
-          </TouchableOpacity>
+          {gameMode !== 'daily' && (
+            <TouchableOpacity
+              style={[styles.primaryButton, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}
+              onPress={handlePlayAgain}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.primaryButtonText, { color: bg.textColor }]}>Play Again</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {foundWords.length > 0 && (
@@ -716,6 +748,7 @@ export default function GameScreen() {
           )}
         </View>
       </SafeAreaView>
+      </Modal>
     );
   }
 
@@ -1223,7 +1256,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    borderBottomWidth: 1,
   },
   resultsHeaderSpacer: { width: 22 },
   resultsCloseIconButton: { width: 22, alignItems: 'flex-end' },
@@ -1234,8 +1266,9 @@ const styles = StyleSheet.create({
   statPill: { borderWidth: 2, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, alignItems: 'center' },
   statPillLabel: { fontSize: 11, fontWeight: '800', opacity: 0.8, marginBottom: 2 },
   statPillValue: { fontSize: 14, fontWeight: '900' },
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
+  buttonRow: { flexDirection: 'row', justifyContent: 'center', width: '100%', gap: 10, marginTop: 12 },
   primaryButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  primaryButtonFullWidth: { width: '100%', paddingVertical: 12, minWidth: undefined },
   primaryButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   shareButton: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
