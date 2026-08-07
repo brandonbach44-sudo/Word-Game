@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 
-const FEEDBACK_EMAIL = 'wordfurygame@gmail.com';
+// Feedback submits directly to Formspree via a plain JSON POST — no Mail
+// app, no exposing a real email address to the user. Formspree forwards
+// each submission to the inbox configured on the form itself.
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/maewqwwd';
 
 const FeedbackForm = ({ visible, onClose }) => {
   const [rating, setRating] = useState(5);
@@ -29,16 +32,27 @@ const FeedbackForm = ({ visible, onClose }) => {
 
     try {
       const categoryLabel = categories.find((c) => c.value === category)?.label || category;
-      const subject = `WordFury Feedback - ${categoryLabel} (${rating}/5)`;
-      const body = `Rating: ${rating}/5\nCategory: ${categoryLabel}\n\n${message.trim()}`;
-      const mailtoUrl = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (!canOpen) {
-        throw new Error('No email app is set up on this device.');
+      const response = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          subject: `WordFury Feedback - ${categoryLabel} (${rating}/5)`,
+          rating: `${rating}/5`,
+          category: categoryLabel,
+          message: message.trim(),
+          platform: Platform.OS,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const detail = data?.errors?.map((e) => e.message).join(', ');
+        throw new Error(detail || 'Could not send feedback. Please try again.');
       }
-
-      await Linking.openURL(mailtoUrl);
 
       setSuccess(true);
       setTimeout(() => {
@@ -49,7 +63,7 @@ const FeedbackForm = ({ visible, onClose }) => {
         onClose();
       }, 1200);
     } catch (err) {
-      setError(err.message || 'Could not open your email app.');
+      setError(err.message || 'Could not send feedback. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -66,7 +80,7 @@ const FeedbackForm = ({ visible, onClose }) => {
 
           {success ? (
             <View style={styles.successContainer}>
-              <Text style={styles.successText}>✓ Opening Mail...</Text>
+              <Text style={styles.successText}>✓ Feedback sent!</Text>
             </View>
           ) : (
             <ScrollView
@@ -139,7 +153,7 @@ const FeedbackForm = ({ visible, onClose }) => {
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Open Mail</Text>
+                    <Text style={styles.submitButtonText}>Send Feedback</Text>
                   )}
                 </TouchableOpacity>
               </View>
