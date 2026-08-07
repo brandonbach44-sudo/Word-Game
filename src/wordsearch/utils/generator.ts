@@ -72,12 +72,15 @@ export function generatePuzzle(
   const diagonalDirections: Direction[] = ['DOWNRIGHT', 'DOWNLEFT', 'UPRIGHT', 'UPLEFT'];
 
   selected.forEach((word, i) => {
-    // Roughly a third of words try diagonal placement first (falling back to
+    // A small slice of words try diagonal placement first (falling back to
     // any allowed direction if the grid won't cooperate) so a puzzle isn't
     // left to pure chance for whether any diagonal words show up at all —
     // with fully random direction picks, a meaningful fraction of puzzles
-    // ended up with zero diagonal words purely by luck.
-    const preferDiagonal = allowDiagonal && i % 3 === 0;
+    // ended up with zero diagonal words purely by luck. This preferential
+    // pass almost always succeeds once tried, so it's kept to 1-in-6 words;
+    // combined with the reweighted base pool above, diagonals land around a
+    // third of placed words overall instead of the ~65% they were before.
+    const preferDiagonal = allowDiagonal && i % 6 === 0;
     placeWordInGrid(word, grid, directions, placedWords, preferDiagonal ? diagonalDirections : undefined);
   });
 
@@ -126,10 +129,11 @@ export function generatePuzzleWithSeed(
   const diagonalDirections: Direction[] = ['DOWNRIGHT', 'DOWNLEFT', 'UPRIGHT', 'UPLEFT'];
 
   selected.forEach((word, i) => {
-    // Same reasoning as the non-seeded generator above: bias roughly a third
-    // of words toward diagonal placement so the Daily puzzle reliably has
-    // some diagonal words most days instead of it being a coin flip.
-    const preferDiagonal = allowDiagonal && i % 3 === 0;
+    // Same reasoning as the non-seeded generator above: bias a small slice
+    // of words (1-in-6) toward diagonal placement so the Daily puzzle
+    // reliably has some diagonal words most days instead of it being a
+    // coin flip, without dominating the puzzle the way 1-in-3 did.
+    const preferDiagonal = allowDiagonal && i % 6 === 0;
     placeWordInGridSeeded(word, grid, directions, placedWords, seededRandom, preferDiagonal ? diagonalDirections : undefined);
   });
 
@@ -152,7 +156,13 @@ function createSeededRandom(seed: number): () => number {
 
 function getAllowedDirections(allowBackwards: boolean, allowDiagonal: boolean): Direction[] {
   const dirs: Direction[] = [];
-  dirs.push('RIGHT', 'DOWN');
+  // Cardinal directions are listed 3x so they're weighted more heavily than
+  // diagonals in this pool. With every direction listed once, diagonals made
+  // up 4 of 8 (or 4 of 6) entries — a 50%+ base rate before any of the extra
+  // diagonal-preference logic even kicks in, which is what made diagonals
+  // show up so often. Weighting cardinals 3:1 against diagonals brings that
+  // base rate down to roughly a quarter.
+  dirs.push('RIGHT', 'RIGHT', 'RIGHT', 'DOWN', 'DOWN', 'DOWN');
 
   if (allowDiagonal) {
     // All 4 diagonal directions are available whenever diagonals are on,
@@ -161,10 +171,50 @@ function getAllowedDirections(allowBackwards: boolean, allowDiagonal: boolean): 
   }
 
   if (allowBackwards) {
-    dirs.push('LEFT', 'UP');
+    dirs.push('LEFT', 'LEFT', 'LEFT', 'UP', 'UP', 'UP');
   }
 
   return dirs;
+}
+
+// Looks for a spot where this word can cross through a letter that's
+// already on the grid from a previously placed word (i.e. the new word and
+// an old word share a cell, like a real word search / crossword). Without
+// this, words only ever overlap by pure chance of a random start position
+// happening to line up with an existing letter, which is rare enough that
+// it can go entire puzzles without ever happening. Returns null if no
+// intersection is possible, in which case callers fall back to random
+// placement as before.
+function findIntersectionPlacement(
+  word: string,
+  grid: string[][],
+  dirsToTry: Direction[],
+  randomFn: () => number
+): { row: number; col: number; dr: number; dc: number; direction: Direction } | null {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const candidates: { row: number; col: number; dr: number; dc: number; direction: Direction }[] = [];
+
+  for (let i = 0; i < word.length; i++) {
+    const letter = word[i];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (grid[r][c] !== letter) continue;
+        for (const direction of dirsToTry) {
+          const { dr, dc } = DIRECTION_VECTORS[direction];
+          const startRow = r - dr * i;
+          const startCol = c - dc * i;
+          if (canPlaceWord(word, grid, startRow, startCol, dr, dc)) {
+            candidates.push({ row: startRow, col: startCol, dr, dc, direction });
+          }
+        }
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  const idx = Math.floor(randomFn() * candidates.length);
+  return candidates[idx];
 }
 
 function placeWordInGrid(
@@ -176,6 +226,22 @@ function placeWordInGrid(
 ): void {
   const rows = grid.length;
   const cols = grid[0].length;
+
+  // Try to cross through an already-placed word first, before falling back
+  // to the preferred/random placement attempts below.
+  const intersectionDirs = preferredDirections && preferredDirections.length > 0 ? preferredDirections : directions;
+  const intersection = findIntersectionPlacement(word, grid, intersectionDirs, Math.random);
+  if (intersection) {
+    actuallyPlaceWord(word, grid, intersection.row, intersection.col, intersection.dr, intersection.dc);
+    placedWords.push({
+      word,
+      row: intersection.row,
+      col: intersection.col,
+      direction: intersection.direction,
+      length: word.length,
+    });
+    return;
+  }
 
   // If this word is biased toward a preferred subset (e.g. diagonals), spend
   // the first half of the attempt budget trying only those directions
@@ -228,6 +294,22 @@ function placeWordInGridSeeded(
 ): void {
   const rows = grid.length;
   const cols = grid[0].length;
+
+  // Same reasoning as placeWordInGrid — cross through an already-placed
+  // word first before falling back to preferred/random placement.
+  const intersectionDirs = preferredDirections && preferredDirections.length > 0 ? preferredDirections : directions;
+  const intersection = findIntersectionPlacement(word, grid, intersectionDirs, random);
+  if (intersection) {
+    actuallyPlaceWord(word, grid, intersection.row, intersection.col, intersection.dr, intersection.dc);
+    placedWords.push({
+      word,
+      row: intersection.row,
+      col: intersection.col,
+      direction: intersection.direction,
+      length: word.length,
+    });
+    return;
+  }
 
   // Same reasoning as placeWordInGrid — give preferred (diagonal) directions
   // a dedicated first pass before falling back to the full direction set.
