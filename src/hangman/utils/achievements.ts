@@ -298,13 +298,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     category: 'categories',
   },
   {
-    id: 'idiom_expert',
-    name: 'Figure of Speech',
-    description: 'Win 10 games in Idioms category',
-    emoji: '💬',
-    category: 'categories',
-  },
-  {
     id: 'music_fan',
     name: 'Music Fan',
     description: 'Win 10 games in Song Titles category',
@@ -362,7 +355,7 @@ const ALL_CATEGORIES = [
   'Animals', 'Countries', 'Foods', 'Sports Teams', 'US Capitals',
   'Technology', 'Insects', 'Dinosaurs', 'Superheroes', 'Cat Breeds',
   'Dog Breeds', 'Space', 'Clothing', 'Games', 'Landmarks', 'Occupations',
-  'Idioms', 'Movie Titles', 'Song Titles', 'TV Show Titles',
+  'Movie Titles', 'Song Titles', 'TV Show Titles',
 ];
 
 // ==================== INTERFACES ====================
@@ -562,7 +555,6 @@ export const checkAchievements = async (
     Games: 'game_master',
     Landmarks: 'world_explorer',
     'US Capitals': 'capital_expert',
-    Idioms: 'idiom_expert',
     'Song Titles': 'music_fan',
     'TV Show Titles': 'tv_buff',
   };

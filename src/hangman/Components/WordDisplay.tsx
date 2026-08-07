@@ -12,9 +12,9 @@ const DEFAULT_FONT_SIZE = 26;
 const MIN_SLOT_WIDTH = 12;
 const MIN_SLOT_MARGIN = 1;
 const MIN_FONT_SIZE = 9;
-// Long phrases (Countries — "Saint Vincent and the Grenadines", Idioms —
-// "When in Rome do as the Romans do") used to wrap into 5+ lines at a fixed
-// slot size, which pushed the keyboard/guess controls off screen. Instead,
+// Long phrases (Countries — "Saint Vincent and the Grenadines") used to
+// wrap into 5+ lines at a fixed slot size, which pushed the keyboard/guess
+// controls off screen. Instead,
 // the wrap itself is now solved for: slot size shrinks until the phrase
 // fits within this many lines, not just until the longest single line fits
 // horizontally.

@@ -236,11 +236,10 @@ function getHangmanProgress(id: string, stats: import('./utils/storage').Hangman
     case 'game_master':         return clamp(cw('Games'), 10);
     case 'world_explorer':      return clamp(cw('Landmarks'), 10);
     case 'capital_expert':      return clamp(cw('US Capitals'), 10);
-    case 'idiom_expert':        return clamp(cw('Idioms'), 10);
     case 'music_fan':           return clamp(cw('Song Titles'), 10);
     case 'tv_buff':             return clamp(cw('TV Show Titles'), 10);
     case 'category_king': {
-      const allCats = ['Animals','Countries','Foods','Sports Teams','US Capitals','Technology','Insects','Dinosaurs','Superheroes','Cat Breeds','Dog Breeds','Space','Clothing','Games','Landmarks','Occupations','Idioms','Movie Titles','Song Titles','TV Show Titles'];
+      const allCats = ['Animals','Countries','Foods','Sports Teams','US Capitals','Technology','Insects','Dinosaurs','Superheroes','Cat Breeds','Dog Breeds','Space','Clothing','Games','Landmarks','Occupations','Movie Titles','Song Titles','TV Show Titles'];
       return clamp(Math.min(...allCats.map(c => cw(c))), 10);
     }
     case 'vocabulary_builder':  return clamp(stats.wordsGuessed.length, 25);
