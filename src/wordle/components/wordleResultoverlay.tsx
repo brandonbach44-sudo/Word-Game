@@ -268,7 +268,7 @@ const WordleResultOverlay = ({
       {/* Page header — mirrors the app's other full-screen headers */}
       <View style={[styles.pageHeader, { borderColor: BORDER, paddingTop: insets.top + 10 }]}>
         <View style={styles.headerSpacer} />
-        <Text style={[styles.brand, { color: SUBTEXT }]}>WORDLE</Text>
+        <Text style={[styles.brand, { color: SUBTEXT }]}>FURDLE</Text>
         <Pressable
           style={({ pressed }) => [styles.closeIconButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onClose}

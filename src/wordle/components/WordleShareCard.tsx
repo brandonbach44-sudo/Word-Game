@@ -38,7 +38,7 @@ export const WordleShareCard = React.forwardRef<View, Props>(
     return (
       <View ref={ref} style={styles.card} collapsable={false}>
         {/* Top branding */}
-        <Text style={styles.brand}>WORDLE</Text>
+        <Text style={styles.brand}>FURDLE</Text>
         <Text style={styles.modeLabel}>{mode === "daily" ? "Daily Challenge" : "Play"}</Text>
         <Text style={styles.date}>{dateString}</Text>
 
