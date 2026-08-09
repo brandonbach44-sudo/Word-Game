@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTheme } from './ThemeContext';
 
-const SUPPORT_EMAIL = 'wordfurygame@gmail.com';
+const SUPPORT_EMAIL = 'bbach35@icloud.com';
 
 type Section = {
   heading: string;
