@@ -8,10 +8,11 @@ import { useTheme } from '../../src/shared/ThemeContext';
 import { WORD_SEARCH_THEMES } from '../../src/wordsearch/data/themes';
 import PlayScreen from '../../src/wordsearch/PlayScreen';
 import { generatePuzzleWithSeed, type WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
-import { dateToSeed } from '../../src/wordsearch/utils/storage';
+import { dateToSeed, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import {
   loadWordSearchDailyProgress,
   loadWordSearchDailyLock,
+  loadWordSearchDailyStats,
   type WordSearchDailyProgress,
   type WordSearchDailyLock,
 } from '../../src/wordsearch/utils/wsStorage';
@@ -51,9 +52,36 @@ export default function WordSearchDailyScreen() {
         if (existingLock) {
           setLock(existingLock);
         } else {
-          // Otherwise resume an in-progress attempt if the app was closed mid-game
-          const existingProgress = await loadWordSearchDailyProgress();
-          if (existingProgress) setProgress(existingProgress);
+          // Defensive fallback: the separate (older) daily-stats record can
+          // say today is already played with no matching lock — e.g. data
+          // saved before the lock feature existed, or storage corruption.
+          // Without this, that state would silently fall through to a
+          // fresh, replayable puzzle, defeating "one attempt per day."
+          // Reconstruct a best-effort lock from what stats we do have
+          // instead (exact found-word list is lost, so the answer key
+          // reveal won't be accurate for this one legacy day).
+          const dailyStats = await loadWordSearchDailyStats();
+          if (dailyStats.lastPlayedDate === getTodayDateString()) {
+            setLock({
+              dateISO: getTodayDateString(),
+              score: dailyStats.lastDailyScore,
+              // If they won, every word was found — otherwise the exact
+              // list is genuinely lost, so it falls back to none.
+              foundWordTexts: dailyStats.lastDailyResult === 'won'
+                ? generatedPuzzle.words.map(w => w.word)
+                : [],
+              totalWords: generatedPuzzle.words.length,
+              allFound: dailyStats.lastDailyResult === 'won',
+              timeString: '—',
+              elapsedSeconds: 0,
+              multiplier: 1,
+              timeBonus: 0,
+            });
+          } else {
+            // Otherwise resume an in-progress attempt if the app was closed mid-game
+            const existingProgress = await loadWordSearchDailyProgress();
+            if (existingProgress) setProgress(existingProgress);
+          }
         }
       } catch (error) {
         console.error('Failed to generate daily puzzle:', error);
