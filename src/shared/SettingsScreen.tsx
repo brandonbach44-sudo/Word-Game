@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Constants from 'expo-constants';
 import { useTheme } from './ThemeContext';
 import { BackgroundOption, COLORS, getLightBackgrounds } from './theme';
 import FeedbackForm from '../../FeedbackForm';
@@ -19,23 +20,24 @@ import {
   Palette,
   Mail,
   Info,
+  Shield,
   ChevronRight,
 } from 'lucide-react-native';
 
-const APP_VERSION = '0.1.0';
-const DEVELOPER_EMAIL = 'brandon.bach44@gmail.com';
+// Pulled from app.json so this can't drift out of sync with the real
+// build version like it did before (screen said 0.1.0, app.json said 1.0.0).
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 // What's New data - update this with each release
 const WHATS_NEW = [
   {
-    version: '0.1.0',
-    date: 'June 2026',
+    version: '1.0.0',
+    date: 'August 2026',
     changes: [
-      'Initial release of Word Fury',
-      'Wordsmith game with Daily Challenge',
-      'Customizable tile designs',
-      'Achievement system with 41 badges',
-      'Multiple themes and dark mode',
+      'Launch of Word Fury with 8 games: Wordsmith, Furdle, Hangman, Word Grid, Word Search, Word Ladder, Hex Hive, and Anagrams',
+      'Daily challenges and streaks across every game',
+      'Achievement system with unlockable badges',
+      'Multiple themes, dark mode, and color blind mode',
     ],
   },
 ];
@@ -292,6 +294,32 @@ export const SettingsScreen: React.FC = () => {
               </Text>
               <Text style={[styles.linkDescription, { color: background.secondaryText }]}>
                 Suggestions, bugs, or just say hi
+              </Text>
+            </View>
+            <ChevronRight size={20} color={background.secondaryText} />
+          </TouchableOpacity>
+        </View>
+
+        {/* ==================== LEGAL SECTION ==================== */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Shield size={20} color={background.secondaryText} style={styles.sectionIcon} />
+            <Text style={[styles.sectionTitle, { color: background.textColor }]}>
+              Legal
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.linkRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
+            onPress={() => router.push('/privacy-policy' as any)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.linkInfo}>
+              <Text style={[styles.linkLabel, { color: background.textColor }]}>
+                Privacy Policy
+              </Text>
+              <Text style={[styles.linkDescription, { color: background.secondaryText }]}>
+                What we collect (nothing) and how feedback works
               </Text>
             </View>
             <ChevronRight size={20} color={background.secondaryText} />
