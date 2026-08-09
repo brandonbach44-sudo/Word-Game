@@ -496,30 +496,31 @@ export default function HangmanScreen() {
     setSelectedLetter(null);
   };
 
-  // Daily only allows one attempt per day — leaving mid-game (word still
-  // unsolved, not yet won/lost) needs to actually lock in the attempt as a
-  // loss, otherwise you could dodge a bad run by backing out and trying
-  // again later. Runs BEFORE resetGame()/handleBackToModeSelect() clears
-  // the in-memory guesses, since those would otherwise wipe the state this
-  // needs to save.
-  const lockInDailyResultOnLeave = async () => {
-    try {
-      await saveDailyResult('lost', dailyWord, incorrectGuesses.length);
-      resumedDailyProgressRef.current = null;
-      await clearDailyProgress();
-      const updatedDailyStats = await loadDailyStats();
-      setDailyStats(updatedDailyStats);
-    } catch (e) {
-      console.warn('Failed to lock in daily result on leave', e);
-    }
+  // Daily is a single continuous attempt, but leaving mid-game (word still
+  // unsolved, not yet won/lost) no longer counts as a loss — the guessed
+  // letters are already autosaved on every guess (see the effect above), so
+  // leaving just freezes the attempt where it stands. Coming back today
+  // resumes it via resumedDailyProgressRef instead of forcing a finish just
+  // because you tapped away. Runs BEFORE resetGame()/handleBackToModeSelect()
+  // clears the in-memory guesses, snapshotting the live state into the ref
+  // first so a same-session re-entry (tapping "Play Today's Challenge" again
+  // right after leaving) resumes correctly too, not just a cross-launch one.
+  const stashDailyProgressOnLeave = () => {
+    resumedDailyProgressRef.current = {
+      dateISO: getTodayDateString(),
+      word: dailyWord,
+      category,
+      guessedLetters: [...correctGuesses, ...incorrectGuesses],
+      incorrectGuesses,
+      correctGuesses,
+    };
   };
 
   const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
-  // lockInDailyResultOnLeave() updates isPlaying via setState, which won't
-  // be visible in this closure until React re-renders. Re-dispatching the
-  // nav action right after would otherwise hit the same still-true
-  // "playingDaily && isPlaying" guard and re-intercept itself, reopening
-  // the modal instead of leaving. This ref bypasses the guard immediately.
+  // Leaving no longer flips `isPlaying`, so re-dispatching the nav action
+  // right after would otherwise hit the same still-true "playingDaily &&
+  // isPlaying" guard and re-intercept itself, reopening the modal instead of
+  // leaving. This ref bypasses the guard immediately.
   const isLeavingRef = useRef(false);
 
   const handleGameplayBackPress = () => {
@@ -539,12 +540,12 @@ export default function HangmanScreen() {
     setLeaveAction(data.action);
   });
 
-  const confirmLeaveDaily = async () => {
+  const confirmLeaveDaily = () => {
     const action = leaveAction;
     setLeaveAction(null);
     if (!action) return;
     isLeavingRef.current = true;
-    await lockInDailyResultOnLeave();
+    stashDailyProgressOnLeave();
     if (action === 'back') {
       handleBackToModeSelect();
     } else {
@@ -679,8 +680,9 @@ export default function HangmanScreen() {
         <ConfirmModal
           visible={!!leaveAction}
           title="Leave Daily Challenge?"
-          message="You've only got one Daily attempt per day — leaving now will end your run and count today as a loss."
-          confirmText="Leave (Loss)"
+          message="Your progress will be saved right where you left off — come back later today to finish."
+          confirmText="Leave"
+          destructiveColor={COLORS.accent}
           onCancel={() => setLeaveAction(null)}
           onConfirm={confirmLeaveDaily}
           backgroundColor={background.cardColor}

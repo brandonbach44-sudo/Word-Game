@@ -24,6 +24,7 @@ import { usePreventRemove } from '@react-navigation/core';
 import { FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
 import { GameTile } from '../../shared/GameTile';
@@ -412,8 +413,13 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     setShowResult(true);
   }
 
-  // Daily only allows one attempt per day — leaving mid-run counts the
-  // remaining rounds as skipped, mirroring Word Ladder's "leaving = loss".
+  // Daily is a single continuous attempt, but leaving mid-run no longer
+  // counts the remaining rounds as skipped — completed rounds are already
+  // autosaved (see the effect above), so leaving just freezes progress at
+  // the current round. Coming back today resumes from that same round
+  // instead of forcing a finish just because you tapped away. handleGiveUp
+  // (the explicit "give up" button) is unaffected — that's still an
+  // intentional, immediate loss.
   const navigation = useNavigation();
   // usePreventRemove's condition is read from its own render's closure, so
   // re-dispatching the nav action right after finishRun() (before React
@@ -429,22 +435,11 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     setLeaveAction(data.action);
   });
 
-  const confirmLeaveDaily = async () => {
+  const confirmLeaveDaily = () => {
     const action = leaveAction;
     setLeaveAction(null);
     if (!action) return;
     isLeavingRef.current = true;
-    const remaining = TOTAL_ROUNDS - roundResults.length;
-    const filledResults = [
-      ...roundResults,
-      ...Array.from({ length: remaining }, () => ({
-        solved: false,
-        skipped: true,
-        timeSeconds: 0,
-        hintsUsed: 0,
-      })),
-    ];
-    await finishRun(filledResults);
     navigation.dispatch(action);
   };
 
@@ -518,7 +513,9 @@ const AnagramsPlayScreen: React.FC<Props> = ({
       <ConfirmModal
         visible={!!leaveAction}
         title="Leave Daily Anagrams?"
-        message="You've only got one Daily attempt per day — leaving now will count any remaining words as skipped."
+        message="Your progress will be saved right where you left off — come back later today to finish."
+        confirmText="Leave"
+        destructiveColor={COLORS.accent}
         onCancel={() => setLeaveAction(null)}
         onConfirm={confirmLeaveDaily}
         backgroundColor={background.cardColor}

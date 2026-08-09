@@ -17,6 +17,7 @@ import { usePreventRemove } from '@react-navigation/core';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
 
@@ -332,19 +333,17 @@ const LadderPlayScreen: React.FC<Props> = ({
     finishGame('gave_up', chain, hintsUsed);
   };
 
-  // Daily only allows one attempt per day — leaving mid-attempt needs to
-  // actually count as a loss, otherwise you could dodge a bad run by
-  // backing out and trying again later. usePreventRemove intercepts EVERY
-  // way of leaving this screen (header back button, iOS swipe-back
-  // gesture, Android hardware back button) — not just a manual button
-  // handler, which a swipe/hardware-back would otherwise bypass entirely.
-  // Quick Play is unaffected: leaving there just resets, no confirmation.
+  // Daily is a single continuous attempt, but leaving mid-attempt no longer
+  // counts as a loss — the chain is already autosaved on every move (see
+  // the effect above), so leaving just freezes the climb where it stands.
+  // Coming back today resumes via `initialProgress` instead of forcing a
+  // finish just because you tapped away. handleGiveUp (the explicit "Give
+  // Up" button) is unaffected — that's still an intentional, immediate
+  // loss. usePreventRemove intercepts EVERY way of leaving this screen
+  // (header back button, iOS swipe-back gesture, Android hardware back
+  // button) so we can confirm before navigating. Quick Play is unaffected:
+  // leaving there just resets, no confirmation.
   const navigation = useNavigation();
-  // finishGame() sets `status` via setState, which won't be visible in this
-  // closure until React re-renders. Re-dispatching the nav action right
-  // after would otherwise hit the same still-true "mid daily game" guard
-  // and re-intercept itself, reopening the modal instead of leaving. This
-  // ref bypasses the guard immediately.
   const isLeavingRef = useRef(false);
   const isMidDailyGame = mode === 'daily' && !alreadyLocked && status === 'playing' && !isLeavingRef.current;
 
@@ -354,12 +353,11 @@ const LadderPlayScreen: React.FC<Props> = ({
     setLeaveAction(data.action);
   });
 
-  const confirmLeaveDaily = async () => {
+  const confirmLeaveDaily = () => {
     const action = leaveAction;
     setLeaveAction(null);
     if (!action) return;
     isLeavingRef.current = true;
-    await finishGame('gave_up', chain, hintsUsed);
     navigation.dispatch(action);
   };
 
@@ -419,8 +417,9 @@ const LadderPlayScreen: React.FC<Props> = ({
       <ConfirmModal
         visible={!!leaveAction}
         title="Leave Daily Ladder?"
-        message="You've only got one Daily attempt per day — leaving now will count as a loss."
-        confirmText="Leave (Loss)"
+        message="Your progress will be saved right where you left off — come back later today to finish."
+        confirmText="Leave"
+        destructiveColor={COLORS.accent}
         onCancel={() => setLeaveAction(null)}
         onConfirm={confirmLeaveDaily}
         backgroundColor={background.cardColor}

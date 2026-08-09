@@ -556,32 +556,29 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     router.back();
   };
 
-  // Daily only allows one attempt per day — leaving mid-game needs to
-  // actually lock in the attempt as-is, otherwise you could dodge a bad run
-  // by backing out and trying again later. usePreventRemove intercepts
-  // EVERY way of leaving this screen (header back button, iOS swipe-back
-  // gesture, Android hardware back button), not just the manual button
-  // above, which a swipe/hardware-back would otherwise bypass entirely.
-  // Quick Play (isDaily === false) is unaffected — leaving there just
-  // discards the run, no confirmation.
+  // Daily is a single continuous attempt, but leaving mid-game doesn't lock
+  // it in as a loss — progress (found words, score, elapsed time) is
+  // autosaved continuously below, so it's frozen exactly where you left it.
+  // Coming back today resumes from that exact spot, timer included, instead
+  // of forcing a finish just because you tapped away. usePreventRemove still
+  // intercepts every way of leaving this screen (header back, iOS swipe-back,
+  // Android hardware back) so we can confirm before navigating, since a
+  // stray back-swipe mid-word-drag would otherwise be an easy way to lose
+  // your place by accident. Quick Play (isDaily === false) is unaffected —
+  // leaving there just discards the run, no confirmation.
   const navigation = useNavigation();
   const [leaveAction, setLeaveAction] = useState<any>(null);
-  // triggerFinish() sets gameFinished via setState, which won't be visible
-  // in this closure until React re-renders. Re-dispatching the nav action
-  // right after would otherwise hit the same still-true "isDaily &&
-  // !gameFinished" guard and re-intercept itself, reopening the modal
-  // instead of leaving. This ref bypasses the guard immediately.
   const isLeavingRef = useRef(false);
   usePreventRemove(isDaily && !gameFinished && !isLeavingRef.current, ({ data }) => {
     setLeaveAction(data.action);
   });
 
-  const confirmLeaveDaily = async () => {
+  const confirmLeaveDaily = () => {
     const action = leaveAction;
     setLeaveAction(null);
     if (!action) return;
     isLeavingRef.current = true;
-    await triggerFinish();
+    if (timerRef.current) clearInterval(timerRef.current);
     navigation.dispatch(action);
   };
 
@@ -780,7 +777,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       <ConfirmModal
         visible={!!leaveAction}
         title="Leave Daily Challenge?"
-        message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's result."
+        message="Your progress will be saved right where you left off — come back later today to finish."
+        confirmText="Leave"
+        destructiveColor={COLORS.accent}
         onCancel={() => setLeaveAction(null)}
         onConfirm={confirmLeaveDaily}
         backgroundColor={background.cardColor}

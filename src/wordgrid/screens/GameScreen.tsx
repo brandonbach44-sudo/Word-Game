@@ -454,30 +454,21 @@ export default function GameScreen() {
     }
   }, [foundWords, score, gameMode, dailyStats]);
 
-  // Daily only allows one attempt per day — leaving mid-game (while the
-  // round is still running, not yet timed out) needs to actually lock in
-  // today's result as-is, otherwise you could dodge a bad run by backing
-  // out and trying again later.
-  const lockInDailyResultOnLeave = useCallback(async () => {
-    try {
-      const newDailyStats = await saveDailyWordGridResult(score, foundWords.length);
-      setDailyStats(newDailyStats);
-      resumedDailyRef.current = false;
-      await clearWordGridDailyProgress();
-    } catch (e) {
-      console.warn('Failed to lock in daily result on leave', e);
-    }
-  }, [foundWords.length, score]);
+  // Daily is a single continuous attempt, but leaving mid-game (while the
+  // round is still running, not yet timed out) no longer locks in today's
+  // result as-is — score/foundWords/timeLeft are already autosaved above,
+  // so leaving just freezes the attempt where it stands. Coming back today
+  // resumes it via the restore effect above instead of forcing a finish
+  // just because you tapped away.
 
   // Pending leave-confirmation action: null when hidden, "back" for the
   // in-app button, or a navigation action object (swipe/hardware back via
   // usePreventRemove) when the themed ConfirmModal should show.
   const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
-  // lockInDailyResultOnLeave never flips `gameOver`, so re-dispatching the
-  // nav action right after it runs would otherwise hit the same still-true
-  // "daily && !gameOver" guard and re-intercept itself — reopening the
-  // modal instead of actually leaving. This ref bypasses the guard the
-  // instant "Leave" is confirmed.
+  // Leaving no longer flips `gameOver`, so re-dispatching the nav action
+  // right after would otherwise hit the same still-true "daily && !gameOver"
+  // guard and re-intercept itself — reopening the modal instead of actually
+  // leaving. This ref bypasses the guard the instant "Leave" is confirmed.
   const isLeavingRef = useRef(false);
 
   const handleGameplayBackPress = useCallback(() => {
@@ -508,18 +499,22 @@ export default function GameScreen() {
     setLeaveAction(data.action);
   });
 
-  const confirmLeaveDaily = useCallback(async () => {
+  const confirmLeaveDaily = useCallback(() => {
     const action = leaveAction;
     setLeaveAction(null);
     if (!action) return;
     isLeavingRef.current = true;
-    await lockInDailyResultOnLeave();
+    // Tell startDailyGame to resume this live state instead of resetting it,
+    // for a same-session re-entry (tapping "Play Today's Challenge" again
+    // right after leaving) — the mount-time restore effect only covers the
+    // cross-launch case (app closed and reopened).
+    resumedDailyRef.current = true;
     if (action === 'back') {
       handleBackToMenu();
     } else {
       navigation.dispatch(action);
     }
-  }, [handleBackToMenu, leaveAction, lockInDailyResultOnLeave, navigation]);
+  }, [handleBackToMenu, leaveAction, navigation]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -807,7 +802,9 @@ export default function GameScreen() {
         <ConfirmModal
           visible={!!leaveAction}
           title="Leave Daily Challenge?"
-          message="You've only got one Daily attempt per day — leaving now will end your run and lock in today's score."
+          message="Your progress will be saved right where you left off — come back later today to finish."
+          confirmText="Leave"
+          destructiveColor={COLORS.accent}
           onCancel={() => setLeaveAction(null)}
           onConfirm={confirmLeaveDaily}
           backgroundColor={bg.cardColor}
