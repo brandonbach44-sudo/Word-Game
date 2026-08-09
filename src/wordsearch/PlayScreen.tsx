@@ -801,7 +801,11 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           onClose={() => setResultData(null)}
           onPlayAgain={() => router.replace({ pathname: '/wordsearch/game', params: { themeId, difficulty } })}
           onGoHome={() => {
-            setResultData(null);
+            // Don't clear resultData first — that closes the full-screen
+            // Modal immediately, exposing the gameplay grid underneath for
+            // one frame before router.replace() finishes navigating away.
+            // Leaving the Modal mounted until the route actually unmounts
+            // avoids that flash.
             router.replace('/wordsearch');
           }}
           achievement={currentPopup}
