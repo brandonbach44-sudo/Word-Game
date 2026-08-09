@@ -1109,11 +1109,18 @@ export default function WordBuilder() {
             <View style={[styles.pageDot, gameOverPage === 'results' && styles.pageDotActive]} />
             <View style={[styles.pageDot, gameOverPage === 'words' && styles.pageDotActive]} />
           </View>
-          {gameOverPage === 'results' && (
-            <Text style={[styles.swipeHintText, { color: background.secondaryText }]}>
-              Swipe for all words →
-            </Text>
-          )}
+          {/* Always rendered (never conditionally mounted) so this line's
+              height is part of the footer's layout on both pages — the
+              footer is absolutely positioned and sized by its own content,
+              so unmounting this text on the "words" page used to shrink the
+              footer and yank the Main Menu/Share buttons above it downward
+              on every swipe. Toggling opacity instead keeps the height
+              constant and the buttons still. */}
+          <Text
+            style={[styles.swipeHintText, { color: background.secondaryText, opacity: gameOverPage === 'results' ? 1 : 0 }]}
+          >
+            Swipe for all words →
+          </Text>
         </View>
         </View>
 

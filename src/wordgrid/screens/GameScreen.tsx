@@ -774,9 +774,14 @@ export default function GameScreen() {
             <View style={[styles.pageDot, resultsPage === 'results' && styles.pageDotActive]} />
             <View style={[styles.pageDot, resultsPage === 'words' && styles.pageDotActive]} />
           </View>
-          {resultsPage === 'results' && (
-            <Text style={[styles.swipeHintText, { color: bg.secondaryText }]}>Swipe to see words →</Text>
-          )}
+          {/* Always rendered (never conditionally mounted) — same fix as
+              Wordsmith's identical hint text. Toggling this off entirely on
+              the "words" page shrinks whatever's below/around it and can
+              yank neighboring buttons, so opacity toggles visibility
+              without changing layout height. */}
+          <Text style={[styles.swipeHintText, { color: bg.secondaryText, opacity: resultsPage === 'results' ? 1 : 0 }]}>
+            Swipe to see words →
+          </Text>
         </View>
         <View style={{ height: insets.bottom }} />
       </View>
