@@ -31,6 +31,10 @@ export interface WordSearchResultData {
   multiplier: number;
   timeBonus: number;
   newAchievements: WSAchievement[];
+  // True only for a legacy-data fallback result where the exact found-word
+  // count couldn't be recovered — see app/wordsearch/daily.tsx. Shows "—"
+  // instead of `foundWords`, which would otherwise misleadingly read as 0.
+  foundWordsUnknown?: boolean;
 }
 
 type Props = {
@@ -152,7 +156,8 @@ const WordSearchResultOverlay: React.FC<Props> = ({
   // manual reveal doesn't leak anything unless someone deliberately
   // screenshots it and sends it to a friend who hasn't played yet, same
   // risk every other game's results screen already carries.
-  const canShowAnswerKey = !!puzzleGrid && !!puzzleWords;
+  const foundWordsUnknown = !!resultData.foundWordsUnknown;
+  const canShowAnswerKey = !!puzzleGrid && !!puzzleWords && !foundWordsUnknown;
   const foundSet = new Set(foundWordTexts ?? []);
 
   const BG = background.backgroundColor ?? '#f9f5ec';
@@ -163,6 +168,8 @@ const WordSearchResultOverlay: React.FC<Props> = ({
 
   const title = resultData.allFound
     ? 'Nice!'
+    : foundWordsUnknown
+    ? 'Already Played'
     : resultData.foundWords / resultData.totalWords >= 0.75
     ? 'Great Job!'
     : resultData.foundWords / resultData.totalWords >= 0.5
@@ -170,6 +177,8 @@ const WordSearchResultOverlay: React.FC<Props> = ({
     : "Time's Up!";
   const subtitle = resultData.allFound
     ? `You found all ${resultData.totalWords} words in ${resultData.timeString}!`
+    : foundWordsUnknown
+    ? `You already completed today's puzzle.`
     : `You found ${resultData.foundWords}/${resultData.totalWords} words in ${resultData.timeString}.`;
 
   // Progress bar instead of listing which words were found — the Daily
@@ -193,8 +202,10 @@ const WordSearchResultOverlay: React.FC<Props> = ({
     const lines: string[] = [
       header,
       themeName,
-      progressBar,
-      `${resultData.foundWords}/${resultData.totalWords} words · ${pct}% · ${resultData.timeString}`,
+      ...(foundWordsUnknown ? [] : [progressBar]),
+      foundWordsUnknown
+        ? `${resultData.score.toLocaleString()} pts · ${resultData.timeString}`
+        : `${resultData.foundWords}/${resultData.totalWords} words · ${pct}% · ${resultData.timeString}`,
       '',
       scoreLine,
     ];
@@ -255,14 +266,14 @@ const WordSearchResultOverlay: React.FC<Props> = ({
             <View style={[styles.divider, { backgroundColor: BORDER }]} />
             <Text style={[styles.sectionTitle, { color: TEXT }]}>This game</Text>
             <View style={styles.statsRow}>
-              <StatPill label="Found" value={`${resultData.foundWords}/${resultData.totalWords}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
+              <StatPill label="Found" value={foundWordsUnknown ? '—' : `${resultData.foundWords}/${resultData.totalWords}`} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
               <StatPill label="Time" value={resultData.timeString} textColor={TEXT} borderColor={BORDER} backgroundColor={CARD} />
             </View>
             <View style={styles.statsRow}>
               <StatPill label="Score" value={resultData.score.toLocaleString()} textColor={COLORS.accent} borderColor={BORDER} backgroundColor={CARD} />
               <StatPill
                 label="Complete"
-                value={`${Math.round((resultData.foundWords / Math.max(resultData.totalWords, 1)) * 100)}%`}
+                value={foundWordsUnknown ? '—' : `${Math.round((resultData.foundWords / Math.max(resultData.totalWords, 1)) * 100)}%`}
                 textColor={resultData.allFound ? COLORS.accent : TEXT}
                 borderColor={BORDER}
                 backgroundColor={CARD}

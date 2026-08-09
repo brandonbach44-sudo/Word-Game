@@ -189,6 +189,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           timeString: lockedResult.timeString,
           multiplier: lockedResult.multiplier,
           timeBonus: lockedResult.timeBonus,
+          foundWordsUnknown: lockedResult.foundWordsUnknown ?? false,
           newAchievements: [], // already shown the day it was earned — don't replay the toast
         }
       : null

@@ -66,7 +66,9 @@ export default function WordSearchDailyScreen() {
               dateISO: getTodayDateString(),
               score: dailyStats.lastDailyScore,
               // If they won, every word was found — otherwise the exact
-              // list is genuinely lost, so it falls back to none.
+              // list (and count) is genuinely lost, so it falls back to
+              // none rather than showing a fabricated "0 found" that's
+              // almost certainly wrong.
               foundWordTexts: dailyStats.lastDailyResult === 'won'
                 ? generatedPuzzle.words.map(w => w.word)
                 : [],
@@ -76,6 +78,7 @@ export default function WordSearchDailyScreen() {
               elapsedSeconds: 0,
               multiplier: 1,
               timeBonus: 0,
+              foundWordsUnknown: dailyStats.lastDailyResult !== 'won',
             });
           } else {
             // Otherwise resume an in-progress attempt if the app was closed mid-game

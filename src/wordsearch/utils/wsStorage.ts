@@ -285,6 +285,11 @@ export interface WordSearchDailyLock {
   elapsedSeconds: number;
   multiplier: number;
   timeBonus: number;
+  // True only for the best-effort fallback lock reconstructed from legacy
+  // daily-stats data (see app/wordsearch/daily.tsx) when a loss happened
+  // before an exact found-word count could be known. Tells the results
+  // screen to show "—" instead of a fabricated (and wrong) word count.
+  foundWordsUnknown?: boolean;
 }
 
 export async function loadWordSearchDailyLock(): Promise<WordSearchDailyLock | null> {
