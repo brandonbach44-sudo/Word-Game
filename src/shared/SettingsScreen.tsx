@@ -239,7 +239,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={darkModeEnabled}
               onValueChange={setDarkMode}
-              trackColor={{ false: '#d1d5db', true: COLORS.accent }}
+              trackColor={{ false: '#9CA3AF', true: COLORS.accent }}
+              ios_backgroundColor="#9CA3AF"
               thumbColor={darkModeEnabled ? '#ffffff' : '#f4f3f4'}
             />
           </View>
@@ -257,7 +258,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={colorBlindMode}
               onValueChange={setColorBlindMode}
-              trackColor={{ false: '#d1d5db', true: COLORS.accent }}
+              trackColor={{ false: '#9CA3AF', true: COLORS.accent }}
+              ios_backgroundColor="#9CA3AF"
               thumbColor={colorBlindMode ? '#ffffff' : '#f4f3f4'}
             />
           </View>

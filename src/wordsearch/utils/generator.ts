@@ -18,7 +18,7 @@ export interface WordSearchPuzzle {
   themeId: string;
 }
 
-const DIRECTION_VECTORS: Record<Direction, { dr: number; dc: number }> = {
+export const DIRECTION_VECTORS: Record<Direction, { dr: number; dc: number }> = {
   RIGHT: { dr: 0, dc: 1 },
   LEFT: { dr: 0, dc: -1 },
   DOWN: { dr: 1, dc: 0 },

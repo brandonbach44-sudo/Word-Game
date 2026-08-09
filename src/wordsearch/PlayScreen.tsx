@@ -760,6 +760,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           }}
           achievement={currentPopup}
           onDismissAchievement={() => setCurrentPopup(null)}
+          puzzleGrid={puzzleData.grid}
+          puzzleWords={puzzleData.words}
+          foundWordTexts={gameState.foundWords.map(w => w.word)}
         />
       )}
     </SafeAreaView>

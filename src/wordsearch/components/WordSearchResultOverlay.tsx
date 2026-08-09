@@ -10,14 +10,15 @@
 // it out structurally prevents that class of bug instead of relying on
 // remembering to keep it in sync by hand.
 
-import React from 'react';
-import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Share2, X } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Eye, EyeOff, Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 import { COLORS } from '../../shared/theme';
+import { DIRECTION_VECTORS, type PlacedWord } from '../utils/generator';
 import type { WordSearchStats } from '../utils/wsStorage';
 import type { WSAchievement } from '../utils/wsAchievements';
 
@@ -48,7 +49,23 @@ type Props = {
   // at the parent screen level would be hidden behind this overlay.
   achievement?: AchievementLike | null;
   onDismissAchievement?: () => void;
+  // Puzzle answer key — grid + every placed word, plus which of those the
+  // player actually found. Used for the "Show Answer Key" reveal below.
+  // Optional so older call sites (if any) don't break.
+  puzzleGrid?: string[][];
+  puzzleWords?: PlacedWord[];
+  foundWordTexts?: string[];
 };
+
+// Every cell belonging to a placed word, expanded from its start position +
+// direction + length — same math the generator used to lay it down.
+function wordCells(word: PlacedWord): { row: number; col: number }[] {
+  const { dr, dc } = DIRECTION_VECTORS[word.direction];
+  return Array.from({ length: word.length }, (_, i) => ({
+    row: word.row + dr * i,
+    col: word.col + dc * i,
+  }));
+}
 
 function formatCountdown(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -117,10 +134,26 @@ const WordSearchResultOverlay: React.FC<Props> = ({
   onGoHome,
   achievement = null,
   onDismissAchievement,
+  puzzleGrid,
+  puzzleWords,
+  foundWordTexts,
 }) => {
   const { background } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const isDaily = mode === 'daily';
+  const [showAnswerKey, setShowAnswerKey] = useState(false);
+
+  // Available on both Daily and Practice: by the time this screen shows,
+  // the player's own attempt (and score, for Daily) is already locked in,
+  // so there's nothing left to spoil for *them*. The Share button still
+  // never includes the actual words (see "Progress bar instead of listing
+  // found words" below) — that's the only auto-shared surface, so this
+  // manual reveal doesn't leak anything unless someone deliberately
+  // screenshots it and sends it to a friend who hasn't played yet, same
+  // risk every other game's results screen already carries.
+  const canShowAnswerKey = !!puzzleGrid && !!puzzleWords;
+  const foundSet = new Set(foundWordTexts ?? []);
 
   const BG = background.backgroundColor ?? '#f9f5ec';
   const TEXT = background.textColor ?? '#111827';
@@ -277,6 +310,92 @@ const WordSearchResultOverlay: React.FC<Props> = ({
               </>
             )}
 
+            {canShowAnswerKey && (
+              <>
+                <View style={[styles.divider, { backgroundColor: BORDER }]} />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.answerKeyToggle,
+                    { borderColor: BORDER, backgroundColor: CARD, opacity: pressed ? 0.75 : 1 },
+                  ]}
+                  onPress={() => setShowAnswerKey((v) => !v)}
+                >
+                  {showAnswerKey ? <EyeOff size={16} color={TEXT} /> : <Eye size={16} color={TEXT} />}
+                  <Text style={[styles.answerKeyToggleText, { color: TEXT }]}>
+                    {showAnswerKey ? 'Hide Answer Key' : 'Show Answer Key'}
+                  </Text>
+                </Pressable>
+
+                {showAnswerKey && (
+                  <View style={styles.answerKeyWrap}>
+                    <View style={styles.answerKeyLegend}>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendSwatch, { backgroundColor: COLORS.accent }]} />
+                        <Text style={[styles.legendText, { color: SUBTEXT }]}>Found</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendSwatch, { backgroundColor: '#ef4444' }]} />
+                        <Text style={[styles.legendText, { color: SUBTEXT }]}>Missed</Text>
+                      </View>
+                    </View>
+                    {(() => {
+                      const grid = puzzleGrid!;
+                      const cols = grid[0]?.length ?? 1;
+                      const cellSize = Math.max(14, Math.min(26, Math.floor((Math.min(windowWidth, 420) - 56) / cols)));
+
+                      // Cell -> color, missed words drawn after found words so
+                      // an intersection between a found and missed word still
+                      // reads clearly as "missed" (the more useful signal).
+                      const cellColor = new Map<string, string>();
+                      for (const w of puzzleWords!) {
+                        if (!foundSet.has(w.word)) continue;
+                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, COLORS.accent);
+                      }
+                      for (const w of puzzleWords!) {
+                        if (foundSet.has(w.word)) continue;
+                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, '#ef4444');
+                      }
+
+                      return (
+                        <View style={[styles.answerKeyGrid, { borderColor: BORDER }]}>
+                          {grid.map((row, rIdx) => (
+                            <View key={rIdx} style={{ flexDirection: 'row' }}>
+                              {row.map((letter, cIdx) => {
+                                const fill = cellColor.get(`${rIdx},${cIdx}`);
+                                return (
+                                  <View
+                                    key={cIdx}
+                                    style={[
+                                      styles.answerKeyCell,
+                                      {
+                                        width: cellSize,
+                                        height: cellSize,
+                                        backgroundColor: fill ? `${fill}33` : CARD,
+                                        borderColor: BORDER,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.answerKeyCellText,
+                                        { fontSize: Math.max(8, cellSize * 0.42), color: fill ?? TEXT },
+                                      ]}
+                                    >
+                                      {letter}
+                                    </Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    })()}
+                  </View>
+                )}
+              </>
+            )}
+
             {/* Buttons — Play Again only outside Daily (one attempt per day),
                 same rule as every other game's results screen. Main Menu
                 goes back to Word Search's own hub, not the app home. This
@@ -358,4 +477,24 @@ const styles = StyleSheet.create({
   shareButton: { marginTop: 18, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   shareButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shareButtonText: { fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
+  answerKeyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    borderWidth: 2,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  answerKeyToggleText: { fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
+  answerKeyWrap: { alignItems: 'center', marginTop: 16 },
+  answerKeyLegend: { flexDirection: 'row', gap: 18, marginBottom: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendSwatch: { width: 12, height: 12, borderRadius: 3 },
+  legendText: { fontSize: 12, fontWeight: '700' },
+  answerKeyGrid: { borderWidth: 1, borderRadius: 8, overflow: 'hidden' },
+  answerKeyCell: { alignItems: 'center', justifyContent: 'center', borderWidth: 0.5 },
+  answerKeyCellText: { fontWeight: '800' },
 });
