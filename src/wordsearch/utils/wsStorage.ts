@@ -267,3 +267,42 @@ export async function clearWordSearchDailyProgress(): Promise<void> {
     console.warn('clearWordSearchDailyProgress error', e);
   }
 }
+
+// ============================================================================
+// DAILY LOCK (final result of today's completed attempt, for re-opening
+// "View Results" without replaying — same pattern as Anagrams' DailyLockState)
+// ============================================================================
+
+const DAILY_LOCK_KEY = 'wordsearch_daily_lock';
+
+export interface WordSearchDailyLock {
+  dateISO: string; // YYYY-MM-DD — a lock from a different day is stale/ignored
+  score: number;
+  foundWordTexts: string[];
+  totalWords: number;
+  allFound: boolean;
+  timeString: string;
+  elapsedSeconds: number;
+  multiplier: number;
+  timeBonus: number;
+}
+
+export async function loadWordSearchDailyLock(): Promise<WordSearchDailyLock | null> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_LOCK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveWordSearchDailyLock(lock: WordSearchDailyLock): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DAILY_LOCK_KEY, JSON.stringify(lock));
+  } catch (e) {
+    console.warn('saveWordSearchDailyLock error', e);
+  }
+}

@@ -29,8 +29,10 @@ import {
   loadWordSearchDailyProgress,
   saveWordSearchDailyProgress,
   clearWordSearchDailyProgress,
+  saveWordSearchDailyLock,
   type WordSearchStats,
   type WordSearchDailyProgress,
+  type WordSearchDailyLock,
 } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
@@ -49,6 +51,7 @@ interface PlayScreenProps {
   isDaily?: boolean;
   timeLimit?: number; // seconds — for daily countdown mode
   initialProgress?: WordSearchDailyProgress | null; // daily-only: resume from a previous session
+  lockedResult?: WordSearchDailyLock | null; // daily-only: today's attempt is already finished — show results, don't replay
 }
 
 interface Cell { row: number; col: number }
@@ -164,13 +167,32 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   isDaily = false,
   timeLimit,
   initialProgress,
+  lockedResult,
 }) => {
   const themeName = WORD_SEARCH_THEMES.find(t => t.id === themeId)?.name ?? themeId;
   const { background } = useTheme();
   const countdown = useCountdownToMidnight();
 
-  // Results overlay state
-  const [resultData, setResultData] = useState<ResultData | null>(null);
+  // Today's Daily was already completed — this is a "View Results" re-open,
+  // not a fresh attempt. Same pattern as Anagrams' alreadyLocked/lockedResult.
+  const alreadyLocked = isDaily && !!lockedResult;
+
+  // Results overlay state — pre-populated from the lock so it opens straight
+  // to results instead of a blank puzzle the player could accidentally replay.
+  const [resultData, setResultData] = useState<ResultData | null>(
+    alreadyLocked && lockedResult
+      ? {
+          score: lockedResult.score,
+          foundWords: lockedResult.foundWordTexts.length,
+          totalWords: lockedResult.totalWords,
+          allFound: lockedResult.allFound,
+          timeString: lockedResult.timeString,
+          multiplier: lockedResult.multiplier,
+          timeBonus: lockedResult.timeBonus,
+          newAchievements: [], // already shown the day it was earned — don't replay the toast
+        }
+      : null
+  );
   const [lifetimeStats, setLifetimeStats] = useState<WordSearchStats | null>(null);
   const [pendingAchievements, setPendingAchievements] = useState<WSAchievement[]>([]);
   const [currentPopup, setCurrentPopup] = useState<WSAchievement | null>(null);
@@ -186,6 +208,17 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   // day (same seed), so we can match saved word strings back against
   // puzzleData.words to reconstruct full PlacedWord + highlighted cells.
   const initialGameState: GameState = (() => {
+    if (alreadyLocked && lockedResult) {
+      const restoredWords = puzzleData.words.filter(w => lockedResult.foundWordTexts.includes(w.word));
+      const restoredCells = restoredWords.flatMap(getWordCells);
+      return {
+        score: lockedResult.score,
+        foundWords: restoredWords,
+        elapsedSeconds: lockedResult.elapsedSeconds,
+        foundCells: restoredCells,
+        currentSelection: [],
+      };
+    }
     if (!initialProgress) {
       return { score: 0, foundWords: [], elapsedSeconds: 0, foundCells: [], currentSelection: [] };
     }
@@ -201,7 +234,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   })();
 
   const [gameState, setGameState] = useState<GameState>(initialGameState);
-  const [gameFinished, setGameFinished] = useState(false);
+  const [gameFinished, setGameFinished] = useState(alreadyLocked);
 
   // Combo system
   const lastWordFoundAt = useRef<number>(0);
@@ -427,6 +460,20 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         );
         dailyStreak = dailyStats.streak;
         await clearWordSearchDailyProgress();
+
+        const mins = Math.floor(state.elapsedSeconds / 60);
+        const secs = state.elapsedSeconds % 60;
+        await saveWordSearchDailyLock({
+          dateISO: getTodayDateString(),
+          score: finalScore,
+          foundWordTexts: state.foundWords.map(w => w.word),
+          totalWords: puzzleData.words.length,
+          allFound: allWordsFound,
+          timeString: `${mins}:${secs < 10 ? '0' : ''}${secs}`,
+          elapsedSeconds: state.elapsedSeconds,
+          multiplier,
+          timeBonus,
+        });
       }
 
       const updatedStats = await updateWordSearchStats({

@@ -9,12 +9,18 @@ import { WORD_SEARCH_THEMES } from '../../src/wordsearch/data/themes';
 import PlayScreen from '../../src/wordsearch/PlayScreen';
 import { generatePuzzleWithSeed, type WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 import { dateToSeed } from '../../src/wordsearch/utils/storage';
-import { loadWordSearchDailyProgress, type WordSearchDailyProgress } from '../../src/wordsearch/utils/wsStorage';
+import {
+  loadWordSearchDailyProgress,
+  loadWordSearchDailyLock,
+  type WordSearchDailyProgress,
+  type WordSearchDailyLock,
+} from '../../src/wordsearch/utils/wsStorage';
 
 export default function WordSearchDailyScreen() {
   const { background } = useTheme();
   const [puzzle, setPuzzle] = useState<WordSearchPuzzle | null>(null);
   const [progress, setProgress] = useState<WordSearchDailyProgress | null>(null);
+  const [lock, setLock] = useState<WordSearchDailyLock | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,9 +45,16 @@ export default function WordSearchDailyScreen() {
 
         setPuzzle(generatedPuzzle);
 
-        // Resume in-progress attempt if the app was closed mid-game today
-        const existingProgress = await loadWordSearchDailyProgress();
-        if (existingProgress) setProgress(existingProgress);
+        // Already finished today's attempt? Show that result instead of
+        // starting a fresh puzzle — this is what "View Results" needed.
+        const existingLock = await loadWordSearchDailyLock();
+        if (existingLock) {
+          setLock(existingLock);
+        } else {
+          // Otherwise resume an in-progress attempt if the app was closed mid-game
+          const existingProgress = await loadWordSearchDailyProgress();
+          if (existingProgress) setProgress(existingProgress);
+        }
       } catch (error) {
         console.error('Failed to generate daily puzzle:', error);
         router.back();
@@ -76,6 +89,7 @@ export default function WordSearchDailyScreen() {
       isDaily={true}
       timeLimit={240} // 4-minute countdown for daily (Challenge settings)
       initialProgress={progress}
+      lockedResult={lock}
     />
   );
 }
