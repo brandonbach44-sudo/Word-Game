@@ -1,7 +1,7 @@
 // app/index.tsx
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ScrollView,
   StatusBar,
@@ -14,6 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FallingLetters } from '../src/shared/FallingLetters';
 import { SplashScreen } from '../src/shared/SplashScreen';
 import { useTheme } from '../src/shared/ThemeContext';
+import { ConfirmModal } from '../src/shared/ConfirmModal';
+import { COLORS } from '../src/shared/theme';
+import { consumeReminderOptInPending, requestReminderPermission } from '../src/shared/dailyReminders';
 
 const GAMES = [
   {
@@ -131,6 +134,19 @@ const COMING_SOON: string[] = ['Crossword'];
 export default function Home() {
   const { background, colorBlindMode } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
+  const [showReminderOptIn, setShowReminderOptIn] = useState(false);
+
+  // Checked every time the player lands back on the home screen — this is
+  // the natural, unhurried moment after a win, not mid-game. The flag can
+  // only ever be true once per install (see maybeFlagReminderOptIn), so
+  // this prompt shows at most one time, ever.
+  useFocusEffect(
+    useCallback(() => {
+      consumeReminderOptInPending().then((pending) => {
+        if (pending) setShowReminderOptIn(true);
+      });
+    }, [])
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: background.backgroundColor }]}>
@@ -225,6 +241,24 @@ export default function Home() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      <ConfirmModal
+        visible={showReminderOptIn}
+        title="Keep your streak alive"
+        message="Get a gentle nudge in the evening if you've got an unplayed daily challenge, so your streak never resets by accident."
+        cancelText="Not Now"
+        confirmText="Enable"
+        onCancel={() => setShowReminderOptIn(false)}
+        onConfirm={() => {
+          setShowReminderOptIn(false);
+          requestReminderPermission();
+        }}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+        destructiveColor={COLORS.accent}
+      />
     </View>
   );
 }

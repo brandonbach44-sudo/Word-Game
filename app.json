@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.bachapps.wordfury",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -44,7 +44,14 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#4ecca3"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -35,6 +35,8 @@ import {
   type WordSearchDailyLock,
 } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
+import { maybeRequestReview } from '../../src/shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../src/shared/dailyReminders';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import { ConfirmModal } from '../../src/shared/ConfirmModal';
 import WordSearchResultOverlay, { type WordSearchResultData } from '../../src/wordsearch/components/WordSearchResultOverlay';
@@ -461,6 +463,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         );
         dailyStreak = dailyStats.streak;
         await clearWordSearchDailyProgress();
+        if (allWordsFound) maybeRequestReview(dailyStreak);
+        if (allWordsFound) maybeFlagReminderOptIn(dailyStreak);
+        syncDailyReminder();
 
         const mins = Math.floor(state.elapsedSeconds / 60);
         const secs = state.elapsedSeconds % 60;

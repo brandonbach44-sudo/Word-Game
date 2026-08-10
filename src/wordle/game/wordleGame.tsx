@@ -22,6 +22,8 @@ import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
 import { AchievementPopup } from "../../shared/AchievementPopup";
 import { FallingLetters } from "../../shared/FallingLetters";
+import { maybeRequestReview } from "../../shared/reviewPrompt";
+import { syncDailyReminder, maybeFlagReminderOptIn } from "../../shared/dailyReminders";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
 import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
@@ -1100,6 +1102,14 @@ export default function WordleGame() {
         }
 
         const updatedHistory = key === "daily" ? { ...prev.dailyHistory, [todayISO]: result } : prev.dailyHistory;
+
+        if (gameMode === "daily" && result === "won") {
+          maybeRequestReview(currentStreak);
+          maybeFlagReminderOptIn(currentStreak);
+        }
+        if (gameMode === "daily") {
+          syncDailyReminder();
+        }
 
         return {
           ...prev,

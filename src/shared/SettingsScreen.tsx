@@ -22,7 +22,20 @@ import {
   Info,
   Shield,
   ChevronRight,
+  Bell,
+  Check,
 } from 'lucide-react-native';
+import {
+  ALL_GAME_IDS,
+  GAME_LABELS,
+  GameId,
+  ReminderPrefs,
+  loadReminderPrefs,
+  saveReminderPrefs,
+  requestReminderPermission,
+  disableReminders,
+  syncDailyReminder,
+} from './dailyReminders';
 
 // Pulled from app.json so this can't drift out of sync with the real
 // build version like it did before (screen said 0.1.0, app.json said 1.0.0).
@@ -55,6 +68,36 @@ export const SettingsScreen: React.FC = () => {
 
   const [showWhatsNew, setShowWhatsNew] = React.useState(false);
   const [showFeedback, setShowFeedback] = React.useState(false);
+  const [reminderPrefs, setReminderPrefs] = React.useState<ReminderPrefs | null>(null);
+
+  React.useEffect(() => {
+    loadReminderPrefs().then(setReminderPrefs);
+  }, []);
+
+  const handleReminderMasterToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      await disableReminders();
+      setReminderPrefs((prev) => (prev ? { ...prev, enabled: false } : prev));
+      return;
+    }
+    // Optimistically flip on, then correct back to off if the OS permission
+    // prompt gets declined — requestReminderPermission only persists
+    // enabled:true when permission is actually granted.
+    setReminderPrefs((prev) => (prev ? { ...prev, enabled: true } : prev));
+    const granted = await requestReminderPermission();
+    if (!granted) {
+      const latest = await loadReminderPrefs();
+      setReminderPrefs(latest);
+    }
+  };
+
+  const handleReminderGameToggle = async (id: GameId, value: boolean) => {
+    if (!reminderPrefs) return;
+    const updated: ReminderPrefs = { ...reminderPrefs, games: { ...reminderPrefs.games, [id]: value } };
+    setReminderPrefs(updated);
+    await saveReminderPrefs(updated);
+    syncDailyReminder();
+  };
 
   // Only show light backgrounds in picker (dark mode is separate toggle)
   const lightBackgrounds = getLightBackgrounds();
@@ -276,6 +319,71 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* ==================== REMINDERS SECTION ==================== */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Bell size={20} color={background.secondaryText} style={styles.sectionIcon} />
+            <Text style={[styles.sectionTitle, { color: background.textColor }]}>
+              Daily Reminders
+            </Text>
+          </View>
+
+          <View style={[styles.settingRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: background.textColor }]}>
+                Evening Reminder
+              </Text>
+              <Text style={[styles.settingDescription, { color: background.secondaryText }]}>
+                One notification around 9 PM if you've got an unplayed daily
+              </Text>
+            </View>
+            <Switch
+              value={reminderPrefs?.enabled ?? false}
+              onValueChange={handleReminderMasterToggle}
+              trackColor={{ false: '#9CA3AF', true: COLORS.accent }}
+              ios_backgroundColor="#9CA3AF"
+              thumbColor={reminderPrefs?.enabled ? '#ffffff' : '#f4f3f4'}
+            />
+          </View>
+
+          {reminderPrefs?.enabled && (
+            <>
+              <Text style={[styles.subsectionTitle, { color: background.secondaryText }]}>
+                Remind me for
+              </Text>
+              <View style={[styles.gameChecklistCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+                {ALL_GAME_IDS.map((id, index) => {
+                  const checked = reminderPrefs.games[id];
+                  return (
+                    <TouchableOpacity
+                      key={id}
+                      style={[
+                        styles.gameChecklistRow,
+                        index < ALL_GAME_IDS.length - 1 && { borderBottomWidth: 1, borderBottomColor: background.borderColor },
+                      ]}
+                      onPress={() => handleReminderGameToggle(id, !checked)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.gameChecklistLabel, { color: background.textColor }]}>
+                        {GAME_LABELS[id]}
+                      </Text>
+                      <View
+                        style={[
+                          styles.checklistBox,
+                          { borderColor: background.borderColor },
+                          checked && { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+                        ]}
+                      >
+                        {checked && <Check size={14} color="#ffffff" strokeWidth={3} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+
         {/* ==================== CONTACT SECTION ==================== */}
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
@@ -440,6 +548,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   
+  // Reminders — per-game checklist
+  gameChecklistCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  gameChecklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  gameChecklistLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  checklistBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   // Link Row (for What's New and Contact)
   linkRow: {
     flexDirection: 'row',

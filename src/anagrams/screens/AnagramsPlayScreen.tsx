@@ -28,6 +28,8 @@ import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
 import { GameTile } from '../../shared/GameTile';
+import { maybeRequestReview } from '../../shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import type { TierName } from '../../shared/tileTiers';
 
 import type { AnagramPuzzle } from '../utils/generator';
@@ -387,6 +389,10 @@ const AnagramsPlayScreen: React.FC<Props> = ({
       // Cube/tile cosmetics are Daily-only — only a Daily run's score
       // counts toward the currently-equipped tier's V2 (glow) unlock.
       await addDailyScoreToEquippedTier(total);
+
+      if (won) maybeRequestReview(newStreak);
+      if (won) maybeFlagReminderOptIn(newStreak);
+      syncDailyReminder();
     }
 
     await saveAnagramsStats(stats);

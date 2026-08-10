@@ -23,6 +23,8 @@ import { usePreventRemove } from '@react-navigation/core';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
+import { maybeRequestReview } from '../../shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
 import { FallingLetters } from '../../shared/FallingLetters';
@@ -342,6 +344,12 @@ export default function GameScreen() {
         });
         setDailyShareText(text);
         setShowDailyPopup(true);
+        // No win/lose state in Word Grid (score race, not solve/fail), so
+        // the streak itself — built just by showing up — is the "good
+        // moment" signal here instead of a win flag.
+        maybeRequestReview(newDailyStats.streak);
+        maybeFlagReminderOptIn(newDailyStats.streak);
+        syncDailyReminder();
         setScreen('results');
       } else {
         setResultsPage('results');

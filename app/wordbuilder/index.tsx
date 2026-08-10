@@ -33,6 +33,8 @@ import { HapticManager } from '../../src/shared/HapticManager';
 // Theme
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
+import { maybeRequestReview } from '../../src/shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../src/shared/dailyReminders';
 
 // Utils
 import { generateLetters } from '../../src/wordbuilder/utils/letterGenerator';
@@ -541,6 +543,11 @@ export default function WordBuilder() {
           setDailyResult({ score, words: foundWords });
           resumedDailyRef.current = false;
           await clearDailyBuilderProgress();
+          // No win/lose state here either (score race, not solve/fail) — the
+          // streak from showing up is the "good moment" signal.
+          maybeRequestReview(updatedDaily?.dailyStreak ?? 0);
+          maybeFlagReminderOptIn(updatedDaily?.dailyStreak ?? 0);
+          syncDailyReminder();
         } else if (foundWords.length > 0 || score > 0) {
           // Save practice game result
           updatedStats = await updateStatsAfterGame(score, foundWords, gameMode, letterCount);

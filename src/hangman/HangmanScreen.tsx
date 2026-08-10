@@ -21,6 +21,8 @@ import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
+import { maybeRequestReview } from '../shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../shared/dailyReminders';
 
 import { AchievementPopup } from '../shared/AchievementPopup';
 import { ConfirmModal } from '../shared/ConfirmModal';
@@ -397,6 +399,9 @@ export default function HangmanScreen() {
         const updatedDailyStats = await loadDailyStats();
         setDailyStats(updatedDailyStats);
         setShowDailyPopup(true);
+        if (isWon) maybeRequestReview(updatedDailyStats.streak || 0);
+        if (isWon) maybeFlagReminderOptIn(updatedDailyStats.streak || 0);
+        syncDailyReminder();
       };
 
       handleDailyEnd();

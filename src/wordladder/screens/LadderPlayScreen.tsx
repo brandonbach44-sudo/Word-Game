@@ -20,6 +20,8 @@ import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
+import { maybeRequestReview } from '../../shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 
 import type { LadderDifficulty, LadderPuzzle } from '../utils/generator';
 import { getHintPath } from '../utils/generator';
@@ -228,6 +230,10 @@ const LadderPlayScreen: React.FC<Props> = ({
         chain: finalChain,
       });
       await clearDailyProgress();
+
+      if (won) maybeRequestReview(newStreak);
+      if (won) maybeFlagReminderOptIn(newStreak);
+      syncDailyReminder();
     }
 
     await saveLadderStats(stats);

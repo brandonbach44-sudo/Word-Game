@@ -17,6 +17,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { AchievementPopup } from '../../shared/AchievementPopup';
+import { maybeRequestReview } from '../../shared/reviewPrompt';
+import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import HexGrid, { type Feedback } from '../components/HexGrid';
 import WordList from '../components/WordList';
 import RankProgressBar from '../components/RankProgressBar';
@@ -285,7 +287,10 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
       if (justWon) {
         setDailyWon(true);
         setShowWinCelebration(true);
+        maybeRequestReview(stats.currentStreak ?? 0);
+        maybeFlagReminderOptIn(stats.currentStreak ?? 0);
       }
+      syncDailyReminder();
     }
 
     const wordAch = await checkWordAchievements({ word, isPangram: result.isPangram }, stats);
