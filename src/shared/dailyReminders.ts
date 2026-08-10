@@ -215,33 +215,65 @@ async function saveNotifState(state: NotifState): Promise<void> {
   }
 }
 
+export type ReminderPermissionResult = 'granted' | 'denied' | 'blocked';
+
 /**
  * Shows the OS permission dialog. Only call this right after the player
  * accepts our own soft prompt (or flips the Settings toggle themselves) —
- * never cold, never on first launch. A decline here can't be re-asked
- * without the player manually visiting iOS Settings, so it's spent carefully.
+ * never cold, never on first launch.
+ *
+ * iOS only shows the real dialog once. After that, requestPermissionsAsync
+ * resolves instantly with the previous answer and no UI at all — so a
+ * player who denied it once and comes back to flip our toggle back on would
+ * otherwise see nothing happen, with no explanation. 'blocked' distinguishes
+ * that case (canAskAgain: false) from a fresh, in-the-moment 'denied' so the
+ * caller can point them at iOS Settings instead of silently failing.
  */
-export async function requestReminderPermission(): Promise<boolean> {
+export async function requestReminderPermission(): Promise<ReminderPermissionResult> {
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    let granted = existing === 'granted';
-    if (!granted) {
-      const { status } = await Notifications.requestPermissionsAsync();
-      granted = status === 'granted';
-    }
-    if (granted) {
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.status === 'granted') {
       const prefs = await loadReminderPrefs();
       await saveReminderPrefs({ ...prefs, enabled: true });
       await syncDailyReminder();
+      return 'granted';
     }
-    return granted;
+    if (!existing.canAskAgain) {
+      return 'blocked';
+    }
+    const result = await Notifications.requestPermissionsAsync();
+    if (result.status === 'granted') {
+      const prefs = await loadReminderPrefs();
+      await saveReminderPrefs({ ...prefs, enabled: true });
+      await syncDailyReminder();
+      return 'granted';
+    }
+    return result.canAskAgain === false ? 'blocked' : 'denied';
   } catch (e) {
     console.warn('requestReminderPermission error', e);
-    return false;
+    return 'denied';
   }
 }
 
-function buildReminderContent(labels: string[], singleGameStreak: number): { title: string; body: string } {
+// Mirrors the routes in app/index.tsx's GAMES array — kept here too so a
+// notification tap can deep-link straight into the one game it's about,
+// instead of dropping the player back at the home grid to go find it
+// themselves.
+const GAME_ROUTES: Record<GameId, string> = {
+  wordsmith: '/wordbuilder',
+  furdle: '/wordle',
+  hangman: '/hangman',
+  wordgrid: '/wordgrid',
+  wordsearch: '/wordsearch',
+  wordladder: '/wordladder',
+  hexhive: '/hexhive',
+  anagrams: '/anagrams',
+};
+
+function buildReminderContent(
+  labels: string[],
+  singleGameStreak: number
+): { title: string; body: string } {
   if (labels.length === 1) {
     if (singleGameStreak >= 1) {
       return {
@@ -310,9 +342,12 @@ export async function syncDailyReminder(): Promise<void> {
     const labels = unplayed.map((g) => GAME_LABELS[g.id]);
     const singleStreak = unplayed.length === 1 ? unplayed[0].streak : 0;
     const { title, body } = buildReminderContent(labels, singleStreak);
+    // Only deep-link when there's exactly one unplayed game to send someone
+    // to — with several open, the home grid is the more honest destination.
+    const data = unplayed.length === 1 ? { route: GAME_ROUTES[unplayed[0].id] } : undefined;
 
     const notificationId = await Notifications.scheduleNotificationAsync({
-      content: { title, body, sound: true },
+      content: { title, body, sound: true, data },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: fireDate,

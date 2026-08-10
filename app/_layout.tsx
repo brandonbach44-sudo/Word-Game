@@ -1,12 +1,22 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../src/shared/ThemeContext';
 import { syncDailyReminder } from '../src/shared/dailyReminders';
+
+// Sends the player straight into the game a reminder notification was
+// about, instead of dropping them at the home grid to go find it — pulled
+// out so both the cold-start check and the live listener below can share it.
+function routeFromNotification(notification: Notifications.Notification | undefined) {
+  const route = notification?.request.content.data?.route;
+  if (typeof route === 'string') {
+    router.push(route as any);
+  }
+}
 
 // Called once at module load — this just tells iOS how to present a
 // notification if it arrives while the app happens to already be open
@@ -29,14 +39,29 @@ export default function RootLayout() {
     // unplayed) can only have changed while we were away.
     syncDailyReminder();
 
-    const subscription = AppState.addEventListener('change', (nextState) => {
+    // App was launched by tapping a reminder notification (was fully
+    // killed, not just backgrounded) — route in once navigation is ready.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      routeFromNotification(response?.notification);
+    });
+
+    // App was already running (foreground or background) when the
+    // notification was tapped.
+    const tapSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      routeFromNotification(response.notification);
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
       if (appState.current.match(/inactive|background/) && nextState === 'active') {
         syncDailyReminder();
       }
       appState.current = nextState;
     });
 
-    return () => subscription.remove();
+    return () => {
+      tapSubscription.remove();
+      appStateSubscription.remove();
+    };
   }, []);
 
   return (

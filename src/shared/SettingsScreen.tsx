@@ -8,6 +8,8 @@ import {
   StatusBar,
   Switch,
   ImageBackground,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -84,10 +86,22 @@ export const SettingsScreen: React.FC = () => {
     // prompt gets declined — requestReminderPermission only persists
     // enabled:true when permission is actually granted.
     setReminderPrefs((prev) => (prev ? { ...prev, enabled: true } : prev));
-    const granted = await requestReminderPermission();
-    if (!granted) {
+    const result = await requestReminderPermission();
+    if (result !== 'granted') {
       const latest = await loadReminderPrefs();
       setReminderPrefs(latest);
+    }
+    if (result === 'blocked') {
+      // iOS won't show its own dialog a second time — the only way back in
+      // is the Settings app, so say so instead of just silently failing.
+      Alert.alert(
+        'Notifications Are Off',
+        'You previously turned off notifications for Word Fury. Enable them in iOS Settings to get daily reminders.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
     }
   };
 
