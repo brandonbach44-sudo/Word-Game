@@ -1,1 +1,1 @@
-$(cat /mnt/user-data/outputs/BETA_FEEDBACK_AND_BUILD2.md)
+# Word Fury — Beta Feedback & Build 2 Tracker
