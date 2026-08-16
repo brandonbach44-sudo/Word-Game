@@ -277,6 +277,7 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
       'ULNA', 'PATELLA', 'TALUS', 'METATARSAL', 'PHALANX',
       'COCHLEA', 'MALLEUS', 'STIRRUP', 'EUSTACHIAN', 'UVULA',
       'ESOPHAGUS', 'DUODENUM', 'JEJUNUM', 'COLON', 'APPENDIX',
+      'CHROMOSOMES',
     ],
   },
   {
