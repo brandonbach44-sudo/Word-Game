@@ -461,18 +461,22 @@ export default function HangmanScreen() {
       return;
     }
 
-    // Flatten all words from all categories into one list
-    const allWords: { word: string; category: string }[] = [];
-    Object.entries(WORD_CATEGORIES).forEach(([category, words]) => {
-      words.forEach((word: string) => {
-        allWords.push({ word, category });
-      });
-    });
-
-    // Use date as seed to pick the same word for everyone
+    // Use a seeded LCG (same pattern as Word Ladder, Anagrams, Word Grid)
+    // so consecutive days produce non-sequential picks instead of walking
+    // through the list one entry at a time.
     const seed = dateToSeed(new Date());
-    const index = seed % allWords.length;
-    const dailyEntry = allWords[index];
+    let state = seed;
+    const rand = () => {
+      state = (state * 1103515245 + 12345) & 0x7fffffff;
+      return state / 0x7fffffff;
+    };
+
+    // Pick a random category first, then a random word from that category.
+    const categoryNames = Object.keys(WORD_CATEGORIES);
+    const pickedCategory = categoryNames[Math.floor(rand() * categoryNames.length)];
+    const categoryWords: string[] = WORD_CATEGORIES[pickedCategory];
+    const pickedWord = categoryWords[Math.floor(rand() * categoryWords.length)];
+    const dailyEntry = { word: pickedWord, category: pickedCategory };
 
     if (!dailyEntry) {
       console.error('No daily word found!');
