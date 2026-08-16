@@ -30,6 +30,8 @@ import {
   saveWordSearchDailyProgress,
   clearWordSearchDailyProgress,
   saveWordSearchDailyLock,
+  saveWordSearchPracticeProgress,
+  clearWordSearchPracticeProgress,
   type WordSearchStats,
   type WordSearchDailyProgress,
   type WordSearchDailyLock,
@@ -46,6 +48,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // ── Result data shape ─────────────────────────────────────────────────────────
 type ResultData = WordSearchResultData;
 
+import type { WordSearchPracticeProgress } from '../../src/wordsearch/utils/wsStorage';
+
 interface PlayScreenProps {
   themeId: WordSearchThemeId;
   difficulty: string;
@@ -53,6 +57,7 @@ interface PlayScreenProps {
   isDaily?: boolean;
   timeLimit?: number; // seconds — for daily countdown mode
   initialProgress?: WordSearchDailyProgress | null; // daily-only: resume from a previous session
+  initialPracticeProgress?: WordSearchPracticeProgress | null; // practice-only: resume mid-game
   lockedResult?: WordSearchDailyLock | null; // daily-only: today's attempt is already finished — show results, don't replay
 }
 
@@ -169,6 +174,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
   isDaily = false,
   timeLimit,
   initialProgress,
+  initialPracticeProgress,
   lockedResult,
 }) => {
   const themeName = WORD_SEARCH_THEMES.find(t => t.id === themeId)?.name ?? themeId;
@@ -218,6 +224,17 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         score: lockedResult.score,
         foundWords: restoredWords,
         elapsedSeconds: lockedResult.elapsedSeconds,
+        foundCells: restoredCells,
+        currentSelection: [],
+      };
+    }
+    if (!isDaily && initialPracticeProgress) {
+      const restoredWords = puzzleData.words.filter(w => initialPracticeProgress.foundWordTexts.includes(w.word));
+      const restoredCells = restoredWords.flatMap(getWordCells);
+      return {
+        score: initialPracticeProgress.score,
+        foundWords: restoredWords,
+        elapsedSeconds: initialPracticeProgress.elapsedSeconds,
         foundCells: restoredCells,
         currentSelection: [],
       };
@@ -326,6 +343,26 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       elapsedSeconds: gameState.elapsedSeconds,
     });
   }, [isDaily, gameFinished, gameState.foundWords, gameState.score, gameState.elapsedSeconds]);
+
+  // Autosave practice progress on every change so the attempt survives the app
+  // being backgrounded or force-quit mid-game.
+  useEffect(() => {
+    if (isDaily || gameFinished) return;
+    saveWordSearchPracticeProgress({
+      theme: themeId,
+      difficulty,
+      foundWordTexts: gameState.foundWords.map(w => w.word),
+      score: gameState.score,
+      elapsedSeconds: gameState.elapsedSeconds,
+      gridLetters: puzzleData.grid,
+      wordPlacements: puzzleData.words.map(w => ({
+        word: w.word,
+        startRow: w.row,
+        startCol: w.col,
+        direction: w.direction,
+      })),
+    });
+  }, [isDaily, gameFinished, themeId, difficulty, puzzleData, gameState.foundWords, gameState.score, gameState.elapsedSeconds]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -455,6 +492,10 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
       const { loadWordSearchStats } = await import('../../src/wordsearch/utils/wsStorage');
       const prevStats = await loadWordSearchStats();
       const prevBestScore = prevStats.bestScore;
+
+      if (!isDaily) {
+        clearWordSearchPracticeProgress().catch(() => {});
+      }
 
       if (isDaily) {
         const dailyStats = await saveWordSearchDailyResult(

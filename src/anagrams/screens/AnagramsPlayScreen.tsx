@@ -50,6 +50,9 @@ import {
   saveAnagramsStats,
   saveDailyLock,
   saveDailyProgress,
+  savePracticeProgress,
+  clearPracticeProgress,
+  type PracticeProgressState,
   TOTAL_ROUNDS,
   useCountdownToMidnight,
 } from '../utils/anagramsStorage';
@@ -72,6 +75,7 @@ type Props = {
   categoryId?: AnagramsCategoryId;
   lockedResult?: DailyLockState | null;
   initialProgress?: DailyProgressState | null;
+  initialPracticeProgress?: PracticeProgressState | null; // practice-only resume
   onGoHome: () => void;
   onPlayAgain?: () => void;
 };
@@ -89,6 +93,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   categoryId,
   lockedResult,
   initialProgress,
+  initialPracticeProgress,
   onGoHome,
   onPlayAgain,
 }) => {
@@ -96,8 +101,8 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   const countdown = useCountdownToMidnight();
   const alreadyLocked = mode === 'daily' && !!lockedResult;
 
-  const startingRoundIndex = alreadyLocked ? 0 : initialProgress?.roundIndex ?? 0;
-  const startingRoundResults = alreadyLocked ? [] : initialProgress?.roundResults ?? [];
+  const startingRoundIndex = alreadyLocked ? 0 : initialProgress?.roundIndex ?? initialPracticeProgress?.roundIndex ?? 0;
+  const startingRoundResults = alreadyLocked ? [] : initialProgress?.roundResults ?? initialPracticeProgress?.roundResults ?? [];
 
   const [roundIndex, setRoundIndex] = useState(startingRoundIndex);
   const [roundResults, setRoundResults] = useState<RoundResult[]>(startingRoundResults);
@@ -165,6 +170,19 @@ const AnagramsPlayScreen: React.FC<Props> = ({
       elapsedSecondsThisRound: 0,
     });
   }, [mode, alreadyLocked, runStatus, roundIndex, roundResults]);
+
+  // Autosave Practice progress — survives app backgrounding.
+  useEffect(() => {
+    if (mode !== 'practice' || runStatus !== 'playing') return;
+    savePracticeProgress({
+      rounds: puzzle.rounds.map((r) => ({ word: r.word, scrambled: r.scrambled })),
+      roundIndex,
+      roundResults,
+      guessSlots: [],
+      hintsUsedThisRound: 0,
+      elapsedSecondsThisRound: 0,
+    });
+  }, [mode, runStatus, puzzle, roundIndex, roundResults]);
 
   useEffect(() => {
     if (!alreadyLocked) return;
@@ -400,6 +418,9 @@ const AnagramsPlayScreen: React.FC<Props> = ({
       if (won) maybeRequestReview(newStreak);
       if (won) maybeFlagReminderOptIn(newStreak);
       syncDailyReminder();
+    } else {
+      // Practice run finished — clear saved progress so next run starts fresh.
+      await clearPracticeProgress();
     }
 
     await saveAnagramsStats(stats);

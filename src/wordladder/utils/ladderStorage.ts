@@ -185,6 +185,45 @@ export async function clearDailyProgress(): Promise<void> {
   }
 }
 
+// ── Quick Play in-progress autosave ──
+const QUICKPLAY_PROGRESS_KEY = 'wordladder_quickplay_progress_v1';
+
+export type QuickPlayProgressState = {
+  puzzle: { start: string; end: string; solution: string[]; par: number; wordLength: number; difficulty: string };
+  chain: string[];
+  hintsUsed: number;
+  elapsedSeconds: number;
+};
+
+export async function loadQuickPlayProgress(): Promise<QuickPlayProgressState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(QUICKPLAY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.puzzle || !Array.isArray(parsed.chain)) return null;
+    return parsed;
+  } catch (e) {
+    console.warn('loadQuickPlayProgress error', e);
+    return null;
+  }
+}
+
+export async function saveQuickPlayProgress(progress: QuickPlayProgressState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(QUICKPLAY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveQuickPlayProgress error', e);
+  }
+}
+
+export async function clearQuickPlayProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(QUICKPLAY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearQuickPlayProgress error', e);
+  }
+}
+
 // ── Date helpers ─────────────────────────────────────────────────────────
 // Local-timezone "YYYY-MM-DD" — not UTC, so the daily reset lines up with
 // the player's actual midnight rather than Greenwich's.

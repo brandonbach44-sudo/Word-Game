@@ -39,6 +39,9 @@ import {
   saveDailyLock,
   saveDailyProgress,
   saveLadderStats,
+  saveQuickPlayProgress,
+  clearQuickPlayProgress,
+  type QuickPlayProgressState,
   useCountdownToMidnight,
 } from '../utils/ladderStorage';
 import {
@@ -64,6 +67,7 @@ type Props = {
   difficulty: LadderDifficulty;
   lockedResult?: DailyLockState | null; // daily-only: already played today
   initialProgress?: DailyProgressState | null; // daily-only: resume from a previous session
+  initialPracticeProgress?: QuickPlayProgressState | null; // practice-only: resume from a previous session
   onGoHome: () => void;
   onPlayAgain?: () => void; // practice-only
 };
@@ -88,6 +92,7 @@ const LadderPlayScreen: React.FC<Props> = ({
   difficulty,
   lockedResult,
   initialProgress,
+  initialPracticeProgress,
   onGoHome,
   onPlayAgain,
 }) => {
@@ -96,12 +101,14 @@ const LadderPlayScreen: React.FC<Props> = ({
   const countdown = useCountdownToMidnight();
 
   const alreadyLocked = mode === 'daily' && !!lockedResult;
-  const resumedElapsed = initialProgress?.elapsedSeconds ?? 0;
+  const resumedElapsed = initialProgress?.elapsedSeconds ?? initialPracticeProgress?.elapsedSeconds ?? 0;
 
-  const [chain, setChain] = useState<string[]>(initialProgress?.chain ?? [puzzle.start]);
+  const [chain, setChain] = useState<string[]>(
+    initialProgress?.chain ?? initialPracticeProgress?.chain ?? [puzzle.start]
+  );
   const [currentCells, setCurrentCells] = useState<string[]>(Array(wordLength).fill(''));
   const [error, setError] = useState<string | null>(null);
-  const [hintsUsed, setHintsUsed] = useState(initialProgress?.hintsUsed ?? 0);
+  const [hintsUsed, setHintsUsed] = useState(initialProgress?.hintsUsed ?? initialPracticeProgress?.hintsUsed ?? 0);
   const [status, setStatus] = useState<GameStatus>(alreadyLocked ? (lockedResult!.result === 'won' ? 'won' : 'gave_up') : 'playing');
   const [elapsed, setElapsed] = useState(resumedElapsed);
   const [showResult, setShowResult] = useState(alreadyLocked);
@@ -151,6 +158,25 @@ const LadderPlayScreen: React.FC<Props> = ({
       elapsedSeconds: elapsedNow,
     });
   }, [mode, alreadyLocked, status, chain, hintsUsed]);
+
+  // Autosave Quick Play progress so the attempt survives mid-game app close.
+  useEffect(() => {
+    if (mode !== 'practice' || status !== 'playing') return;
+    const elapsedNow = Math.round((Date.now() - startTimeRef.current) / 1000);
+    saveQuickPlayProgress({
+      puzzle: {
+        start: puzzle.start,
+        end: puzzle.end,
+        solution: puzzle.solutionPath,
+        par: puzzle.par,
+        wordLength: puzzle.wordLength,
+        difficulty: difficulty as string,
+      },
+      chain,
+      hintsUsed,
+      elapsedSeconds: elapsedNow,
+    });
+  }, [mode, status, puzzle, difficulty, chain, hintsUsed]);
 
   useEffect(() => {
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -234,6 +260,9 @@ const LadderPlayScreen: React.FC<Props> = ({
       if (won) maybeRequestReview(newStreak);
       if (won) maybeFlagReminderOptIn(newStreak);
       syncDailyReminder();
+    } else {
+      // Practice game finished — clear saved progress so the next game starts fresh.
+      await clearQuickPlayProgress();
     }
 
     await saveLadderStats(stats);

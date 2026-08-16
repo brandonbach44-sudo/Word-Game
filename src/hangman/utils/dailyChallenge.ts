@@ -168,6 +168,45 @@ export async function clearDailyProgress(): Promise<void> {
   }
 }
 
+// ── Practice in-progress autosave ──
+const PRACTICE_PROGRESS_KEY = 'hangman_practice_progress';
+
+export interface HangmanPracticeProgress {
+  word: string;
+  category: string;
+  guessedLetters: string[];
+  incorrectGuesses: string[];
+  correctGuesses: string[];
+}
+
+export async function loadPracticeProgress(): Promise<HangmanPracticeProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PRACTICE_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.word !== 'string') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function savePracticeProgress(progress: HangmanPracticeProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRACTICE_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('savePracticeProgress error', e);
+  }
+}
+
+export async function clearPracticeProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PRACTICE_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearPracticeProgress error', e);
+  }
+}
+
 // ─── Share Text ───────────────────────────────────────────────────────────
 // Single builder shared by GameStatus (Practice), DailyChallengePopup, and
 // DailyChallengeCard — those three used to each hand-roll a slightly

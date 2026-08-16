@@ -268,6 +268,51 @@ export async function clearWordSearchDailyProgress(): Promise<void> {
   }
 }
 
+// ── Practice in-progress autosave ──
+// Word Search practice grids are generated on-the-fly, so we save the full
+// grid config so the exact same puzzle is restored on resume.
+const PRACTICE_PROGRESS_KEY = 'wordsearch_practice_progress';
+
+export interface WordSearchPracticeProgress {
+  // Enough to reconstruct the exact puzzle state on resume.
+  theme: string;
+  difficulty: string;
+  foundWordTexts: string[];
+  score: number;
+  elapsedSeconds: number;
+  // The serialised grid so we don't have to regenerate (which would give a different layout).
+  gridLetters: string[][];
+  wordPlacements: { word: string; startRow: number; startCol: number; direction: string }[];
+}
+
+export async function loadWordSearchPracticeProgress(): Promise<WordSearchPracticeProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PRACTICE_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.theme !== 'string' || !Array.isArray(parsed.gridLetters)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveWordSearchPracticeProgress(progress: WordSearchPracticeProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRACTICE_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveWordSearchPracticeProgress error', e);
+  }
+}
+
+export async function clearWordSearchPracticeProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PRACTICE_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearWordSearchPracticeProgress error', e);
+  }
+}
+
 // ============================================================================
 // DAILY LOCK (final result of today's completed attempt, for re-opening
 // "View Results" without replaying — same pattern as Anagrams' DailyLockState)

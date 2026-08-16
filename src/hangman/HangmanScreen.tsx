@@ -44,6 +44,10 @@ import {
   saveDailyProgress,
   clearDailyProgress,
   type HangmanDailyProgress,
+  loadPracticeProgress,
+  savePracticeProgress,
+  clearPracticeProgress,
+  type HangmanPracticeProgress,
 } from './utils/dailyChallenge';
 
 import { useHangman } from './Hooks/useHangman';
@@ -284,6 +288,7 @@ export default function HangmanScreen() {
   // startDailyChallenge() picks it up when the user actually taps Play, so
   // the app doesn't auto-jump into the game screen on launch.
   const resumedDailyProgressRef = useRef<HangmanDailyProgress | null>(null);
+  const resumedPracticeProgressRef = useRef<HangmanPracticeProgress | null>(null);
 
   const {
     word,
@@ -339,6 +344,8 @@ export default function HangmanScreen() {
       if (stats.lastPlayedDate !== getTodayDateString()) {
         resumedDailyProgressRef.current = await loadDailyProgress();
       }
+      // Stash any in-progress practice (category) game for resume.
+      resumedPracticeProgressRef.current = await loadPracticeProgress();
     });
   }, []);
 
@@ -421,6 +428,26 @@ export default function HangmanScreen() {
       correctGuesses,
     });
   }, [playingDaily, isPlaying, dailyWord, category, correctGuesses, incorrectGuesses]);
+
+  // Autosave practice progress on every guess.
+  useEffect(() => {
+    if (playingDaily || !isPlaying) return;
+    savePracticeProgress({
+      word,
+      category,
+      guessedLetters: [...correctGuesses, ...incorrectGuesses],
+      incorrectGuesses,
+      correctGuesses,
+    });
+  }, [playingDaily, isPlaying, word, category, correctGuesses, incorrectGuesses]);
+
+  // Clear practice progress when a practice game ends (win or loss).
+  useEffect(() => {
+    if ((isWon || isLost) && !playingDaily) {
+      resumedPracticeProgressRef.current = null;
+      clearPracticeProgress().catch(() => {});
+    }
+  }, [isWon, isLost, playingDaily]);
 
   // Clear selected letter when game ends
   useEffect(() => {
@@ -572,6 +599,9 @@ export default function HangmanScreen() {
       handleBackToModeSelect();
       return;
     }
+    // Fresh game — discard any stale practice save.
+    resumedPracticeProgressRef.current = null;
+    clearPracticeProgress().catch(() => {});
     if (selectedCategory && selectedCategory !== 'Daily Challenge') {
       startGameWithCategory(selectedCategory, isPhraseCategory(selectedCategory));
     } else {
@@ -594,7 +624,23 @@ export default function HangmanScreen() {
 
   const handleSelectCategory = (categoryName: string) => {
     setSelectedCategory(categoryName);
-    startGameWithCategory(categoryName, isPhraseCategory(categoryName));
+    // If there's a saved practice game for this exact category, resume it.
+    const resumed = resumedPracticeProgressRef.current;
+    if (resumed && resumed.category === categoryName) {
+      resumedPracticeProgressRef.current = null;
+      hydrateGame({
+        word: resumed.word,
+        category: resumed.category,
+        guessedLetters: resumed.guessedLetters,
+        incorrectGuesses: resumed.incorrectGuesses,
+        correctGuesses: resumed.correctGuesses,
+      });
+    } else {
+      // Clear any stale practice save for a different category.
+      resumedPracticeProgressRef.current = null;
+      clearPracticeProgress().catch(() => {});
+      startGameWithCategory(categoryName, isPhraseCategory(categoryName));
+    }
     setGameMode('playing');
   };
   

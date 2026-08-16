@@ -39,6 +39,9 @@ import {
   saveDailyProgress,
   saveWordleStats,
   saveWordlePrefs,
+  loadPracticeProgress,
+  savePracticeProgress,
+  clearPracticeProgress,
   type WordleDailyProgress,
   type WordlePrefs,
 } from "../storage/wordleStorage";
@@ -572,6 +575,7 @@ export default function WordleGame() {
   // tells startGame("daily") to enter the already-loaded game instead of
   // wiping it via resetGameState.
   const resumedDailyRef = useRef(false);
+  const resumedPracticeRef = useRef(false);
 
   // Achievement popup state
   const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
@@ -772,6 +776,26 @@ export default function WordleGame() {
           }
         }
 
+        // Resume an in-progress Quick Play (Practice) attempt.
+        // Only restore if we haven't already placed the player into the daily.
+        if (!resumedDailyRef.current && screenRef.current === "menu") {
+          const savedPractice = await loadPracticeProgress();
+          if (isMounted && savedPractice) {
+            setGameMode("practice");
+            setSolution(savedPractice.solution);
+            setGuesses(savedPractice.guesses);
+            setEvaluations(savedPractice.evaluations as EvaluatedLetter[][]);
+            setCurrentGuess(savedPractice.currentGuess);
+            setStartTime(Date.now() - savedPractice.elapsedSeconds * 1000);
+            savedPractice.guesses.forEach((_: string, rowIndex: number) => {
+              for (let c = 0; c < COLS; c++) {
+                flipAnims[rowIndex][c].setValue(1);
+              }
+            });
+            resumedPracticeRef.current = true;
+          }
+        }
+
         setHydrated(true);
       } catch (e) {
         console.warn("Failed to hydrate Wordle storage", e);
@@ -899,6 +923,9 @@ export default function WordleGame() {
       if (targetMode === "daily") {
         setSolution(getDailySolution());
       } else {
+        // New practice game — clear any previously-saved practice progress
+        // so the autosave starts fresh for the new puzzle.
+        clearPracticeProgress().catch(() => {});
         setSolution(getRandomPracticeSolution());
       }
     },
@@ -915,6 +942,13 @@ export default function WordleGame() {
       // Resuming an in-progress Daily attempt (restored on hydration) —
       // enter as-is instead of wiping guesses via resetGameState.
       if (targetMode === "daily" && resumedDailyRef.current) {
+        setScreen("game");
+        return;
+      }
+      // Resuming an in-progress Quick Play attempt (restored on hydration) —
+      // enter as-is instead of wiping guesses via resetGameState.
+      if (targetMode === "practice" && resumedPracticeRef.current) {
+        resumedPracticeRef.current = false;
         setScreen("game");
         return;
       }
@@ -937,6 +971,19 @@ export default function WordleGame() {
       elapsedSeconds,
     });
   }, [hydrated, gameMode, status, guesses, evaluations, currentGuess, startTime, todayISO]);
+
+  // Autosave Quick Play (Practice) progress — same logic but for practice mode.
+  useEffect(() => {
+    if (!hydrated || gameMode !== "practice" || status !== "playing") return;
+    const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+    savePracticeProgress({
+      solution,
+      guesses,
+      evaluations,
+      currentGuess,
+      elapsedSeconds,
+    });
+  }, [hydrated, gameMode, status, solution, guesses, evaluations, currentGuess, startTime]);
 
   const openDailyResultFromMenu = useCallback(() => {
     if (!isDailyCompletedToday) return;
@@ -1160,6 +1207,14 @@ export default function WordleGame() {
           await clearDailyProgress();
         } catch (e) {
           console.warn("Failed to save daily lock", e);
+        }
+      } else {
+        // Practice game finished — clear saved progress so the next Quick Play starts fresh.
+        resumedPracticeRef.current = false;
+        try {
+          await clearPracticeProgress();
+        } catch (e) {
+          console.warn("Failed to clear practice progress", e);
         }
       }
 

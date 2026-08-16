@@ -33,6 +33,8 @@ import {
   saveHexHiveStats,
   saveDailyProgress,
   saveDailyHistoryEntry,
+  saveQuickPlayProgress,
+  clearQuickPlayProgress,
   type HexHiveStats,
 } from '../utils/storage';
 import {
@@ -55,6 +57,7 @@ interface HexHivePlayScreenProps {
   puzzle: HexHivePuzzle;
   mode: 'daily' | 'practice';
   initialFoundWords?: string[];
+  initialTimeLeft?: number; // practice-only: restore timer from a previous session
   onGoHome: () => void;
   onPlayAgain?: () => void; // practice-only
 }
@@ -99,7 +102,7 @@ const PrimaryButton = ({
   </Pressable>
 );
 
-export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onGoHome, onPlayAgain }: HexHivePlayScreenProps) {
+export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, initialTimeLeft, onGoHome, onPlayAgain }: HexHivePlayScreenProps) {
   const { background } = useTheme();
   const insets = useSafeAreaInsets();
   const solution = useMemo(() => getPuzzleSolution(puzzle), [puzzle]);
@@ -120,7 +123,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const statsRef = useRef<HexHiveStats | null>(null);
 
   // Quick Play only: 60-second countdown, no timer at all for Daily.
-  const [timeLeft, setTimeLeft] = useState(QUICK_PLAY_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft ?? QUICK_PLAY_SECONDS);
   const [gameOver, setGameOver] = useState(false);
   const [resultsVisible, setResultsVisible] = useState(false);
   const [finalStats, setFinalStats] = useState<HexHiveStats | null>(null);
@@ -154,6 +157,19 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
     };
   }, []);
 
+  // Autosave Quick Play progress whenever words are found so the attempt
+  // survives app backgrounding. timeLeft is best-effort (saved on word-found,
+  // not every second — close enough for a resume).
+  useEffect(() => {
+    if (mode !== 'practice' || gameOver) return;
+    saveQuickPlayProgress({
+      puzzleCenter: puzzle.center,
+      puzzleLetters: puzzle.letters,
+      foundWords,
+      timeLeft,
+    });
+  }, [mode, gameOver, puzzle, foundWords, timeLeft]);
+
   const score = useMemo(
     () => foundWords.reduce((sum, w) => sum + scoreWordForPuzzle(w, solution.pangrams.includes(w)), 0),
     [foundWords, solution]
@@ -167,6 +183,8 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, onG
   const handleTimeUp = async () => {
     setGameOver(true);
     setResultsVisible(true);
+    // Clear saved progress — the game is over.
+    await clearQuickPlayProgress();
     let stats = statsRef.current ?? (await loadHexHiveStats());
     stats = { ...stats, practicePuzzlesPlayed: stats.practicePuzzlesPlayed + 1 };
     statsRef.current = stats;

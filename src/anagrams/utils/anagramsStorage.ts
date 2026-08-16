@@ -174,6 +174,48 @@ export async function clearDailyProgress(): Promise<void> {
   }
 }
 
+// ── Practice in-progress autosave ──
+const PRACTICE_PROGRESS_KEY = 'anagrams_practice_progress_v1';
+
+export type PracticeProgressState = {
+  // The full puzzle is saved so the same words are restored on resume.
+  rounds: { word: string; scrambled: string[] }[];
+  roundIndex: number;
+  roundResults: RoundResult[];
+  guessSlots: string[];
+  hintsUsedThisRound: number;
+  elapsedSecondsThisRound: number;
+};
+
+export async function loadPracticeProgress(): Promise<PracticeProgressState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PRACTICE_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.rounds)) return null;
+    return parsed;
+  } catch (e) {
+    console.warn('loadPracticeProgress error', e);
+    return null;
+  }
+}
+
+export async function savePracticeProgress(progress: PracticeProgressState): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRACTICE_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('savePracticeProgress error', e);
+  }
+}
+
+export async function clearPracticeProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PRACTICE_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearPracticeProgress error', e);
+  }
+}
+
 export async function hasPlayedTodayDaily(): Promise<boolean> {
   const lock = await loadDailyLock();
   return !!lock && lock.dateISO === getTodayDateString();

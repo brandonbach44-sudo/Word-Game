@@ -159,6 +159,46 @@ export async function saveDailyProgress(progress: DailyProgress): Promise<void> 
   }
 }
 
+// ── Quick Play in-progress autosave ──
+const QUICKPLAY_PROGRESS_KEY = 'hexhive_quickplay_progress_v1';
+
+export type QuickPlayProgress = {
+  // puzzleIndex identifies which puzzle to restore — center + letters uniquely identify the puzzle.
+  puzzleCenter: string;
+  puzzleLetters: string[];
+  foundWords: string[];
+  timeLeft: number;
+};
+
+export async function loadQuickPlayProgress(): Promise<QuickPlayProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(QUICKPLAY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.puzzleCenter !== 'string' || parsed.timeLeft <= 0) return null;
+    return parsed;
+  } catch (e) {
+    console.warn('loadQuickPlayProgress error', e);
+    return null;
+  }
+}
+
+export async function saveQuickPlayProgress(progress: QuickPlayProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(QUICKPLAY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveQuickPlayProgress error', e);
+  }
+}
+
+export async function clearQuickPlayProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(QUICKPLAY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearQuickPlayProgress error', e);
+  }
+}
+
 // ── Daily history (one entry per calendar day ever played, kept forever) ──
 // Powers the Stats calendar so a player can look back and see exactly what
 // they scored on any past day, not just their all-time best.

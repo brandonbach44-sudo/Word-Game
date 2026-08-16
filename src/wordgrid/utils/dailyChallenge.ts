@@ -194,6 +194,45 @@ export async function clearWordGridDailyProgress(): Promise<void> {
   }
 }
 
+// ── Quick Play in-progress autosave ──
+const QUICKPLAY_PROGRESS_KEY = 'wordgrid_quickplay_progress';
+
+export interface WordGridQuickPlayProgress {
+  grid: string[][];
+  foundWords: { word: string; points: number }[];
+  score: number;
+  timeLeft: number;
+}
+
+export async function loadWordGridQuickPlayProgress(): Promise<WordGridQuickPlayProgress | null> {
+  try {
+    const raw = await AsyncStorage.getItem(QUICKPLAY_PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.grid) || parsed.timeLeft <= 0) return null;
+    return parsed;
+  } catch (e) {
+    console.warn('loadWordGridQuickPlayProgress error', e);
+    return null;
+  }
+}
+
+export async function saveWordGridQuickPlayProgress(progress: WordGridQuickPlayProgress): Promise<void> {
+  try {
+    await AsyncStorage.setItem(QUICKPLAY_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.warn('saveWordGridQuickPlayProgress error', e);
+  }
+}
+
+export async function clearWordGridQuickPlayProgress(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(QUICKPLAY_PROGRESS_KEY);
+  } catch (e) {
+    console.warn('clearWordGridQuickPlayProgress error', e);
+  }
+}
+
 // ─── Share Emoji Blocks ───────────────────────────────────────────────────────
 
 /**

@@ -42,6 +42,9 @@ import {
   loadWordGridDailyProgress,
   saveDailyWordGridResult,
   saveWordGridDailyProgress,
+  loadWordGridQuickPlayProgress,
+  saveWordGridQuickPlayProgress,
+  clearWordGridQuickPlayProgress,
   type DailyWordGridStats,
   type WordGridDailyProgress,
 } from '../utils/dailyChallenge';
@@ -212,6 +215,8 @@ export default function GameScreen() {
   // tells startDailyGame to enter the already-loaded game instead of
   // wiping it with a fresh grid/score/foundWords.
   const resumedDailyRef = useRef(false);
+  // Set true when an in-progress Quick Play attempt was restored on app launch.
+  const resumedQuickPlayRef = useRef(false);
 
   // Resume an in-progress Daily attempt (app closed/backgrounded mid-game),
   // unless today's Daily is already completed. Stays on the menu screen —
@@ -231,6 +236,21 @@ export default function GameScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dailyPlayedToday]);
 
+  // Resume an in-progress Quick Play attempt.
+  useEffect(() => {
+    if (resumedDailyRef.current) return;
+    loadWordGridQuickPlayProgress().then((progress) => {
+      if (!progress) return;
+      setGameMode('quick');
+      setGrid(progress.grid);
+      setScore(progress.score);
+      setFoundWords(progress.foundWords);
+      setFoundWordSet(new Set(progress.foundWords.map((w) => w.word)));
+      setTimeLeft(progress.timeLeft);
+      resumedQuickPlayRef.current = true;
+    });
+  }, []);
+
   // Autosave Daily progress on every change so the attempt survives the app
   // being backgrounded, force-quit, or swiped away mid-game.
   useEffect(() => {
@@ -242,6 +262,12 @@ export default function GameScreen() {
       timeLeft,
     });
   }, [gameMode, gameOver, screen, foundWords, score, timeLeft]);
+
+  // Autosave Quick Play progress on every change.
+  useEffect(() => {
+    if (gameMode !== 'quick' || gameOver || screen !== 'game') return;
+    saveWordGridQuickPlayProgress({ grid, foundWords, score, timeLeft });
+  }, [gameMode, gameOver, screen, grid, foundWords, score, timeLeft]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -352,6 +378,7 @@ export default function GameScreen() {
         syncDailyReminder();
         setScreen('results');
       } else {
+        await clearWordGridQuickPlayProgress();
         setResultsPage('results');
         setScreen('results');
       }
@@ -361,6 +388,21 @@ export default function GameScreen() {
 
   const startGame = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+
+    // Resuming an in-progress Quick Play attempt restored on launch.
+    if (resumedQuickPlayRef.current) {
+      resumedQuickPlayRef.current = false;
+      setGameMode('quick');
+      setGameOver(false);
+      setFeedbacks([]);
+      setShowDailyPopup(false);
+      setScreen('game');
+      setTimeout(startTimer, 100);
+      return;
+    }
+
+    // Fresh game — wipe any stale quickplay save.
+    clearWordGridQuickPlayProgress().catch(() => {});
     setGameMode('quick');
     setGrid(generateGrid(4));
     setScore(0);
