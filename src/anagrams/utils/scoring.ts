@@ -31,6 +31,10 @@ export interface RoundResult {
   skipped: boolean;
   timeSeconds: number;
   hintsUsed: number;
+  /** The word the player actually typed (may differ from the target when an
+   *  alternate valid anagram was accepted). Used by the results screen to show
+   *  what the player guessed rather than always showing the target word. */
+  playerWord?: string;
 }
 
 export function getRoundBaseScore(roundIndex: number): number {
