@@ -30,17 +30,17 @@ export const DEBUG_UNLOCK_ALL_ANAGRAMS_TILES = false;
 export const ANAGRAMS_TIER_ORDER: TierName[] = TIER_ORDER;
 
 const THRESHOLDS: Partial<Record<TierName, { baseThreshold: number; v2ScoreThreshold: number }>> = {
-  copper: { baseThreshold: 1000, v2ScoreThreshold: 2000 },
-  bronze: { baseThreshold: 3000, v2ScoreThreshold: 4000 },
-  silver: { baseThreshold: 8000, v2ScoreThreshold: 7000 },
-  gold: { baseThreshold: 20000, v2ScoreThreshold: 12000 },
-  platinum: { baseThreshold: 40000, v2ScoreThreshold: 20000 },
-  ruby: { baseThreshold: 80000, v2ScoreThreshold: 40000 },
-  emerald: { baseThreshold: 150000, v2ScoreThreshold: 65000 },
-  diamond: { baseThreshold: 300000, v2ScoreThreshold: 100000 },
-  legendary: { baseThreshold: 600000, v2ScoreThreshold: 200000 },
-  iridescence: { baseThreshold: 1200000, v2ScoreThreshold: 375000 },
-  rose_quartz: { baseThreshold: 2400000, v2ScoreThreshold: 625000 },
+  copper:      { baseThreshold:   10000, v2ScoreThreshold:   20000 },
+  bronze:      { baseThreshold:   30000, v2ScoreThreshold:   52000 },
+  silver:      { baseThreshold:   75000, v2ScoreThreshold:  125000 },
+  gold:        { baseThreshold:  175000, v2ScoreThreshold:  262000 },
+  platinum:    { baseThreshold:  350000, v2ScoreThreshold:  500000 },
+  ruby:        { baseThreshold:  650000, v2ScoreThreshold:  875000 },
+  emerald:     { baseThreshold: 1100000, v2ScoreThreshold: 1350000 },
+  diamond:     { baseThreshold: 1600000, v2ScoreThreshold: 1750000 },
+  legendary:   { baseThreshold: 1900000, v2ScoreThreshold: 2025000 },
+  iridescence: { baseThreshold: 2150000, v2ScoreThreshold: 2275000 },
+  rose_quartz: { baseThreshold: 2400000, v2ScoreThreshold: 2400000 },
 };
 
 // Same colors/variants as the shared ladder, just with Anagrams-scaled
