@@ -5333,6 +5333,8 @@ export const VALID_WORDS = new Set([
 'chromed',
 'chromite',
 'chromium',
+'chromosome',
+'chromosomes',
 'chronic',
 'chub',
 'chubby',
