@@ -334,8 +334,15 @@ const LadderPlayScreen: React.FC<Props> = ({
     setError(null);
   };
 
+  const [showGiveUpConfirm, setShowGiveUpConfirm] = useState(false);
+
   const handleGiveUp = () => {
     if (status !== 'playing') return;
+    setShowGiveUpConfirm(true);
+  };
+
+  const confirmGiveUp = () => {
+    setShowGiveUpConfirm(false);
     finishGame('gave_up', chain, hintsUsed);
   };
 
@@ -428,6 +435,20 @@ const LadderPlayScreen: React.FC<Props> = ({
         destructiveColor={COLORS.accent}
         onCancel={() => setLeaveAction(null)}
         onConfirm={confirmLeaveDaily}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+      />
+
+      <ConfirmModal
+        visible={showGiveUpConfirm}
+        title="Give Up?"
+        message="This will end the game and reveal the answer. Are you sure?"
+        cancelText="Keep Playing"
+        confirmText="Give Up"
+        onCancel={() => setShowGiveUpConfirm(false)}
+        onConfirm={confirmGiveUp}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
         secondaryText={background.secondaryText}

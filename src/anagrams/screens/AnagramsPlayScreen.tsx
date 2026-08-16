@@ -309,9 +309,16 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   // Ends the run right now — the current round plus any remaining rounds all
   // count as skipped. Same underlying path as leaving mid-Daily-game (see
   // confirmLeaveDaily below), just triggered explicitly instead of via back
-  // navigation, and available in both Daily and Practice. Mirrors Word
-  // Ladder's Give Up: no confirmation prompt, immediate and final.
+  // navigation, and available in both Daily and Practice.
+  const [showGiveUpConfirm, setShowGiveUpConfirm] = useState(false);
+
   const handleGiveUp = () => {
+    if (runStatus !== 'playing') return;
+    setShowGiveUpConfirm(true);
+  };
+
+  const confirmGiveUp = () => {
+    setShowGiveUpConfirm(false);
     if (runStatus !== 'playing') return;
     const remaining = TOTAL_ROUNDS - roundResults.length;
     const filledResults = [
@@ -524,6 +531,20 @@ const AnagramsPlayScreen: React.FC<Props> = ({
         destructiveColor={COLORS.accent}
         onCancel={() => setLeaveAction(null)}
         onConfirm={confirmLeaveDaily}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+      />
+
+      <ConfirmModal
+        visible={showGiveUpConfirm}
+        title="Give Up?"
+        message="This will end the run and count all remaining words as skipped. Are you sure?"
+        cancelText="Keep Playing"
+        confirmText="Give Up"
+        onCancel={() => setShowGiveUpConfirm(false)}
+        onConfirm={confirmGiveUp}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
         secondaryText={background.secondaryText}
