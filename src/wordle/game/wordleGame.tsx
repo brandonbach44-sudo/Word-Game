@@ -733,6 +733,13 @@ export default function WordleGame() {
             setSolution(getDailySolution());
             if (Array.isArray(loadedLock.guesses)) {
               setGuesses(loadedLock.guesses);
+              // Immediately show colored back face for all restored rows —
+              // no flip animation needed for already-completed guesses.
+              loadedLock.guesses.forEach((_: string, rowIndex: number) => {
+                for (let c = 0; c < COLS; c++) {
+                  flipAnims[rowIndex][c].setValue(1);
+                }
+              });
             }
             if (Array.isArray(loadedLock.evaluations)) {
               setEvaluations(loadedLock.evaluations as EvaluatedLetter[][]);
@@ -754,6 +761,13 @@ export default function WordleGame() {
             setEvaluations(savedProgress.evaluations as EvaluatedLetter[][]);
             setCurrentGuess(savedProgress.currentGuess);
             setStartTime(Date.now() - savedProgress.elapsedSeconds * 1000);
+            // Immediately show colored back face for all restored rows —
+            // no flip animation needed for already-submitted guesses.
+            savedProgress.guesses.forEach((_: string, rowIndex: number) => {
+              for (let c = 0; c < COLS; c++) {
+                flipAnims[rowIndex][c].setValue(1);
+              }
+            });
             resumedDailyRef.current = true;
           }
         }
