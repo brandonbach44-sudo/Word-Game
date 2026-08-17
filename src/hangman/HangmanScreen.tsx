@@ -17,15 +17,12 @@ import {
 
 const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
 import { maybeRequestReview } from '../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../shared/dailyReminders';
 
 import { AchievementPopup } from '../shared/AchievementPopup';
-import { ConfirmModal } from '../shared/ConfirmModal';
 import { FallingLetters } from '../shared/FallingLetters';
 import { DailyChallengeCard } from './Components/DailyChallengeCard';
 import { DailyChallengePopup } from './Components/DailyChallengePopup';
@@ -552,41 +549,10 @@ export default function HangmanScreen() {
     };
   };
 
-  const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
-  // Leaving no longer flips `isPlaying`, so re-dispatching the nav action
-  // right after would otherwise hit the same still-true "playingDaily &&
-  // isPlaying" guard and re-intercept itself, reopening the modal instead of
-  // leaving. This ref bypasses the guard immediately.
-  const isLeavingRef = useRef(false);
-
+  // Progress is autosaved on every guess; leaving just freezes it in place.
   const handleGameplayBackPress = () => {
-    if (playingDaily && isPlaying) {
-      setLeaveAction('back');
-      return;
-    }
-    handleBackToModeSelect();
-  };
-
-  // Same protection as above, but for leaving the Hangman screen entirely
-  // (iOS swipe-back gesture, Android hardware back button) rather than the
-  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
-  // handleGameplayBackPress altogether and escape with no result recorded.
-  const navigation = useNavigation();
-  usePreventRemove(playingDaily && isPlaying && !isLeavingRef.current, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = () => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
     stashDailyProgressOnLeave();
-    if (action === 'back') {
-      handleBackToModeSelect();
-    } else {
-      navigation.dispatch(action);
-    }
+    handleBackToModeSelect();
   };
 
   const handleBackToCategorySelect = () => setGameMode('category-select');
@@ -731,19 +697,6 @@ export default function HangmanScreen() {
           onDismiss={handleAchievementDismiss}
           backgroundColor={background.cardColor}
           textColor={background.textColor}
-        />
-        <ConfirmModal
-          visible={!!leaveAction}
-          title="Leave Daily Challenge?"
-          message="Your progress will be saved right where you left off — come back later today to finish."
-          confirmText="Leave"
-          destructiveColor={COLORS.accent}
-          onCancel={() => setLeaveAction(null)}
-          onConfirm={confirmLeaveDaily}
-          backgroundColor={background.cardColor}
-          textColor={background.textColor}
-          secondaryText={background.secondaryText}
-          borderColor={background.borderColor}
         />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleGameplayBackPress}>

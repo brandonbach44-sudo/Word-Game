@@ -19,14 +19,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/core';
 import { FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
-import { ConfirmModal } from '../../shared/ConfirmModal';
 import { GameTile } from '../../shared/GameTile';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
@@ -325,9 +322,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   };
 
   // Ends the run right now — the current round plus any remaining rounds all
-  // count as skipped. Same underlying path as leaving mid-Daily-game (see
-  // confirmLeaveDaily below), just triggered explicitly instead of via back
-  // navigation, and available in both Daily and Practice.
+  // count as skipped. Available in both Daily and Practice.
   const [showGiveUpConfirm, setShowGiveUpConfirm] = useState(false);
 
   const handleGiveUp = () => {
@@ -454,28 +449,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   // instead of forcing a finish just because you tapped away. handleGiveUp
   // (the explicit "give up" button) is unaffected — that's still an
   // intentional, immediate loss.
-  const navigation = useNavigation();
-  // usePreventRemove's condition is read from its own render's closure, so
-  // re-dispatching the nav action right after finishRun() (before React
-  // re-renders with the post-finish runStatus) would otherwise let the
-  // still-stale "playing" closure intercept its own re-dispatch and reopen
-  // the modal — leaving becomes impossible. This ref bypasses the guard
-  // synchronously the moment "Leave" is confirmed.
-  const isLeavingRef = useRef(false);
-  const isMidDailyGame = mode === 'daily' && !alreadyLocked && runStatus === 'playing' && !isLeavingRef.current;
-  const [leaveAction, setLeaveAction] = useState<any>(null);
-
-  usePreventRemove(isMidDailyGame, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = () => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
-    navigation.dispatch(action);
-  };
+  // Progress is autosaved on every round — leaving just freezes it in place.
 
   const isDaily = mode === 'daily';
   // Show what the player actually typed — if they solved via an alternate valid
@@ -548,20 +522,6 @@ const AnagramsPlayScreen: React.FC<Props> = ({
         onDismiss={() => setCurrentPopupAchievement(null)}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
-      />
-
-      <ConfirmModal
-        visible={!!leaveAction}
-        title="Leave Daily Anagrams?"
-        message="Your progress will be saved right where you left off — come back later today to finish."
-        confirmText="Leave"
-        destructiveColor={COLORS.accent}
-        onCancel={() => setLeaveAction(null)}
-        onConfirm={confirmLeaveDaily}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
       />
 
       <ConfirmModal

@@ -18,15 +18,12 @@ import {
 } from 'react-native';
 import { Share2, X } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/core';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import { AchievementPopup } from '../../shared/AchievementPopup';
-import { ConfirmModal } from '../../shared/ConfirmModal';
 import { FallingLetters } from '../../shared/FallingLetters';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
@@ -512,60 +509,10 @@ export default function GameScreen() {
   // resumes it via the restore effect above instead of forcing a finish
   // just because you tapped away.
 
-  // Pending leave-confirmation action: null when hidden, "back" for the
-  // in-app button, or a navigation action object (swipe/hardware back via
-  // usePreventRemove) when the themed ConfirmModal should show.
-  const [leaveAction, setLeaveAction] = useState<'back' | any>(null);
-  // Leaving no longer flips `gameOver`, so re-dispatching the nav action
-  // right after would otherwise hit the same still-true "daily && !gameOver"
-  // guard and re-intercept itself — reopening the modal instead of actually
-  // leaving. This ref bypasses the guard the instant "Leave" is confirmed.
-  const isLeavingRef = useRef(false);
-
+  // Progress is autosaved continuously — leaving just freezes it in place.
   const handleGameplayBackPress = useCallback(() => {
-    if (gameMode === 'daily' && !gameOver) {
-      setLeaveAction('back');
-      return;
-    }
     handleBackToMenu();
-  }, [gameMode, gameOver, handleBackToMenu]);
-
-  // Same protection as above, but for leaving the Word Grid screen entirely
-  // (iOS swipe-back gesture, Android hardware back button) rather than the
-  // in-app "← Back" button — a gesture/hardware-back would otherwise skip
-  // handleGameplayBackPress altogether and escape with no result recorded.
-  //
-  // Bug fix: this guard must also require screen === 'game'. An unfinished
-  // Daily attempt gets restored into gameMode/gameOver in the background as
-  // soon as the app loads (see the resume effect above), even while sitting
-  // on the menu — without the screen check, that alone was enough to make
-  // this guard block leaving the whole Word Grid route from the MENU
-  // screen too. But the ConfirmModal that's supposed to resolve leaveAction
-  // is only rendered inside the `screen === 'game'` block below, so on the
-  // menu the leave attempt was silently swallowed with no way to confirm
-  // it — the screen would start to navigate away, then get yanked right
-  // back with no explanation. Scoping this to actual gameplay fixes it.
-  const navigation = useNavigation();
-  usePreventRemove(screen === 'game' && gameMode === 'daily' && !gameOver && !isLeavingRef.current, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = useCallback(() => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
-    // Tell startDailyGame to resume this live state instead of resetting it,
-    // for a same-session re-entry (tapping "Play Today's Challenge" again
-    // right after leaving) — the mount-time restore effect only covers the
-    // cross-launch case (app closed and reopened).
-    resumedDailyRef.current = true;
-    if (action === 'back') {
-      handleBackToMenu();
-    } else {
-      navigation.dispatch(action);
-    }
-  }, [handleBackToMenu, leaveAction, navigation]);
+  }, [handleBackToMenu]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -871,19 +818,6 @@ export default function GameScreen() {
           textColor={bg.textColor}
         />
 
-        <ConfirmModal
-          visible={!!leaveAction}
-          title="Leave Daily Challenge?"
-          message="Your progress will be saved right where you left off — come back later today to finish."
-          confirmText="Leave"
-          destructiveColor={COLORS.accent}
-          onCancel={() => setLeaveAction(null)}
-          onConfirm={confirmLeaveDaily}
-          backgroundColor={bg.cardColor}
-          textColor={bg.textColor}
-          secondaryText={bg.secondaryText}
-          borderColor={bg.borderColor}
-        />
 
         {/* Header: Back | Timer | Score */}
         <View style={styles.gameHeader}>

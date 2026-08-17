@@ -12,14 +12,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/core';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
-import { ConfirmModal } from '../../shared/ConfirmModal';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 
@@ -376,32 +373,7 @@ const LadderPlayScreen: React.FC<Props> = ({
   };
 
   // Daily is a single continuous attempt, but leaving mid-attempt no longer
-  // counts as a loss — the chain is already autosaved on every move (see
-  // the effect above), so leaving just freezes the climb where it stands.
-  // Coming back today resumes via `initialProgress` instead of forcing a
-  // finish just because you tapped away. handleGiveUp (the explicit "Give
-  // Up" button) is unaffected — that's still an intentional, immediate
-  // loss. usePreventRemove intercepts EVERY way of leaving this screen
-  // (header back button, iOS swipe-back gesture, Android hardware back
-  // button) so we can confirm before navigating. Quick Play is unaffected:
-  // leaving there just resets, no confirmation.
-  const navigation = useNavigation();
-  const isLeavingRef = useRef(false);
-  const isMidDailyGame = mode === 'daily' && !alreadyLocked && status === 'playing' && !isLeavingRef.current;
-
-  const [leaveAction, setLeaveAction] = useState<any>(null);
-
-  usePreventRemove(isMidDailyGame, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = () => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
-    navigation.dispatch(action);
-  };
+  // Chain is autosaved on every move — leaving just freezes progress in place.
 
   const isWin = status === 'won';
   const displayChain =
@@ -454,20 +426,6 @@ const LadderPlayScreen: React.FC<Props> = ({
         onDismiss={() => setCurrentPopupAchievement(null)}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
-      />
-
-      <ConfirmModal
-        visible={!!leaveAction}
-        title="Leave Daily Ladder?"
-        message="Your progress will be saved right where you left off — come back later today to finish."
-        confirmText="Leave"
-        destructiveColor={COLORS.accent}
-        onCancel={() => setLeaveAction(null)}
-        onConfirm={confirmLeaveDaily}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
       />
 
       <ConfirmModal
