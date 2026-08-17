@@ -14,8 +14,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/core';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
@@ -40,7 +38,6 @@ import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch
 import { maybeRequestReview } from '../../src/shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../src/shared/dailyReminders';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
-import { ConfirmModal } from '../../src/shared/ConfirmModal';
 import WordSearchResultOverlay, { type WordSearchResultData } from '../../src/wordsearch/components/WordSearchResultOverlay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -577,7 +574,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     triggerFinishRef.current = triggerFinish;
   });
 
-  const handleManualFinish = () => triggerFinish();
 
   const handleHint = (word: typeof puzzleData.words[0]) => {
     if (hintsRemaining <= 0) return;
@@ -603,31 +599,8 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     router.back();
   };
 
-  // Daily is a single continuous attempt, but leaving mid-game doesn't lock
-  // it in as a loss — progress (found words, score, elapsed time) is
-  // autosaved continuously below, so it's frozen exactly where you left it.
-  // Coming back today resumes from that exact spot, timer included, instead
-  // of forcing a finish just because you tapped away. usePreventRemove still
-  // intercepts every way of leaving this screen (header back, iOS swipe-back,
-  // Android hardware back) so we can confirm before navigating, since a
-  // stray back-swipe mid-word-drag would otherwise be an easy way to lose
-  // your place by accident. Quick Play (isDaily === false) is unaffected —
-  // leaving there just discards the run, no confirmation.
-  const navigation = useNavigation();
-  const [leaveAction, setLeaveAction] = useState<any>(null);
-  const isLeavingRef = useRef(false);
-  usePreventRemove(isDaily && !gameFinished && !isLeavingRef.current, ({ data }) => {
-    setLeaveAction(data.action);
-  });
-
-  const confirmLeaveDaily = () => {
-    const action = leaveAction;
-    setLeaveAction(null);
-    if (!action) return;
-    isLeavingRef.current = true;
-    if (timerRef.current) clearInterval(timerRef.current);
-    navigation.dispatch(action);
-  };
+  // Progress is autosaved continuously — leaving mid-game just freezes it
+  // exactly where you left off. No confirmation needed; just go.
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -799,18 +772,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           })}
         </View>
 
-        {gameState.foundWords.length > 0 && (
-          <TouchableOpacity
-            style={[styles.finishButton, { backgroundColor: COLORS.accent }]}
-            onPress={handleManualFinish}
-          >
-            <Text style={styles.finishButtonText}>
-              {gameState.foundWords.length === puzzleData.words.length
-                ? 'See Results'
-                : "I'm Done"}
-            </Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       {/* ── Achievement popup ── */}
@@ -821,19 +782,6 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         textColor={background.textColor}
       />
 
-      <ConfirmModal
-        visible={!!leaveAction}
-        title="Leave Daily Challenge?"
-        message="Your progress will be saved right where you left off — come back later today to finish."
-        confirmText="Leave"
-        destructiveColor={COLORS.accent}
-        onCancel={() => setLeaveAction(null)}
-        onConfirm={confirmLeaveDaily}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
-      />
 
       {/* ── Results overlay (replaces separate results route) ── */}
       {resultData && (
@@ -969,17 +917,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  finishButton: {
-    marginTop: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  finishButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
 
