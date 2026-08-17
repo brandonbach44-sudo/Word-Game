@@ -569,6 +569,7 @@ export default function WordleGame() {
   const [popupVariant, setPopupVariant] = useState<number>(1);
 
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
+  const [dailyInProgressToday, setDailyInProgressToday] = useState(false);
   const [nextDailySeconds, setNextDailySeconds] = useState<number | null>(null);
   const [todayISO, setTodayISO] = useState<string>(() => getTodayISODate());
   // Set true when an in-progress Daily attempt was restored on hydration —
@@ -773,6 +774,7 @@ export default function WordleGame() {
               }
             });
             resumedDailyRef.current = true;
+            if (isMounted) setDailyInProgressToday(true);
           }
         }
 
@@ -1748,7 +1750,9 @@ export default function WordleGame() {
                         { borderColor: BORDER, backgroundColor: BG, opacity: pressed ? 0.75 : 1 },
                       ]}
                     >
-                      <Text style={[styles.wbDailyButtonText, { color: TEXT }]}>Play Today's Challenge</Text>
+                      <Text style={[styles.wbDailyButtonText, { color: TEXT }]}>
+                        {dailyInProgressToday ? "Continue Today's Challenge" : "Play Today's Challenge"}
+                      </Text>
                     </Pressable>
                   )}
 
