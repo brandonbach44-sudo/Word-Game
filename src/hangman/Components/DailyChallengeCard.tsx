@@ -31,6 +31,7 @@ const DailyStatPill = ({
 
 type Props = {
   played: boolean;
+  inProgress?: boolean;
   result: 'won' | 'lost' | '';
   word: string;
   streak: number;
@@ -42,6 +43,7 @@ type Props = {
 
 export const DailyChallengeCard: React.FC<Props> = ({
   played,
+  inProgress,
   result,
   word,
   streak,
@@ -135,7 +137,7 @@ export const DailyChallengeCard: React.FC<Props> = ({
           onPress={onPlay}
           activeOpacity={0.8}
         >
-          <Text style={[styles.playText, { color: background.textColor }]}>Play Today's Challenge</Text>
+          <Text style={[styles.playText, { color: background.textColor }]}>{inProgress ? "Continue Today's Challenge" : "Play Today's Challenge"}</Text>
         </TouchableOpacity>
       )}
 

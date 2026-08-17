@@ -215,6 +215,8 @@ export default function GameScreen() {
   const resumedDailyRef = useRef(false);
   // Set true when an in-progress Quick Play attempt was restored on app launch.
   const resumedQuickPlayRef = useRef(false);
+  // True when an in-progress Daily save exists for today — shows "Continue" button.
+  const [dailyInProgressToday, setDailyInProgressToday] = useState(false);
 
   // Resume an in-progress Daily attempt (app closed/backgrounded mid-game),
   // unless today's Daily is already completed. Stays on the menu screen —
@@ -223,6 +225,7 @@ export default function GameScreen() {
     if (dailyPlayedToday) return;
     loadWordGridDailyProgress().then((progress) => {
       if (!progress) return;
+      setDailyInProgressToday(true);
       setGameMode('daily');
       setGrid(generateDailyGrid());
       setScore(progress.score);
@@ -939,6 +942,7 @@ export default function GameScreen() {
             {/* Daily Challenge card */}
             <DailyChallengeCard
               played={dailyPlayedToday}
+              inProgress={dailyInProgressToday}
               score={dailyStats?.lastScore ?? 0}
               wordsCount={dailyStats?.lastWordsCount ?? 0}
               streak={dailyStats?.streak ?? 0}

@@ -29,6 +29,7 @@ import {
 } from '../../src/wordsearch/utils/storage';
 import {
   loadWordSearchDailyStats,
+  loadWordSearchDailyProgress,
   loadWordSearchStats,
   type WordSearchDailyStats,
   type WordSearchStats,
@@ -80,20 +81,24 @@ const WordSearchEntryScreen: React.FC = () => {
   const [stats, setStats] = useState<WordSearchStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [dailyStats, setDailyStats] = useState<WordSearchDailyStats | null>(null);
+  const [dailyInProgress, setDailyInProgress] = useState(false);
   const [unlockedAchievements, setUnlockedAchievements] = useState<(WSAchievement & { unlockedAt: string })[]>([]);
   const countdown = useCountdownToMidnight();
 
   const dailyPlayed = dailyStats?.lastPlayedDate === getTodayDateString();
 
   const loadAll = useCallback(async () => {
-    const [s, ds, unlocked] = await Promise.all([
+    const [s, ds, unlocked, progress] = await Promise.all([
       loadWordSearchStats().catch(() => null),
       loadWordSearchDailyStats().catch(() => null),
       getUnlockedWSAchievements().catch(() => []),
+      loadWordSearchDailyProgress().catch(() => null),
     ]);
     setStats(s);
     setDailyStats(ds);
     setUnlockedAchievements(unlocked);
+    const playedToday = ds?.lastPlayedDate === getTodayDateString();
+    setDailyInProgress(!playedToday && !!progress);
     setLoadingStats(false);
   }, []);
 
@@ -247,7 +252,7 @@ const WordSearchEntryScreen: React.FC = () => {
                   onPress={() => router.push('/wordsearch/daily')}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>Play Today's Challenge</Text>
+                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>{dailyInProgress ? "Continue Today's Challenge" : "Play Today's Challenge"}</Text>
                 </TouchableOpacity>
               )}
 

@@ -31,6 +31,7 @@ import {
   formatDisplayDate,
   hasPlayedTodayDaily,
   loadDailyLock,
+  loadDailyProgress,
   loadLadderStats,
   useCountdownToMidnight,
   type DailyLockState,
@@ -89,20 +90,23 @@ export default function WordLadderEntryScreen() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [dailyInProgress, setDailyInProgress] = useState(false);
   const [unlocked, setUnlocked] = useState<(Achievement & { unlockedAt: string })[]>([]);
   const countdown = useCountdownToMidnight();
 
   const loadAll = useCallback(async () => {
-    const [s, lock, played, ach] = await Promise.all([
+    const [s, lock, played, ach, progress] = await Promise.all([
       loadLadderStats().catch(() => null),
       loadDailyLock().catch(() => null),
       hasPlayedTodayDaily().catch(() => false),
       getUnlockedAchievements().catch(() => []),
+      loadDailyProgress().catch(() => null),
     ]);
     setStats(s);
     setDailyLock(lock);
     setDailyPlayed(played);
     setUnlocked(ach);
+    setDailyInProgress(!played && !!progress);
     setLoadingStats(false);
   }, []);
 
@@ -268,7 +272,7 @@ export default function WordLadderEntryScreen() {
                   onPress={() => router.push('/wordladder/daily')}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>Play Today's Ladder</Text>
+                  <Text style={[styles.dailyButtonText, { color: background.textColor }]}>{dailyInProgress ? "Continue Today's Ladder" : "Play Today's Ladder"}</Text>
                 </TouchableOpacity>
               )}
 

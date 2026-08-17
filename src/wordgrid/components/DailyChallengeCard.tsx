@@ -12,6 +12,7 @@ import {
 
 type Props = {
   played: boolean;
+  inProgress?: boolean;
   score: number;
   wordsCount: number;
   streak: number;
@@ -22,6 +23,7 @@ type Props = {
 
 export const DailyChallengeCard: React.FC<Props> = ({
   played,
+  inProgress,
   score,
   wordsCount,
   streak,
@@ -95,7 +97,7 @@ export const DailyChallengeCard: React.FC<Props> = ({
           ]}
         >
           <Text style={[styles.playButtonText, { color: TEXT }]}>
-            Play Today's Challenge
+            {inProgress ? "Continue Today's Challenge" : "Play Today's Challenge"}
           </Text>
         </Pressable>
       )}

@@ -273,6 +273,7 @@ export default function HangmanScreen() {
 
   // Daily Challenge state
   const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
+  const [dailyInProgressToday, setDailyInProgressToday] = useState(false);
   const [showDailyPopup, setShowDailyPopup] = useState(false);
   const [playingDaily, setPlayingDaily] = useState(false);
   const [dailyWord, setDailyWord] = useState<string>('');
@@ -339,7 +340,9 @@ export default function HangmanScreen() {
       // Stash an in-progress Daily attempt (if any) unless today's is done —
       // startDailyChallenge() applies it when the user taps Play.
       if (stats.lastPlayedDate !== getTodayDateString()) {
-        resumedDailyProgressRef.current = await loadDailyProgress();
+        const progress = await loadDailyProgress();
+        resumedDailyProgressRef.current = progress;
+        setDailyInProgressToday(!!progress);
       }
       // Stash any in-progress practice (category) game for resume.
       resumedPracticeProgressRef.current = await loadPracticeProgress();
@@ -964,6 +967,7 @@ export default function HangmanScreen() {
         >
           <DailyChallengeCard
             played={dailyStats?.lastPlayedDate === getTodayDateString()}
+            inProgress={dailyInProgressToday}
             result={dailyStats?.lastDailyResult || ''}
             word={dailyStats?.lastDailyWord || ''}
             streak={dailyStats?.streak || 0}
