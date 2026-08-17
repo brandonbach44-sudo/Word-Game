@@ -21,6 +21,7 @@ import { Flame, Share2, Trophy } from 'lucide-react-native';
 
 import { useTheme } from '../../src/shared/ThemeContext';
 import { FallingLetters } from '../../src/shared/FallingLetters';
+import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalendar';
 import { COLORS } from '../../src/shared/theme';
 import {
   formatDisplayDate,
@@ -31,6 +32,7 @@ import {
   loadWordSearchDailyStats,
   loadWordSearchDailyProgress,
   loadWordSearchStats,
+  loadWSDailyHistory,
   type WordSearchDailyStats,
   type WordSearchStats,
 } from '../../src/wordsearch/utils/wsStorage';
@@ -83,19 +85,22 @@ const WordSearchEntryScreen: React.FC = () => {
   const [dailyStats, setDailyStats] = useState<WordSearchDailyStats | null>(null);
   const [dailyInProgress, setDailyInProgress] = useState(false);
   const [unlockedAchievements, setUnlockedAchievements] = useState<(WSAchievement & { unlockedAt: string })[]>([]);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const countdown = useCountdownToMidnight();
 
   const dailyPlayed = dailyStats?.lastPlayedDate === getTodayDateString();
 
   const loadAll = useCallback(async () => {
-    const [s, ds, unlocked, progress] = await Promise.all([
+    const [s, ds, hist, unlocked, progress] = await Promise.all([
       loadWordSearchStats().catch(() => null),
       loadWordSearchDailyStats().catch(() => null),
+      loadWSDailyHistory().catch(() => ({})),
       getUnlockedWSAchievements().catch(() => []),
       loadWordSearchDailyProgress().catch(() => null),
     ]);
     setStats(s);
     setDailyStats(ds);
+    setDailyHistory((hist as CalendarHistory) ?? {});
     setUnlockedAchievements(unlocked);
     const playedToday = ds?.lastPlayedDate === getTodayDateString();
     setDailyInProgress(!playedToday && !!progress);
@@ -338,6 +343,17 @@ const WordSearchEntryScreen: React.FC = () => {
                     </View>
                   ))}
                 </View>
+
+                {/* ── DAILY HISTORY CALENDAR ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Daily History</Text>
+                <DailyCalendar
+                  history={dailyHistory}
+                  accentColor={COLORS.accent}
+                  textColor={background.textColor}
+                  secondaryTextColor={background.secondaryText}
+                  cardColor={background.cardColor}
+                  borderColor={background.borderColor}
+                />
 
                 {/* ── QUICK PLAY ── */}
                 <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Quick Play</Text>

@@ -25,6 +25,7 @@ import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { FallingLetters } from '../../shared/FallingLetters';
+import DailyCalendar, { type CalendarHistory } from '../../shared/DailyCalendar';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
@@ -44,6 +45,8 @@ import {
   type DailyWordGridStats,
   type WordGridDailyProgress,
   useCountdownToMidnight,
+  saveWGDailyHistoryEntry,
+  loadWGDailyHistory,
 } from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore, LONGEST_WORD_BONUS } from '../utils/scoring';
@@ -172,6 +175,7 @@ export default function GameScreen() {
   // ── Stats & achievements ──────────────────────────────────────────────────
   const [stats, setStats] = useState<WordGridStats | null>(null);
   const [dailyStats, setDailyStats] = useState<DailyWordGridStats | null>(null);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [unlockedAchievements, setUnlockedAchievements] = useState<
     (Achievement & { unlockedAt: string })[]
   >([]);
@@ -182,6 +186,7 @@ export default function GameScreen() {
     loadWordGridStats().then(setStats);
     loadDailyWordGridStats().then(setDailyStats);
     getUnlockedAchievements().then(setUnlockedAchievements);
+    loadWGDailyHistory().catch(() => ({})).then(h => setDailyHistory((h as CalendarHistory) ?? {}));
   }, []);
 
   useEffect(() => {
@@ -362,6 +367,11 @@ export default function GameScreen() {
       if (gameMode === 'daily') {
         const newDailyStats = await saveDailyWordGridResult(finalScore, finalFoundWords.length);
         setDailyStats(newDailyStats);
+        await saveWGDailyHistoryEntry({
+          dateISO: getTodayDateString(),
+          result: 'played',
+          detail: `${finalScore} pts · ${finalFoundWords.length} word${finalFoundWords.length !== 1 ? 's' : ''}`,
+        });
         resumedDailyRef.current = false;
         await clearWordGridDailyProgress();
         const text = buildWordGridDailyShareText({
@@ -1017,6 +1027,21 @@ export default function GameScreen() {
               </View>
             ) : (
               <Text style={[styles.loadingText, { color: bg.secondaryText }]}>Loading stats...</Text>
+            )}
+
+            {/* Daily History Calendar */}
+            {Object.keys(dailyHistory).length > 0 && (
+              <>
+                <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>Daily History</Text>
+                <DailyCalendar
+                  history={dailyHistory}
+                  accentColor={COLORS.accent}
+                  textColor={bg.textColor}
+                  secondaryTextColor={bg.secondaryText}
+                  cardColor={bg.cardColor}
+                  borderColor={bg.borderColor}
+                />
+              </>
             )}
 
             <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>Quick Play</Text>

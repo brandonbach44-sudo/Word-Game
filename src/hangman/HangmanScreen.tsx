@@ -24,6 +24,7 @@ import { syncDailyReminder, maybeFlagReminderOptIn } from '../shared/dailyRemind
 
 import { AchievementPopup } from '../shared/AchievementPopup';
 import { FallingLetters } from '../shared/FallingLetters';
+import DailyCalendar, { type CalendarHistory } from '../shared/DailyCalendar';
 import { DailyChallengeCard } from './Components/DailyChallengeCard';
 import { DailyChallengePopup } from './Components/DailyChallengePopup';
 import { GameStatus } from './Components/GameStatus';
@@ -45,6 +46,8 @@ import {
   savePracticeProgress,
   clearPracticeProgress,
   type HangmanPracticeProgress,
+  saveHangmanDailyHistoryEntry,
+  loadHangmanDailyHistory,
 } from './utils/dailyChallenge';
 
 import { useHangman } from './Hooks/useHangman';
@@ -273,6 +276,7 @@ export default function HangmanScreen() {
 
   // Daily Challenge state
   const [dailyStats, setDailyStats] = useState<DailyChallengeStats | null>(null);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [dailyInProgressToday, setDailyInProgressToday] = useState(false);
   const [showDailyPopup, setShowDailyPopup] = useState(false);
   const [playingDaily, setPlayingDaily] = useState(false);
@@ -325,14 +329,16 @@ export default function HangmanScreen() {
         await unlockAllAchievementsForDev();
       }
 
-      const [stats, unlocked, locked] = await Promise.all([
+      const [stats, unlocked, locked, hist] = await Promise.all([
         loadHangmanStats(),
         getUnlockedAchievementsWithDetails(),
         getLockedAchievements(),
+        loadHangmanDailyHistory().catch(() => ({})),
       ]);
       setPlayerStats(stats);
       setUnlockedAchievements(unlocked);
       setLockedAchievements(locked);
+      setDailyHistory((hist as CalendarHistory) ?? {});
     };
     loadData();
     loadDailyStats().then(async (stats) => {
@@ -401,6 +407,13 @@ export default function HangmanScreen() {
       const handleDailyEnd = async () => {
         const result = isWon ? 'won' : 'lost';
         await saveDailyResult(result, dailyWord, incorrectGuesses.length);
+        await saveHangmanDailyHistoryEntry({
+          dateISO: getTodayDateString(),
+          result,
+          detail: result === 'won'
+            ? `Solved (${incorrectGuesses.length} mistake${incorrectGuesses.length !== 1 ? 's' : ''})`
+            : `Lost — ${dailyWord.toUpperCase()}`,
+        });
         resumedDailyProgressRef.current = null;
         await clearDailyProgress();
         const updatedDailyStats = await loadDailyStats();
@@ -1087,6 +1100,21 @@ export default function HangmanScreen() {
               </View>
             </>
           )}
+          {/* Daily History Calendar */}
+          {Object.keys(dailyHistory).length > 0 && (
+            <>
+              <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: 24 }]}>Daily History</Text>
+              <DailyCalendar
+                history={dailyHistory}
+                accentColor={COLORS.accent}
+                textColor={background.textColor}
+                secondaryTextColor={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+            </>
+          )}
+
           {playerStats ? (
             <>
               <Text style={[styles.statsSectionTitle, { color: background.textColor, marginTop: dailyStats && dailyStats.gamesPlayed > 0 ? 24 : 0 }]}>Quick Play Stats</Text>
