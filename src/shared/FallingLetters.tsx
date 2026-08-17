@@ -11,7 +11,7 @@ interface TileConfig {
   delay: number;
   duration: number;
   size: number;
-  seedY: number; // if >= 0, tile starts mid-screen at this Y (pre-seeded); if -1, starts from top with delay
+  seedY: number; // >= 0 → starts mid-screen (pre-seeded); -1 → starts from top after delay
 }
 
 function FallingTile({ tile }: { tile: TileConfig }) {
@@ -20,33 +20,42 @@ function FallingTile({ tile }: { tile: TileConfig }) {
   const translateY = useRef(new Animated.Value(isPreSeeded ? tile.seedY : -tile.size - 20)).current;
 
   useEffect(() => {
-    const loopAnimation = () => {
-      translateY.setValue(-tile.size - 20);
-      Animated.timing(translateY, {
-        toValue: totalDistance,
-        duration: tile.duration,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) loopAnimation();
-      });
+    let timeout: ReturnType<typeof setTimeout>;
+
+    // Each loop waits a random rest before falling again — this is what
+    // prevents tiles from syncing into batches over time.
+    const fall = (restDelay: number) => {
+      timeout = setTimeout(() => {
+        translateY.setValue(-tile.size - 20);
+        Animated.timing(translateY, {
+          toValue: totalDistance,
+          duration: tile.duration,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (finished) {
+            // Random rest 1–4 s before next fall keeps tiles permanently spread out
+            fall(1000 + Math.random() * 3000);
+          }
+        });
+      }, restDelay);
     };
 
     if (isPreSeeded) {
-      // First pass: animate from mid-screen to bottom, proportionally shorter duration
+      // First pass: animate from current mid-screen Y to bottom (proportional duration)
       const remainingFraction = (totalDistance - tile.seedY) / totalDistance;
-      const remainingDuration = remainingFraction * tile.duration;
       Animated.timing(translateY, {
         toValue: totalDistance,
-        duration: remainingDuration,
+        duration: remainingFraction * tile.duration,
         useNativeDriver: true,
       }).start(({ finished }) => {
-        if (finished) loopAnimation();
+        if (finished) fall(500 + Math.random() * 2000);
       });
     } else {
-      // New tile: wait for staggered delay then fall from top
-      const timeout = setTimeout(loopAnimation, tile.delay);
-      return () => clearTimeout(timeout);
+      // Incoming tile: staggered initial delay, then loop with random rests
+      fall(tile.delay);
     }
+
+    return () => clearTimeout(timeout);
   }, []);
 
   return (
@@ -79,24 +88,24 @@ function FallingTile({ tile }: { tile: TileConfig }) {
 }
 
 export function FallingLetters() {
-  // 10 pre-seeded tiles scattered across the screen at mount time
-  const preSeeded: TileConfig[] = Array.from({ length: 10 }, (_, i) => ({
+  // 12 pre-seeded tiles scattered across the screen at mount — immediate visual density
+  const preSeeded: TileConfig[] = Array.from({ length: 12 }, (_, i) => ({
     id: i,
     letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
     startX: Math.random() * (SCREEN_WIDTH - 60),
     delay: 0,
-    duration: 12000 + Math.random() * 8000,
+    duration: 10000 + Math.random() * 8000,
     size: 40 + Math.random() * 20,
-    seedY: Math.random() * SCREEN_HEIGHT * 0.85, // random position on screen
+    seedY: Math.random() * SCREEN_HEIGHT * 0.85,
   }));
 
-  // 5 new tiles that trickle in with wide staggered delays
-  const incoming: TileConfig[] = Array.from({ length: 5 }, (_, i) => ({
-    id: 10 + i,
+  // 8 incoming tiles with tight stagger to fill gaps without bunching
+  const incoming: TileConfig[] = Array.from({ length: 8 }, (_, i) => ({
+    id: 12 + i,
     letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
     startX: Math.random() * (SCREEN_WIDTH - 60),
-    delay: 2000 + Math.random() * 8000, // 2–10s stagger so they don't bunch up
-    duration: 12000 + Math.random() * 8000,
+    delay: 500 + Math.random() * 5000, // 0.5–5.5 s stagger
+    duration: 10000 + Math.random() * 8000,
     size: 40 + Math.random() * 20,
     seedY: -1,
   }));
