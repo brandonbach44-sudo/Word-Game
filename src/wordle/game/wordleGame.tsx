@@ -29,6 +29,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ImageBackground } from "react-native";
 // AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
+import { PROFANITY_BLOCKLIST } from "../../shared/profanityBlocklist";
 import {
   clearDailyProgress,
   loadDailyLock,
@@ -162,7 +163,7 @@ const KEYBOARD_ROWS: string[][] = [
 ];
 
 // ✅ Normalize dictionaries once so validation is case-insensitive and fast.
-const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => String(w).trim().toLowerCase());
+const SOLUTIONS_LC: string[] = SOLUTIONS.map((w) => String(w).trim().toLowerCase()).filter((w) => !PROFANITY_BLOCKLIST.has(w));
 const VALID_GUESSES_SET: Set<string> = new Set(
   VALID_GUESSES.map((w) => String(w).trim().toLowerCase()).filter(Boolean)
 );

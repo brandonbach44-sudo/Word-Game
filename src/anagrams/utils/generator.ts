@@ -8,6 +8,7 @@
 // same 5 words on a given day (no backend required).
 
 import commonWords from '../../wordgrid/data/commonWords';
+import { PROFANITY_BLOCKLIST } from '../../shared/profanityBlocklist';
 import { VALID_WORDS } from '../../shared/words';
 import { AnagramsCategoryId, getCategoryWordsByLength } from '../data/categories';
 
@@ -49,7 +50,7 @@ const poolByLength = new Map<number, string[]>();
 function getPool(length: number): string[] {
   const cached = poolByLength.get(length);
   if (cached) return cached;
-  const pool = commonWords.filter((w) => w.length === length);
+  const pool = commonWords.filter((w) => w.length === length && !PROFANITY_BLOCKLIST.has(w.toLowerCase()));
   poolByLength.set(length, pool);
   return pool;
 }

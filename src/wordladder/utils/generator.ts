@@ -7,6 +7,7 @@
 // and algorithm are identical for everyone, so a date seed is enough).
 
 import { findShortestPath, getNeighbors, getWordsOfLength } from './wordGraph';
+import { PROFANITY_BLOCKLIST } from '../../shared/profanityBlocklist';
 
 export type LadderDifficulty = 'easy' | 'medium' | 'hard';
 
@@ -53,7 +54,7 @@ const connectedPoolCache = new Map<number, string[]>();
 function getConnectedPool(length: number): string[] {
   const cached = connectedPoolCache.get(length);
   if (cached) return cached;
-  const pool = getWordsOfLength(length).filter((w) => getNeighbors(w).length > 0);
+  const pool = getWordsOfLength(length).filter((w) => getNeighbors(w).length > 0 && !PROFANITY_BLOCKLIST.has(w));
   connectedPoolCache.set(length, pool);
   return pool;
 }
