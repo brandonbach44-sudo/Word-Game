@@ -31,7 +31,6 @@ import { FallingLetters } from '../../shared/FallingLetters';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
-import { DailyChallengePopup } from '../components/DailyChallengePopup';
 import { generateGrid } from '../utils/gridGenerator';
 import {
   buildWordGridDailyShareText,
@@ -47,6 +46,7 @@ import {
   clearWordGridQuickPlayProgress,
   type DailyWordGridStats,
   type WordGridDailyProgress,
+  useCountdownToMidnight,
 } from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore, LONGEST_WORD_BONUS } from '../utils/scoring';
@@ -107,6 +107,7 @@ const StatsCard = ({
 export default function GameScreen() {
   const { background } = useTheme();
   const bg = background;
+  const dailyCountdown = useCountdownToMidnight();
   // Manual insets (not SafeAreaView) for the results screen specifically —
   // SafeAreaView was found to report a 0 top inset inside the results
   // <Modal>, which jammed the header under the notch and clipped the brand
@@ -641,16 +642,7 @@ export default function GameScreen() {
           textColor={bg.textColor}
         />
 
-        {/* Daily challenge result popup (shown on top of results) */}
-        <DailyChallengePopup
-          visible={showDailyPopup}
-          score={dailyPlayedToday && gameMode !== 'daily' ? (dailyStats?.lastScore ?? 0) : score}
-          wordsCount={dailyPlayedToday && gameMode !== 'daily' ? (dailyStats?.lastWordsCount ?? 0) : foundWords.length}
-          streak={dailyStats?.streak ?? 0}
-          bestStreak={dailyStats?.bestStreak ?? 0}
-          shareText={dailyShareText}
-          onBackToMenu={handleBackToMenu}
-        />
+        {/* Daily streak info is now inline in the results card below — no overlay needed */}
 
         {/* Page header — Word Grid has no persistent board to look back at,
             so X just acts like Main Menu. */}
@@ -739,6 +731,31 @@ export default function GameScreen() {
                         <Text style={[styles.statPillValue, { color: bg.textColor }]}>{stats.bestWordsInGame}</Text>
                       </View>
                     </View>
+                  </>
+                )}
+
+                {/* Daily streak + countdown — only for daily games */}
+                {gameMode === 'daily' && dailyStats && (
+                  <>
+                    <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
+                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>DAILY STREAK</Text>
+                    <View style={styles.statsRow}>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Current</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{dailyStats.streak ?? 0}</Text>
+                      </View>
+                      <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
+                        <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Best</Text>
+                        <Text style={[styles.statPillValue, { color: bg.textColor }]}>{dailyStats.bestStreak ?? 0}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
+                    <Text style={[styles.statPillLabel, { color: bg.secondaryText, textAlign: 'center', letterSpacing: 1 }]}>
+                      NEXT DAILY IN
+                    </Text>
+                    <Text style={[styles.statPillValue, { color: bg.textColor, textAlign: 'center', fontSize: 20, marginTop: 4 }]}>
+                      {dailyCountdown}
+                    </Text>
                   </>
                 )}
 
