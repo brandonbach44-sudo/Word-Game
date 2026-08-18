@@ -27,9 +27,9 @@ const LENGTH_MULTIPLIERS: Record<number, number> = {
 
 /**
  * Calculate the score for a word (without all-letters bonus)
- * 
+ *
  * Formula: (sum of letter values) × BASE_MULTIPLIER × length_multiplier
- * 
+ *
  * Examples:
  * - "CAT" = (3+1+1) × 50 × 1 = 250 pts
  * - "QUIZ" = (10+1+1+10) × 50 × 1.5 = 1,650 pts
@@ -37,42 +37,47 @@ const LENGTH_MULTIPLIERS: Record<number, number> = {
  */
 export const calculateWordScore = (word: string): number => {
   const upperWord = word.toUpperCase();
-  
+
   // Sum up letter values
   let letterSum = 0;
   for (const letter of upperWord) {
     letterSum += LETTER_VALUES[letter] || 0;
   }
-  
+
   // Apply base multiplier
   const baseScore = letterSum * BASE_MULTIPLIER;
-  
+
   // Apply length multiplier
   const lengthMultiplier = LENGTH_MULTIPLIERS[word.length] || (word.length > 8 ? 6 : 1);
-  
+
   return Math.round(baseScore * lengthMultiplier);
 };
 
 /**
- * Calculate the score for a word with potential all-letters bonus
- * Returns the score and whether the bonus was applied
+ * Calculate the score for a word with potential all-letters bonus and combo multiplier.
+ * Returns the score and whether the all-letters bonus was applied.
+ *
+ * @param word          The submitted word
+ * @param totalLetters  Number of available letters on the board
+ * @param comboMultiplier  Combo streak multiplier (1 | 1.5 | 2 | 2.5). Default 1.
  */
 export const calculateWordScoreWithBonus = (
-  word: string, 
-  totalLetters: number
+  word: string,
+  totalLetters: number,
+  comboMultiplier: number = 1,
 ): { score: number; bonusApplied: boolean } => {
   const baseScore = calculateWordScore(word);
-  
-  // Check if word uses all available letters
+
+  // Check if word uses all available letters (2× all-letters bonus applied first)
   if (word.length === totalLetters) {
     return {
-      score: baseScore * 2, // 2x bonus!
+      score: Math.round(baseScore * 2 * comboMultiplier),
       bonusApplied: true,
     };
   }
-  
+
   return {
-    score: baseScore,
+    score: Math.round(baseScore * comboMultiplier),
     bonusApplied: false,
   };
 };

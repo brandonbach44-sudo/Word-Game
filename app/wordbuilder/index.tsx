@@ -27,6 +27,7 @@ import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScree
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import { FallingLetters } from '../../src/shared/FallingLetters';
 import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalendar';
+import { ComboIndicator } from '../../src/wordbuilder/components/ComboIndicator';
 
 // Shared Managers
 import { HapticManager } from '../../src/shared/HapticManager';
@@ -74,6 +75,7 @@ import {
   ACHIEVEMENTS,
   checkAchievements,
   getUnlockedAchievements,
+  unlockAchievement,
   GameResult,
   PlayerProgress,
 } from '../../src/wordbuilder/utils/achievements';
@@ -386,6 +388,12 @@ export default function WordBuilder() {
   const [pendingAchievements, setPendingAchievements] = useState<Achievement[]>([]);
   const [currentPopupAchievement, setCurrentPopupAchievement] = useState<Achievement | null>(null);
 
+  // Combo State
+  const [comboCount, setComboCount] = useState(0);
+  const [comboResetKey, setComboResetKey] = useState(0);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxComboCountRef = useRef(0);
+
   // Swipe Tooltip State
   const [showSwipeTooltip, setShowSwipeTooltip] = useState(false);
   const SWIPE_TOOLTIP_KEY = 'wordbuilder_swipe_tooltip_shown';
@@ -572,6 +580,7 @@ export default function WordBuilder() {
           words: foundWords,
           mode: gameMode as 'blitz' | 'standard' | 'daily',
           letterCount,
+          maxComboCount: maxComboCountRef.current,
         };
         
         const progress: PlayerProgress = {
@@ -647,6 +656,11 @@ export default function WordBuilder() {
     setGameOverPage('results');
     setPossibleWords([]);
     setTimeLeft(60);
+    // Reset combo
+    setComboCount(0);
+    setComboResetKey(0);
+    maxComboCountRef.current = 0;
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
   };
 
   const startPracticeGame = (mode: 'blitz' | 'standard', numLetters: number) => {
@@ -662,6 +676,11 @@ export default function WordBuilder() {
     setGameOverPage('results');
     setPossibleWords([]);
     setTimeLeft(mode === 'blitz' ? 30 : 60);
+    // Reset combo
+    setComboCount(0);
+    setComboResetKey(0);
+    maxComboCountRef.current = 0;
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
   };
 
   const handleRefresh = useCallback(() => {
@@ -677,6 +696,13 @@ export default function WordBuilder() {
     setPossibleWords([]);
     setTimeLeft(gameMode === 'blitz' ? 30 : 60);
   }, [letterCount, gameMode]);
+
+  const getComboMultiplier = (count: number): number => {
+    if (count >= 4) return 2.5;
+    if (count >= 3) return 2;
+    if (count >= 2) return 1.5;
+    return 1;
+  };
 
   const handleLetterPress = useCallback((index: number) => {
     if (gameOver) return;
@@ -709,15 +735,37 @@ export default function WordBuilder() {
       return;
     }
     if (VALID_WORDS.has(word)) {
-      const { score: points, bonusApplied } = calculateWordScoreWithBonus(word, letterCount);
+      // Combo: new count is 1 higher than current; multiplier is based on the new level
+      const newComboCount = comboCount + 1;
+      const comboMult = getComboMultiplier(newComboCount);
+      const { score: points, bonusApplied } = calculateWordScoreWithBonus(word, letterCount, comboMult);
       setScore(score + points);
       setFoundWords([...foundWords, word]);
-      
+
+      // Update combo streak state and restart the 4-second window
+      if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+      setComboCount(newComboCount);
+      setComboResetKey(k => k + 1);
+      if (newComboCount > maxComboCountRef.current) maxComboCountRef.current = newComboCount;
+      comboTimerRef.current = setTimeout(() => setComboCount(0), 4000);
+
+      // Unlock combo achievements immediately for instant gratification
+      if (newComboCount === 3) {
+        unlockAchievement('combo_3').then(a => {
+          if (a) { setPendingAchievements(prev => [...prev, a]); HapticManager.achievement(); }
+        });
+      }
+      if (newComboCount === 5) {
+        unlockAchievement('combo_5').then(a => {
+          if (a) { setPendingAchievements(prev => [...prev, a]); HapticManager.achievement(); }
+        });
+      }
+
       if (bonusApplied) {
-        setMessage(`+${points} points! 🎉 2x ALL LETTERS BONUS!`);
+        setMessage(`+${points} pts! 🎉 ALL LETTERS BONUS!`);
         HapticManager.bonus();
       } else {
-        setMessage(`+${points} points!`);
+        setMessage(`+${points} pts!`);
         HapticManager.validWord();
       }
       setSelectedIndices([]);
@@ -1195,6 +1243,9 @@ export default function WordBuilder() {
             {currentWord || '_ _ _'}
           </Text>
         </View>
+
+        {/* Combo indicator — draining bar + multiplier badge */}
+        <ComboIndicator comboCount={comboCount} resetKey={comboResetKey} />
 
         {/* Letter grid rendered as explicit rows */}
         <View style={styles.letterGrid}>

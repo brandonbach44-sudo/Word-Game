@@ -140,6 +140,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'palindrome', emoji: '🔁', name: 'Mirror Image', description: 'Find a palindrome word', requirement: 1, category: 'special' },
   { id: 'rare_letter', emoji: '💎', name: 'Rare Find', description: 'Use Q, X, or Z in a word', requirement: 1, category: 'special' },
   { id: 'new_high_score', emoji: '🏅', name: 'Personal Best', description: 'Set a new all-time high score', requirement: 1, category: 'special' },
+
+  // Combo Streaks
+  { id: 'combo_3', emoji: '⚡', name: 'Chain Reaction', description: 'Get a 3-word combo in Wordsmith', requirement: 3, category: 'special' },
+  { id: 'combo_5', emoji: '🔥', name: 'On Fire', description: 'Get a 5-word combo in Wordsmith', requirement: 5, category: 'special' },
 ];
 
 // ==================== STORAGE FUNCTIONS ====================
@@ -204,6 +208,8 @@ export interface GameResult {
   words: string[];
   mode: 'blitz' | 'standard' | 'daily';
   letterCount: number;
+  /** Highest combo count reached during this game session. */
+  maxComboCount?: number;
 }
 
 export interface PlayerProgress {
@@ -370,6 +376,10 @@ export const checkAchievements = async (
     progress.totalGamesPlayed > 1;
   if (isNewHighScore) await tryUnlock('new_high_score');
   
+  // === Combo Streaks ===
+  if ((gameResult.maxComboCount ?? 0) >= 3) await tryUnlock('combo_3');
+  if ((gameResult.maxComboCount ?? 0) >= 5) await tryUnlock('combo_5');
+
   return newlyUnlocked;
 };
 
