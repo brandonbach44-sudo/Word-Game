@@ -148,7 +148,7 @@ const AnagramsResultOverlay: React.FC<Props> = ({
     <Modal
       visible={visible}
       transparent={false}
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       presentationStyle="overFullScreen"
       onRequestClose={onClose}

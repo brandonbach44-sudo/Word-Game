@@ -577,7 +577,7 @@ export default function GameScreen() {
       <Modal
         visible
         transparent={false}
-        animationType="slide"
+        animationType="none"
         statusBarTranslucent
         presentationStyle="overFullScreen"
         onRequestClose={handleBackToMenu}

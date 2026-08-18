@@ -464,7 +464,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
         <Modal
           visible={resultsVisible}
           transparent={false}
-          animationType="slide"
+          animationType="none"
           statusBarTranslucent
           presentationStyle="overFullScreen"
           onRequestClose={() => setResultsVisible(false)}

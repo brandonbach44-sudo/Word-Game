@@ -259,7 +259,7 @@ const WordleResultOverlay = ({
     <Modal
       visible={visible}
       transparent={false}
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       presentationStyle="overFullScreen"
       onRequestClose={onClose}
