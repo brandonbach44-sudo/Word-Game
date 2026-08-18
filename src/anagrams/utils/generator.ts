@@ -25,13 +25,17 @@ export interface AnagramPuzzle {
   rounds: AnagramRound[];
 }
 
-// Small deterministic PRNG (same technique used by Word Ladder / Word Search)
-// so the daily puzzle is reproducible from a date seed.
-function createSeededRandom(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state = (state * 1103515245 + 12345) & 0x7fffffff;
-    return state / 0x7fffffff;
+// Mulberry32 PRNG — same algorithm used by Furdle's daily word selection.
+// Consecutive integer seeds produce statistically independent sequences,
+// unlike the old LCG (1103515245 multiplier) which caused 2-day repeat cycles
+// when seeded with consecutive yyyymmdd integers.
+function mulberry32(seed: number): () => number {
+  return function (): number {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -110,7 +114,7 @@ export function generatePracticeAnagrams(): AnagramPuzzle {
 
 export function generateDailyAnagrams(date: Date = new Date()): AnagramPuzzle {
   const seed = dateToSeed(date);
-  return buildPuzzle(createSeededRandom(seed));
+  return buildPuzzle(mulberry32(seed));
 }
 
 /**

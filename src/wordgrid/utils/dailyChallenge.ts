@@ -62,12 +62,17 @@ export function useCountdownToMidnight(): string {
 
 // ─── Seeded Daily Grid ────────────────────────────────────────────────────────
 
-// Simple LCG seeded random — deterministic for same date
-function seededRandom(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
+// Mulberry32 PRNG — same algorithm used by Furdle's daily word selection.
+// Consecutive integer seeds produce statistically independent sequences,
+// unlike the old LCG (1103515245 multiplier) which caused 2-day repeat cycles
+// when seeded with consecutive yyyymmdd integers.
+function mulberry32(seed: number): () => number {
+  return function (): number {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -77,9 +82,8 @@ function seededRandom(seed: number): () => number {
  */
 export function generateDailyGrid(date: Date = new Date()): string[][] {
   const seed = dateToSeed(date);
-  const rng = seededRandom(seed);
   const orig = Math.random;
-  Math.random = rng;
+  Math.random = mulberry32(seed);
   try {
     return generateGrid(4);
   } finally {
