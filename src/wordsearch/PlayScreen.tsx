@@ -33,6 +33,7 @@ import {
   type WordSearchStats,
   type WordSearchDailyProgress,
   type WordSearchDailyLock,
+  saveWSDailyHistoryEntry,
 } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import { maybeRequestReview } from '../../src/shared/reviewPrompt';
@@ -518,6 +519,11 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
           multiplier,
           timeBonus,
         });
+        await saveWSDailyHistoryEntry({
+          dateISO: getTodayDateString(),
+          result: allWordsFound ? 'won' : 'played',
+          detail: `${state.foundWords.length}/${puzzleData.words.length} words${allWordsFound ? ' ★' : ''}`,
+        });
       }
 
       const updatedStats = await updateWordSearchStats({
@@ -636,6 +642,14 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         </TouchableOpacity>
         <Text style={[styles.title, { color: background.textColor }]}>Word Search</Text>
         <View style={styles.headerPlaceholder} />
+      </View>
+
+      {/* Theme label */}
+      <View style={[styles.themeBar, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+        <Text style={[styles.infoLabel, { color: background.secondaryText }]}>
+          {isDaily ? 'Daily Challenge' : 'Theme'}
+        </Text>
+        <Text style={[styles.themeName, { color: COLORS.accent }]}>{themeName}</Text>
       </View>
 
       {/* Info bar */}
@@ -828,6 +842,19 @@ const styles = StyleSheet.create({
   backText: { fontSize: 16, fontWeight: '500' },
   title: { fontSize: 22, fontWeight: 'bold' },
   headerPlaceholder: { width: 60 },
+  themeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 6,
+    gap: 6,
+  },
+  themeName: { fontSize: 14, fontWeight: '700' },
   infoBar: {
     flexDirection: 'row',
     marginHorizontal: 20,

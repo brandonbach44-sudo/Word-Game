@@ -76,7 +76,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="wordbuilder" />
