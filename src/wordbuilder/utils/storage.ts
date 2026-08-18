@@ -513,3 +513,34 @@ export const resetDailyForTesting = async (): Promise<void> => {
 export const resetAllDailyStatsForTesting = async (): Promise<void> => {
   await saveDailyChallenge(defaultDailyChallenge);
 };
+
+// ── Daily History (calendar) ─────────────────────────────────────────────────
+// One entry per day the player completed the Wordsmith Daily Challenge.
+// Wordsmith is score-based (no win/lose), so every completed day is 'played'.
+
+const WORDSMITH_DAILY_HISTORY_KEY = 'wordsmith_daily_history_v1';
+
+export type WordsmithDailyHistoryEntry = {
+  dateISO: string;
+  result: 'played';
+  detail: string; // e.g. "1240 pts · 8 words"
+};
+
+export type WordsmithDailyHistory = Record<string, WordsmithDailyHistoryEntry>;
+
+export async function loadWordsmithDailyHistory(): Promise<WordsmithDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(WORDSMITH_DAILY_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function saveWordsmithDailyHistoryEntry(entry: WordsmithDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadWordsmithDailyHistory();
+    history[entry.dateISO] = entry;
+    await AsyncStorage.setItem(WORDSMITH_DAILY_HISTORY_KEY, JSON.stringify(history));
+  } catch (e) { console.warn('saveWordsmithDailyHistoryEntry error', e); }
+}

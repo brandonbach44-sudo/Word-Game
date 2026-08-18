@@ -26,6 +26,7 @@ import { GameTile } from '../../src/wordbuilder/components/GameTile';
 import { CustomizeScreen } from '../../src/wordbuilder/components/CustomizeScreen';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import { FallingLetters } from '../../src/shared/FallingLetters';
+import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalendar';
 
 // Shared Managers
 import { HapticManager } from '../../src/shared/HapticManager';
@@ -64,6 +65,8 @@ import {
   saveDailyBuilderProgress,
   clearDailyBuilderProgress,
   type WordBuilderDailyProgress,
+  loadWordsmithDailyHistory,
+  saveWordsmithDailyHistoryEntry,
 } from '../../src/wordbuilder/utils/storage';
 import { TierName } from '../../src/wordbuilder/utils/tiers';
 import {
@@ -369,6 +372,7 @@ export default function WordBuilder() {
 
   // Player Data State
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [playerTiles, setPlayerTiles] = useState<PlayerTiles | null>(null);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
@@ -396,11 +400,12 @@ export default function WordBuilder() {
         await unlockAllTilesForTesting();
       }
       
-      const [stats, tiles, daily, achievements] = await Promise.all([
+      const [stats, tiles, daily, achievements, hist] = await Promise.all([
         loadStats(),
         loadTiles(),
         loadDailyChallenge(),
         getUnlockedAchievements(),
+        loadWordsmithDailyHistory().catch(() => ({})),
       ]);
       
       setPlayerStats(stats);
@@ -409,6 +414,7 @@ export default function WordBuilder() {
       setEquippedTier(tiles.equippedTier);
       setEquippedVariant(tiles.equippedVariant);
       setUnlockedAchievements(achievements);
+      setDailyHistory((hist as CalendarHistory) ?? {});
       
       const todayResult = await getTodayDailyResult();
       setDailyPlayed(todayResult.played);
@@ -543,6 +549,12 @@ export default function WordBuilder() {
           setDailyResult({ score, words: foundWords });
           resumedDailyRef.current = false;
           await clearDailyBuilderProgress();
+          await saveWordsmithDailyHistoryEntry({
+            dateISO: getTodayDateString(),
+            result: 'played',
+            detail: `${score} pts · ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''}`,
+          });
+          loadWordsmithDailyHistory().catch(() => ({})).then(h => setDailyHistory((h as CalendarHistory) ?? {}));
           // No win/lose state here either (score race, not solve/fail) — the
           // streak from showing up is the "good moment" signal.
           maybeRequestReview(updatedDaily?.dailyStreak ?? 0);
@@ -1561,6 +1573,21 @@ export default function WordBuilder() {
             </>
           )}
           
+          {/* Daily History Calendar */}
+          {Object.keys(dailyHistory).length > 0 && (
+            <>
+              <Text style={[styles.statsTitle, dynamicStyles.text, { marginTop: 25 }]}>Daily History</Text>
+              <DailyCalendar
+                history={dailyHistory}
+                accentColor={COLORS.accent}
+                textColor={background.textColor}
+                secondaryTextColor={background.secondaryText}
+                cardColor={background.cardColor}
+                borderColor={background.borderColor}
+              />
+            </>
+          )}
+
           {/* Standard & Blitz Stats Section */}
           <Text style={[styles.statsTitle, dynamicStyles.text, dailyChallenge && dailyChallenge.dailyGamesPlayed > 0 && { marginTop: 25 }]}>
             Standard & Blitz Stats
