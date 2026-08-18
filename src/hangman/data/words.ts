@@ -1,6 +1,16 @@
+import { PROFANITY_BLOCKLIST } from '../../shared/profanityBlocklist';
+
 // Utility: Get a random element from an array
 function getRandomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Strips any word/phrase that must never be a system-chosen answer. Applied at
+// every pick site below so Practice and category play are covered too, not just
+// the Daily Challenge. Player input is unaffected.
+function clean(list: string[]): string[] {
+  const filtered = list.filter((w) => !PROFANITY_BLOCKLIST.has(w.trim().toLowerCase()));
+  return filtered.length > 0 ? filtered : list;
 }
 
 // Returns a random phrase from a phrase category
@@ -9,7 +19,7 @@ export function getPhraseFromCategory(category: string): { word: string; categor
   if (!phrases || phrases.length === 0) {
     return { word: '', category };
   }
-  return { word: getRandomItem(phrases), category };
+  return { word: getRandomItem(clean(phrases)), category };
 }
 
 // Returns a random word from a word category
@@ -18,7 +28,7 @@ export function getWordFromCategory(category: string): { word: string; category:
   if (!words || words.length === 0) {
     return { word: '', category };
   }
-  return { word: getRandomItem(words), category };
+  return { word: getRandomItem(clean(words)), category };
 }
 
 // Returns a random word and its category from all word categories
@@ -26,7 +36,7 @@ export function getRandomWord(): { word: string; category: string } {
   const categoryNames = Object.keys(WORD_CATEGORIES);
   const category = getRandomItem(categoryNames);
   const words = WORD_CATEGORIES[category];
-  return { word: getRandomItem(words), category };
+  return { word: getRandomItem(clean(words)), category };
 }
 
 // Maximum allowed incorrect attempts for Hangman

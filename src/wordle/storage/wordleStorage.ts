@@ -204,3 +204,29 @@ export async function clearPracticeProgress(): Promise<void> {
     console.warn("clearPracticeProgress error", e);
   }
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────
+const WORDLE_DAILY_HISTORY_KEY = 'wordle_daily_history_v1';
+
+export type WordleDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'lost';
+  detail: string; // e.g. "3/6 guesses ★" or "X/6"
+};
+export type WordleDailyHistory = Record<string, WordleDailyHistoryEntry>;
+
+export async function loadWordleDailyHistory(): Promise<WordleDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(WORDLE_DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export async function saveWordleDailyHistoryEntry(entry: WordleDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadWordleDailyHistory();
+    await AsyncStorage.setItem(WORDLE_DAILY_HISTORY_KEY, JSON.stringify({ ...history, [entry.dateISO]: entry }));
+  } catch (e) { console.warn('saveWordleDailyHistoryEntry error', e); }
+}

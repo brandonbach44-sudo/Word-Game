@@ -50,7 +50,7 @@ export default function WordSearchGameRoute() {
         direction: wp.direction as PlacedWord['direction'],
         length: wp.word.length,
       }));
-      return { grid: savedProgress.gridLetters, words: restoredWords };
+      return { grid: savedProgress.gridLetters, words: restoredWords, themeId };
     }
 
     // No matching saved session — generate a fresh puzzle.

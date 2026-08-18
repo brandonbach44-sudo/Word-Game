@@ -8,17 +8,15 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../src/shared/ThemeContext';
 import { syncDailyReminder } from '../src/shared/dailyReminders';
 
-// Pre-warm the large shared word list (~35k entries, 33k-line file) at app
-// startup. Without this, the first navigation to Word Ladder or Anagrams
-// triggers construction of a 35k-entry Set synchronously on the JS thread
-// during the navigation animation, causing a SIGSEGV crash on iOS.
-// Importing here forces Metro to evaluate words.ts before any screen is shown.
+// Pre-warm the large shared word list (~41k entries) at app startup. Without
+// this, the first navigation to Word Ladder or Anagrams triggers construction
+// of the Set synchronously on the JS thread during the navigation animation,
+// causing a SIGSEGV crash on iOS. Importing here forces Metro to evaluate
+// words.ts before any screen is shown.
 import '../src/shared/words';
-// Pre-warm the Word Ladder graph caches (pattern map + neighbor index) so
-// they are already built the first time a player navigates to Word Ladder.
-// Without this, getConnectedPool builds the graph lazily on first use, which
-// can run during a navigation animation and cause a SIGSEGV on iOS.
-import { getConnectedPool } from '../src/wordladder/utils/wordGraph';
+// Pre-warm the Word Ladder length buckets so the pattern map / neighbor index
+// isn't built cold the first time a player opens Word Ladder.
+import { getWordsOfLength } from '../src/wordladder/utils/wordGraph';
 
 // Sends the player straight into the game a reminder notification was
 // about, instead of dropping them at the home grid to go find it — pulled
@@ -51,14 +49,18 @@ export default function RootLayout() {
     // unplayed) can only have changed while we were away.
     syncDailyReminder();
 
-    // Pre-warm Word Ladder graph caches 2 seconds after the home screen
-    // appears, while the user is reading the menu. By the time they tap
-    // Word Ladder, getConnectedPool is already computed and cached so the
-    // BFS puzzle generation doesn't run cold on the JS thread.
+    // Pre-warm Word Ladder word buckets 2 seconds after the home screen
+    // appears, while the player is still reading the menu. Wrapped in
+    // try/catch so a pre-warm failure can never take down app launch —
+    // this is a pure optimization, not required for correctness.
     const warmTimer = setTimeout(() => {
-      getConnectedPool(4); // easy  (4-letter words)
-      getConnectedPool(5); // medium (5-letter words, daily)
-      getConnectedPool(6); // hard  (6-letter words)
+      try {
+        getWordsOfLength(4); // easy   (4-letter words)
+        getWordsOfLength(5); // medium (5-letter words, daily)
+        getWordsOfLength(6); // hard   (6-letter words)
+      } catch {
+        // Ignore — the games build these lazily on demand anyway.
+      }
     }, 2000);
 
     // App was launched by tapping a reminder notification (was fully

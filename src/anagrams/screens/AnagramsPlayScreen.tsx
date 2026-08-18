@@ -24,6 +24,7 @@ import { FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
+import { ConfirmModal } from '../../shared/ConfirmModal';
 import { GameTile } from '../../shared/GameTile';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
@@ -52,6 +53,7 @@ import {
   type PracticeProgressState,
   TOTAL_ROUNDS,
   useCountdownToMidnight,
+  saveAnagramsDailyHistoryEntry,
 } from '../utils/anagramsStorage';
 import {
   Achievement,
@@ -403,6 +405,13 @@ const AnagramsPlayScreen: React.FC<Props> = ({
         totalScore: total,
         perfectBonusApplied,
         timeSeconds: finalElapsed,
+      });
+      await saveAnagramsDailyHistoryEntry({
+        dateISO: getTodayDateString(),
+        result: won ? 'won' : 'played',
+        detail: won
+          ? 'All 5 solved ★'
+          : `${finalResults.filter(r => r.solved).length}/5 rounds`,
       });
       await clearDailyProgress();
 

@@ -53,6 +53,7 @@ import {
 import { useHangman } from './Hooks/useHangman';
 
 import { PHRASE_CATEGORIES, WORD_CATEGORIES } from './data/words';
+import { PROFANITY_BLOCKLIST } from '../shared/profanityBlocklist';
 import {
   Achievement,
   checkAchievements,
@@ -517,7 +518,10 @@ export default function HangmanScreen() {
     const rand = mulberry32(seed);
     const categoryNames = Object.keys(WORD_CATEGORIES);
     const pickedCategory = categoryNames[Math.floor(rand() * categoryNames.length)];
-    const categoryWords: string[] = WORD_CATEGORIES[pickedCategory];
+    // Filter the category before picking so a profane word can never be the
+    // system-chosen answer, even if one is added to the word data later.
+    const categoryWords: string[] = WORD_CATEGORIES[pickedCategory]
+      .filter((w) => !PROFANITY_BLOCKLIST.has(w.toLowerCase()));
     const pickedWord = categoryWords[Math.floor(rand() * categoryWords.length)];
     const dailyEntry = { word: pickedWord, category: pickedCategory };
 

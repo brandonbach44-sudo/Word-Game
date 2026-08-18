@@ -356,3 +356,29 @@ export async function saveWordSearchDailyLock(lock: WordSearchDailyLock): Promis
     console.warn('saveWordSearchDailyLock error', e);
   }
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────
+const WS_DAILY_HISTORY_KEY = 'wordsearch_daily_history_v1';
+
+export type WSDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'played';
+  detail: string; // e.g. "10/10 words ★" or "7/10 words"
+};
+export type WSDailyHistory = Record<string, WSDailyHistoryEntry>;
+
+export async function loadWSDailyHistory(): Promise<WSDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(WS_DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export async function saveWSDailyHistoryEntry(entry: WSDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadWSDailyHistory();
+    await AsyncStorage.setItem(WS_DAILY_HISTORY_KEY, JSON.stringify({ ...history, [entry.dateISO]: entry }));
+  } catch (e) { console.warn('saveWSDailyHistoryEntry error', e); }
+}

@@ -31,7 +31,9 @@ import {
   useCountdownToMidnight,
   type AnagramsStats,
   type DailyLockState,
+  loadAnagramsDailyHistory,
 } from '../../src/anagrams/utils/anagramsStorage';
+import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalendar';
 import {
   getUnlockedAchievements,
   getAchievementProgress,
@@ -89,20 +91,23 @@ export default function AnagramsEntryScreen() {
   const [stats, setStats] = useState<AnagramsStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [dailyInProgress, setDailyInProgress] = useState(false);
   const [unlocked, setUnlocked] = useState<(Achievement & { unlockedAt: string })[]>([]);
   const countdown = useCountdownToMidnight();
 
   const loadAll = useCallback(async () => {
-    const [s, lock, played, ach, progress] = await Promise.all([
+    const [s, hist, lock, played, ach, progress] = await Promise.all([
       loadAnagramsStats().catch(() => null),
+      loadAnagramsDailyHistory().catch(() => ({})),
       loadDailyLock().catch(() => null),
       hasPlayedTodayDaily().catch(() => false),
       getUnlockedAchievements().catch(() => []),
       loadDailyProgress().catch(() => null),
     ]);
     setStats(s);
+    setDailyHistory((hist as CalendarHistory) ?? {});
     setDailyLock(lock);
     setDailyPlayed(played);
     setUnlocked(ach);
@@ -391,6 +396,18 @@ export default function AnagramsEntryScreen() {
                       <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
                     </View>
                   ))}
+                </View>
+
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Daily History</Text>
+                <View style={{ paddingHorizontal: 4, marginBottom: 8 }}>
+                  <DailyCalendar
+                    history={dailyHistory}
+                    accentColor={COLORS.accent}
+                    textColor={background.textColor}
+                    secondaryTextColor={background.secondaryText}
+                    cardColor={background.cardColor}
+                    borderColor={background.borderColor}
+                  />
                 </View>
 
                 <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 28 }]}>Quick Play</Text>

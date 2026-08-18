@@ -1,5 +1,6 @@
 // src/wordsearch/utils/generator.ts
 
+import { PROFANITY_BLOCKLIST } from '../../shared/profanityBlocklist';
 import type { WordSearchTheme } from '../data/themes';
 
 export type Direction = 'RIGHT' | 'LEFT' | 'DOWN' | 'UP' | 'DOWNRIGHT' | 'DOWNLEFT' | 'UPRIGHT' | 'UPLEFT';
@@ -53,6 +54,8 @@ export function generatePuzzle(
     theme.words
       .map(w => w.trim().toUpperCase())
       .filter(w => w.length >= 3 && w.length <= maxWordLength)
+      // Never hide a profane word in a grid — system-chosen answer.
+      .filter(w => !PROFANITY_BLOCKLIST.has(w.toLowerCase()))
   ));
 
   const candidateWords =
@@ -109,6 +112,8 @@ export function generatePuzzleWithSeed(
     theme.words
       .map(w => w.trim().toUpperCase())
       .filter(w => w.length >= 3 && w.length <= maxWordLength)
+      // Never hide a profane word in a grid — system-chosen answer.
+      .filter(w => !PROFANITY_BLOCKLIST.has(w.toLowerCase()))
   ));
 
   const candidateWords =

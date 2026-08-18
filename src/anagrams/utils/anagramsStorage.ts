@@ -369,3 +369,29 @@ export async function addDailyScoreToEquippedTier(score: number): Promise<void> 
   tiles.tierProgress[tier] = progress;
   await saveAnagramsTiles(tiles);
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────
+const DAILY_HISTORY_KEY = 'anagrams_daily_history_v1';
+
+export type AnagramsDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'played';
+  detail: string; // e.g. "All 5 solved ★" or "3/5 rounds"
+};
+export type AnagramsDailyHistory = Record<string, AnagramsDailyHistoryEntry>;
+
+export async function loadAnagramsDailyHistory(): Promise<AnagramsDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export async function saveAnagramsDailyHistoryEntry(entry: AnagramsDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadAnagramsDailyHistory();
+    await AsyncStorage.setItem(DAILY_HISTORY_KEY, JSON.stringify({ ...history, [entry.dateISO]: entry }));
+  } catch (e) { console.warn('saveAnagramsDailyHistoryEntry error', e); }
+}

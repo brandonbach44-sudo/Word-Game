@@ -18,6 +18,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flame, Share2, Trophy } from 'lucide-react-native';
+import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalendar';
+import { loadLadderDailyHistory } from '../../src/wordladder/utils/ladderStorage';
 
 import { useTheme } from '../../src/shared/ThemeContext';
 import { FallingLetters } from '../../src/shared/FallingLetters';
@@ -88,6 +90,7 @@ export default function WordLadderEntryScreen() {
 
   const [stats, setStats] = useState<LadderStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [dailyLock, setDailyLock] = useState<DailyLockState | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [dailyInProgress, setDailyInProgress] = useState(false);
@@ -95,14 +98,16 @@ export default function WordLadderEntryScreen() {
   const countdown = useCountdownToMidnight();
 
   const loadAll = useCallback(async () => {
-    const [s, lock, played, ach, progress] = await Promise.all([
+    const [s, hist, lock, played, ach, progress] = await Promise.all([
       loadLadderStats().catch(() => null),
+      loadLadderDailyHistory().catch(() => ({})),
       loadDailyLock().catch(() => null),
       hasPlayedTodayDaily().catch(() => false),
       getUnlockedAchievements().catch(() => []),
       loadDailyProgress().catch(() => null),
     ]);
     setStats(s);
+    setDailyHistory((hist as CalendarHistory) ?? {});
     setDailyLock(lock);
     setDailyPlayed(played);
     setUnlocked(ach);
@@ -377,6 +382,19 @@ export default function WordLadderEntryScreen() {
                       <Text style={[styles.statsLabel, { color: background.secondaryText }]}>{label}</Text>
                     </View>
                   ))}
+                </View>
+
+                {/* ── DAILY HISTORY CALENDAR ── */}
+                <Text style={[styles.sectionTitle, { color: background.textColor, marginTop: 25 }]}>Daily History</Text>
+                <View style={{ paddingHorizontal: 4, marginBottom: 8 }}>
+                  <DailyCalendar
+                    history={dailyHistory}
+                    accentColor={COLORS.accent}
+                    textColor={background.textColor}
+                    secondaryTextColor={background.secondaryText}
+                    cardColor={background.cardColor}
+                    borderColor={background.borderColor}
+                  />
                 </View>
 
                 {/* ── QUICK PLAY ── */}

@@ -17,6 +17,7 @@ import { Lightbulb, FlagOff } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
+import { ConfirmModal } from '../../shared/ConfirmModal';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 
@@ -40,6 +41,7 @@ import {
   clearQuickPlayProgress,
   type QuickPlayProgressState,
   useCountdownToMidnight,
+  saveLadderDailyHistoryEntry,
 } from '../utils/ladderStorage';
 import {
   Achievement,
@@ -251,6 +253,13 @@ const LadderPlayScreen: React.FC<Props> = ({
         start: puzzle.start,
         end: puzzle.end,
         chain: finalChain,
+      });
+      await saveLadderDailyHistoryEntry({
+        dateISO: getTodayDateString(),
+        result: won ? 'won' : 'lost',
+        detail: won
+          ? `${steps} step${steps !== 1 ? 's' : ''} (par ${puzzle.par})${steps === puzzle.par ? ' ★' : ''}`
+          : 'Gave Up',
       });
       await clearDailyProgress();
 

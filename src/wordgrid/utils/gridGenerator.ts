@@ -14,6 +14,7 @@
 // Every grid is guaranteed to contain real recognisable words across all lengths.
 
 import commonWords from '../data/commonWords';
+import { PROFANITY_BLOCKLIST } from '../../shared/profanityBlocklist';
 
 // Trie
 
@@ -47,6 +48,9 @@ const TRIE = buildTrie();
 // Seed pool: 4-5 letter common words with no repeated letters (easiest to place)
 const SEED_POOL: string[] = commonWords
   .filter(w => w.length >= 4 && w.length <= 5 && new Set(w).size === w.length)
+  // Never plant a profane word into a grid — these are system-chosen answers.
+  // (The trie above is left unfiltered so players may still type such words.)
+  .filter(w => !PROFANITY_BLOCKLIST.has(w.toLowerCase()))
   .map(w => w.toUpperCase());
 
 // Letter weights

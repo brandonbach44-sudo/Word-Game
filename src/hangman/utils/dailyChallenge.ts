@@ -254,3 +254,29 @@ export function buildHangmanShareText(params: {
 
   return lines.join('\n');
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────
+const HANGMAN_DAILY_HISTORY_KEY = 'hangman_daily_history_v1';
+
+export type HangmanDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'lost';
+  detail: string; // e.g. "Solved (2 mistakes)" or "Lost — TIGER"
+};
+export type HangmanDailyHistory = Record<string, HangmanDailyHistoryEntry>;
+
+export async function loadHangmanDailyHistory(): Promise<HangmanDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(HANGMAN_DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export async function saveHangmanDailyHistoryEntry(entry: HangmanDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadHangmanDailyHistory();
+    await AsyncStorage.setItem(HANGMAN_DAILY_HISTORY_KEY, JSON.stringify({ ...history, [entry.dateISO]: entry }));
+  } catch (e) { console.warn('saveHangmanDailyHistoryEntry error', e); }
+}

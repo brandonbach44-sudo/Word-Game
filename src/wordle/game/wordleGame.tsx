@@ -265,9 +265,15 @@ function evaluateGuess(guess: string, solution: string): EvaluatedLetter[] {
 }
 
 function getDailyIndex(date = new Date()): number {
+  // Use LOCAL date components (not UTC) so the daily word rolls over at the
+  // player's own midnight rather than UTC midnight. With UTC, US players saw
+  // the next day's word starting around 8pm local time, so the same word
+  // appeared across two consecutive local calendar days. Date.UTC() is still
+  // used purely as a timezone-free way to turn Y/M/D into a day number.
+  // This matches every other game, which all seed from local Y/M/D.
   const msPerDay = 24 * 60 * 60 * 1000;
   const dayNumber = Math.floor(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / msPerDay
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / msPerDay
   );
   return Math.abs(dayNumber) % SOLUTIONS_LC.length;
 }

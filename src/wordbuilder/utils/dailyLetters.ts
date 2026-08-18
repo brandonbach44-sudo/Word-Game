@@ -3,12 +3,17 @@
 
 import { isPlayable } from './letterValidator';
 
-// Simple seeded random number generator
-function seededRandom(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state = (state * 1103515245 + 12345) & 0x7fffffff;
-    return state / 0x7fffffff;
+// Mulberry32 PRNG — same algorithm used by Furdle's daily word selection.
+// Consecutive integer seeds produce statistically independent sequences,
+// unlike the old LCG (1103515245 multiplier) which caused repeat patterns
+// when seeded with consecutive integers.
+function mulberry32(seed: number): () => number {
+  return function (): number {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -60,7 +65,7 @@ const MAX_DAILY_RETRIES = 20;
 
 // Core generation logic — extracted so we can retry with different seeds
 function generateFromSeed(seed: number): string[] {
-  const random = seededRandom(seed);
+  const random = mulberry32(seed);
 
   const letters: string[] = [];
 

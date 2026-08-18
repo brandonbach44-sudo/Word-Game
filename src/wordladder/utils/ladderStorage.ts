@@ -289,3 +289,29 @@ export function computeNextStreak(
   const continuesStreak = previousLock?.dateISO === yesterday && previousLock.result === 'won';
   return continuesStreak ? currentStreak + 1 : 1;
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────
+const DAILY_HISTORY_KEY = 'wordladder_daily_history_v1';
+
+export type LadderDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'lost';
+  detail: string; // e.g. "3 steps (par 3) ★" or "Gave Up"
+};
+export type LadderDailyHistory = Record<string, LadderDailyHistoryEntry>;
+
+export async function loadLadderDailyHistory(): Promise<LadderDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch { return {}; }
+}
+
+export async function saveLadderDailyHistoryEntry(entry: LadderDailyHistoryEntry): Promise<void> {
+  try {
+    const history = await loadLadderDailyHistory();
+    await AsyncStorage.setItem(DAILY_HISTORY_KEY, JSON.stringify({ ...history, [entry.dateISO]: entry }));
+  } catch (e) { console.warn('saveLadderDailyHistoryEntry error', e); }
+}
