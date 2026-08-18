@@ -14,6 +14,11 @@ import { syncDailyReminder } from '../src/shared/dailyReminders';
 // during the navigation animation, causing a SIGSEGV crash on iOS.
 // Importing here forces Metro to evaluate words.ts before any screen is shown.
 import '../src/shared/words';
+// Pre-warm the Word Ladder graph caches (pattern map + neighbor index) so
+// they are already built the first time a player navigates to Word Ladder.
+// Without this, getConnectedPool builds the graph lazily on first use, which
+// can run during a navigation animation and cause a SIGSEGV on iOS.
+import { getConnectedPool } from '../src/wordladder/utils/wordGraph';
 
 // Sends the player straight into the game a reminder notification was
 // about, instead of dropping them at the home grid to go find it — pulled
@@ -46,6 +51,16 @@ export default function RootLayout() {
     // unplayed) can only have changed while we were away.
     syncDailyReminder();
 
+    // Pre-warm Word Ladder graph caches 2 seconds after the home screen
+    // appears, while the user is reading the menu. By the time they tap
+    // Word Ladder, getConnectedPool is already computed and cached so the
+    // BFS puzzle generation doesn't run cold on the JS thread.
+    const warmTimer = setTimeout(() => {
+      getConnectedPool(4); // easy  (4-letter words)
+      getConnectedPool(5); // medium (5-letter words, daily)
+      getConnectedPool(6); // hard  (6-letter words)
+    }, 2000);
+
     // App was launched by tapping a reminder notification (was fully
     // killed, not just backgrounded) — route in once navigation is ready.
     Notifications.getLastNotificationResponseAsync().then((response) => {
@@ -66,6 +81,7 @@ export default function RootLayout() {
     });
 
     return () => {
+      clearTimeout(warmTimer);
       tapSubscription.remove();
       appStateSubscription.remove();
     };

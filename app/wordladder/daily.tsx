@@ -2,7 +2,7 @@
 
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, InteractionManager, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import type { LadderPuzzle } from '../../src/wordladder/utils/generator';
@@ -23,11 +23,14 @@ export default function WordLadderDailyScreen() {
   const [puzzle, setPuzzle] = useState<LadderPuzzle | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Defer heavy puzzle generation until after navigation animation completes.
-  // Running it synchronously during render (via useMemo) blocks Hermes during
-  // the navigation transition and causes SIGSEGV crashes on iOS.
+  // Defer puzzle generation until AFTER the iOS navigation animation finishes.
+  // InteractionManager.runAfterInteractions() does NOT work with Expo Router's
+  // native stack — native animations are invisible to JS's InteractionManager,
+  // so the callback fires immediately during the animation and the synchronous
+  // BFS/word-graph work on the JS thread causes a SIGSEGV crash on iOS.
+  // setTimeout(500) reliably waits past the ~300ms navigation animation.
   useEffect(() => {
-    const interaction = InteractionManager.runAfterInteractions(() => {
+    const timer = setTimeout(() => {
       (async () => {
         const generatedPuzzle = generateDailyLadder(new Date());
         const [existingLock, existingProgress] = await Promise.all([
@@ -37,14 +40,13 @@ export default function WordLadderDailyScreen() {
         if (existingLock && existingLock.dateISO === getTodayDateString()) {
           setLock(existingLock);
         } else if (existingProgress) {
-          // loadDailyProgress() already filters to today's date internally.
           setProgress(existingProgress);
         }
         setPuzzle(generatedPuzzle);
         setLoading(false);
       })();
-    });
-    return () => interaction.cancel();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   if (loading || !puzzle) {
