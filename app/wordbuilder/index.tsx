@@ -1733,9 +1733,10 @@ export default function WordBuilder() {
       </Animated.View>
       </View>
 
-      {/* Daily Result Modal */}
+      {/* Daily Result Modal — full-screen takeover so it matches Furdle's result screen */}
       {showDailyResultModal && dailyResult && (
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: background.backgroundColor }]}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
           <View style={[styles.modalCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
             <Text style={[styles.modalBrand, { color: background.secondaryText }]}>WORD BUILDER</Text>
             <Text style={[styles.modalTitle, { color: background.textColor }]}>
@@ -1794,6 +1795,7 @@ export default function WordBuilder() {
               <Text style={[styles.modalSecondaryButtonText, { color: background.textColor }]}>Close</Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </View>
       )}
     </SafeAreaView>
@@ -1958,8 +1960,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // Daily result modal
-  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 18, zIndex: 999 },
-  modalCard: { width: '100%', maxWidth: 420, borderRadius: 18, borderWidth: 2, padding: 16 },
+  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
+  modalScrollContent: { flexGrow: 1, padding: 20, justifyContent: 'center' },
+  modalCard: { width: '100%', borderRadius: 18, borderWidth: 2, padding: 16 },
   modalBrand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
   modalTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
   modalSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
