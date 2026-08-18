@@ -169,6 +169,46 @@ class HapticManagerClass {
   streak(): void {
     this.success();
   }
+
+  /**
+   * Word found — primary impact scaled by length, optional combo escalation beat.
+   *
+   * Length scaling:   3-4 letters → light   |   5-6 → medium   |   7+ → heavy
+   * Combo escalation (fires 60ms after the word thud so they're two distinct beats):
+   *   level 2 → medium   |   level 3 → heavy   |   level 4+ → heavy + success at 140ms
+   *
+   * Pass comboLevel = 1 (default) to get plain length-scaled feedback with no combo beat.
+   */
+  wordFound(length: number, comboLevel: number = 1): void {
+    if (!this.enabled) return;
+
+    // Primary: word confirmation (scaled by length)
+    if (length >= 7) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } else if (length >= 5) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // Secondary: combo escalation beat (slight delay so the two pulses are distinct)
+    if (comboLevel === 2) {
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 60);
+    } else if (comboLevel === 3) {
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 60);
+    } else if (comboLevel >= 4) {
+      // Double pop for max combo: heavy thud + success chime
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 60);
+      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success), 140);
+    }
+  }
+
+  /**
+   * Combo window expired — subtle selection tick, non-punishing
+   */
+  comboExpired(): void {
+    this.selection();
+  }
 }
 
 // Export singleton instance

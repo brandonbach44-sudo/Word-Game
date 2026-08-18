@@ -747,7 +747,13 @@ export default function WordBuilder() {
       setComboCount(newComboCount);
       setComboResetKey(k => k + 1);
       if (newComboCount > maxComboCountRef.current) maxComboCountRef.current = newComboCount;
-      comboTimerRef.current = setTimeout(() => setComboCount(0), 4000);
+      // Capture current level for the expiry closure — if the streak was
+      // visible (≥ 2) when the window closes, give a subtle expiry signal.
+      const comboLevelAtSet = newComboCount;
+      comboTimerRef.current = setTimeout(() => {
+        setComboCount(0);
+        if (comboLevelAtSet >= 2) HapticManager.comboExpired();
+      }, 4000);
 
       // Unlock combo achievements immediately for instant gratification
       if (newComboCount === 3) {
@@ -763,10 +769,12 @@ export default function WordBuilder() {
 
       if (bonusApplied) {
         setMessage(`+${points} pts! 🎉 ALL LETTERS BONUS!`);
+        // All-letters bonus: success notification is the most triumphant pattern
         HapticManager.bonus();
       } else {
         setMessage(`+${points} pts!`);
-        HapticManager.validWord();
+        // Word length + combo level drive the haptic pattern
+        HapticManager.wordFound(word.length, newComboCount);
       }
       setSelectedIndices([]);
       setCurrentWord('');
