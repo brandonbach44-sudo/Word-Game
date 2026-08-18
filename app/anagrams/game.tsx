@@ -3,33 +3,49 @@
 
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, InteractionManager, View } from 'react-native';
+import { useTheme } from '../../src/shared/ThemeContext';
+import { COLORS } from '../../src/shared/theme';
 import type { AnagramPuzzle } from '../../src/anagrams/utils/generator';
 import { generatePracticeAnagrams } from '../../src/anagrams/utils/generator';
 import AnagramsPlayScreen from '../../src/anagrams/screens/AnagramsPlayScreen';
 import { loadPracticeProgress, clearPracticeProgress, type PracticeProgressState } from '../../src/anagrams/utils/anagramsStorage';
 
 export default function AnagramsGameScreen() {
+  const { background } = useTheme();
   const [key, setKey] = useState(0);
-  const [savedProgress, setSavedProgress] = useState<PracticeProgressState | null | undefined>(undefined);
-  const hydrated = savedProgress !== undefined;
+  const [puzzle, setPuzzle] = useState<AnagramPuzzle | null>(null);
+  const [savedProgress, setSavedProgress] = useState<PracticeProgressState | null>(null);
 
-  // Load any saved in-progress practice run on first mount only.
+  // Defer heavy puzzle generation until after navigation animation completes.
+  // Running it synchronously during render blocks Hermes and causes SIGSEGV crashes.
   useEffect(() => {
-    loadPracticeProgress().then((p) => setSavedProgress(p ?? null));
-  }, []);
+    setPuzzle(null);
+    const interaction = InteractionManager.runAfterInteractions(async () => {
+      const p = await loadPracticeProgress();
+      if (p) {
+        setSavedProgress(p);
+        setPuzzle({ rounds: p.rounds });
+      } else {
+        setSavedProgress(null);
+        setPuzzle(generatePracticeAnagrams());
+      }
+    });
+    return () => interaction.cancel();
+  }, [key]);
 
   const handlePlayAgain = () => {
-    setSavedProgress(null);
     clearPracticeProgress().catch(() => {});
     setKey((k) => k + 1);
   };
 
-  // Reconstruct puzzle from saved progress or generate a fresh one.
-  const puzzle: AnagramPuzzle = savedProgress
-    ? { rounds: savedProgress.rounds }
-    : generatePracticeAnagrams();
-
-  if (!hydrated) return null;
+  if (!puzzle) {
+    return (
+      <View style={{ flex: 1, backgroundColor: background.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={COLORS.accent} size="large" />
+      </View>
+    );
+  }
 
   return (
     <AnagramsPlayScreen

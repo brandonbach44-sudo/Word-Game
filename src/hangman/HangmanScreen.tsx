@@ -501,21 +501,17 @@ export default function HangmanScreen() {
       return;
     }
 
-    // Use a seeded LCG (same pattern as Word Ladder, Anagrams, Word Grid)
-    // so consecutive days produce non-sequential picks instead of walking
-    // through the list one entry at a time.
+    // Direct modulo selection — consecutive days always produce a different
+    // category (cycle = number of categories, ~15 days before any repeat).
+    // Multiply seed by 8 for word selection to decouple it from the category
+    // index so the same-category days don't also repeat the same word.
+    // This replaces the previous LCG which had a 2-day repeat bug where seeds
+    // differing by 1 would collide back to the same category every 2 days.
     const seed = dateToSeed(new Date());
-    let state = seed;
-    const rand = () => {
-      state = (state * 1103515245 + 12345) & 0x7fffffff;
-      return state / 0x7fffffff;
-    };
-
-    // Pick a random category first, then a random word from that category.
     const categoryNames = Object.keys(WORD_CATEGORIES);
-    const pickedCategory = categoryNames[Math.floor(rand() * categoryNames.length)];
+    const pickedCategory = categoryNames[seed % categoryNames.length];
     const categoryWords: string[] = WORD_CATEGORIES[pickedCategory];
-    const pickedWord = categoryWords[Math.floor(rand() * categoryWords.length)];
+    const pickedWord = categoryWords[(seed * 8) % categoryWords.length];
     const dailyEntry = { word: pickedWord, category: pickedCategory };
 
     if (!dailyEntry) {

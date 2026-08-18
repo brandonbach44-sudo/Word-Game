@@ -5,7 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, InteractionManager, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
-import { generateDailyLadder, type LadderPuzzle } from '../../src/wordladder/utils/generator';
+import type { LadderPuzzle } from '../../src/wordladder/utils/generator';
+import { generateDailyLadder } from '../../src/wordladder/utils/generator';
 import {
   DailyLockState,
   DailyProgressState,
@@ -22,63 +23,41 @@ export default function WordLadderDailyScreen() {
   const [puzzle, setPuzzle] = useState<LadderPuzzle | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Defer heavy puzzle generation until after navigation animation completes.
+  // Running it synchronously during render (via useMemo) blocks Hermes during
+  // the navigation transition and causes SIGSEGV crashes on iOS.
   useEffect(() => {
-    // Defer heavy work until after the navigation animation finishes.
-    // This prevents the BFS puzzle generation from blocking the JS thread
-    // while queued AsyncStorage TurboModule callbacks are trying to fire,
-    // which was causing a SIGSEGV in Hermes's PinnedHermesValue during the
-    // "View Results" navigation transition.
-    const interaction = InteractionManager.runAfterInteractions(async () => {
-      const [existingLock, existingProgress] = await Promise.all([
-        loadDailyLock(),
-        loadDailyProgress(),
-      ]);
-
-      if (existingLock && existingLock.dateISO === getTodayDateString()) {
-        // View-results mode: player already completed today's puzzle.
-        // The lock holds all the data we need — skip puzzle generation entirely.
-        setLock(existingLock);
-      } else {
-        // New game or mid-session resume: generate today's puzzle now that
-        // the navigation animation is complete (safe to do heavy BFS work).
-        const generated = generateDailyLadder(new Date());
-        setPuzzle(generated);
-        if (existingProgress) {
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      (async () => {
+        const generatedPuzzle = generateDailyLadder(new Date());
+        const [existingLock, existingProgress] = await Promise.all([
+          loadDailyLock(),
+          loadDailyProgress(),
+        ]);
+        if (existingLock && existingLock.dateISO === getTodayDateString()) {
+          setLock(existingLock);
+        } else if (existingProgress) {
+          // loadDailyProgress() already filters to today's date internally.
           setProgress(existingProgress);
         }
-      }
-
-      setLoading(false);
+        setPuzzle(generatedPuzzle);
+        setLoading(false);
+      })();
     });
-
     return () => interaction.cancel();
   }, []);
 
-  if (loading) {
+  if (loading || !puzzle) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: background.backgroundColor,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
+      <View style={{ flex: 1, backgroundColor: background.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} size="large" />
       </View>
     );
   }
 
-  const activePuzzle: LadderPuzzle = lock
-    ? {
-        start: lock.start,
-        end: lock.end,
-        par: lock.par,
-        wordLength: lock.start.length,
-        difficulty: 'medium',
-        solutionPath: [],
-      }
-    : puzzle!;
+  const activePuzzle = lock
+    ? { start: lock.start, end: lock.end, par: lock.par, wordLength: lock.start.length, difficulty: 'medium' as const, solutionPath: [] }
+    : puzzle;
 
   return (
     <LadderPlayScreen

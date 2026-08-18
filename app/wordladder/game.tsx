@@ -3,8 +3,8 @@
 // Autosaves progress so returning to the app mid-game resumes seamlessly.
 
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, InteractionManager, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { generatePracticeLadder, type LadderDifficulty, type LadderPuzzle } from '../../src/wordladder/utils/generator';
@@ -17,37 +17,42 @@ export default function WordLadderGameRoute() {
   const difficulty = ((params.difficulty as string) || 'medium') as LadderDifficulty;
 
   const [puzzleKey, setPuzzleKey] = useState(0);
-  const [savedProgress, setSavedProgress] = useState<QuickPlayProgressState | null | undefined>(undefined);
-  const hydrated = savedProgress !== undefined;
+  const [puzzle, setPuzzle] = useState<LadderPuzzle | null>(null);
+  const [savedProgress, setSavedProgress] = useState<QuickPlayProgressState | null>(null);
 
-  // Load any saved in-progress Quick Play on first mount only.
+  // Defer heavy BFS puzzle generation until after navigation animation completes.
+  // Running it synchronously (via useMemo) blocks Hermes during the navigation
+  // transition and causes SIGSEGV crashes on iOS.
   useEffect(() => {
-    loadQuickPlayProgress().then((p) => setSavedProgress(p ?? null));
-  }, []);
+    setPuzzle(null);
+    const interaction = InteractionManager.runAfterInteractions(async () => {
+      const p = await loadQuickPlayProgress();
+      if (p) {
+        setSavedProgress(p);
+        setPuzzle({
+          start: p.puzzle.start,
+          end: p.puzzle.end,
+          par: p.puzzle.par,
+          wordLength: p.puzzle.wordLength,
+          difficulty: (p.puzzle.difficulty || difficulty) as LadderDifficulty,
+          solutionPath: p.puzzle.solution,
+        });
+      } else {
+        setSavedProgress(null);
+        setPuzzle(generatePracticeLadder(difficulty));
+      }
+    });
+    return () => interaction.cancel();
+  }, [puzzleKey]);
 
-  // On play-again, wipe the saved progress ref so the new game starts fresh.
+  // On play-again, wipe the saved progress and trigger a new generation.
   const handlePlayAgain = () => {
-    setSavedProgress(null);
     clearQuickPlayProgress().catch(() => {});
+    setSavedProgress(null);
     setPuzzleKey((k) => k + 1);
   };
 
-  // Reconstruct the puzzle from saved progress, or generate a fresh one.
-  const puzzle = useMemo<LadderPuzzle>(() => {
-    if (savedProgress) {
-      return {
-        start: savedProgress.puzzle.start,
-        end: savedProgress.puzzle.end,
-        par: savedProgress.puzzle.par,
-        wordLength: savedProgress.puzzle.wordLength,
-        difficulty: (savedProgress.puzzle.difficulty || difficulty) as LadderDifficulty,
-        solutionPath: savedProgress.puzzle.solution,
-      };
-    }
-    return generatePracticeLadder(difficulty);
-  }, [difficulty, puzzleKey, savedProgress]);
-
-  if (!hydrated || !puzzle) {
+  if (!puzzle) {
     return (
       <View style={{ flex: 1, backgroundColor: background.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} size="large" />

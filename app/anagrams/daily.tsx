@@ -5,7 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, InteractionManager, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
-import { generateDailyAnagrams, type AnagramPuzzle } from '../../src/anagrams/utils/generator';
+import type { AnagramPuzzle } from '../../src/anagrams/utils/generator';
+import { generateDailyAnagrams } from '../../src/anagrams/utils/generator';
 import {
   DailyLockState,
   DailyProgressState,
@@ -22,63 +23,40 @@ export default function AnagramsDailyScreen() {
   const [puzzle, setPuzzle] = useState<AnagramPuzzle | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Defer heavy puzzle generation until after navigation animation completes.
+  // Running it synchronously during render (via useMemo) blocks Hermes during
+  // the navigation transition and causes SIGSEGV crashes on iOS.
   useEffect(() => {
-    // Defer heavy work until after the navigation animation finishes.
-    // generateDailyAnagrams was running synchronously in useMemo on every
-    // mount — including view-results mode where the generated puzzle was
-    // never used. The computation blocked the Hermes JS thread while queued
-    // AsyncStorage TurboModule callbacks fired into an inconsistent GC state,
-    // causing EXC_BAD_ACCESS (SIGSEGV) in HermesRuntimeImpl::createArray.
-    const interaction = InteractionManager.runAfterInteractions(async () => {
-      const [existingLock, existingProgress] = await Promise.all([
-        loadDailyLock(),
-        loadDailyProgress(),
-      ]);
-
-      if (existingLock && existingLock.dateISO === getTodayDateString()) {
-        // View-results mode: player already completed today's puzzle.
-        // The lock has all the data needed — skip puzzle generation entirely.
-        setLock(existingLock);
-      } else {
-        // New game or mid-session resume: generate puzzle now that the
-        // navigation animation is complete (safe to do heavy work).
-        const generated = generateDailyAnagrams(new Date());
-        setPuzzle(generated);
-        if (existingProgress) {
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      (async () => {
+        const generatedPuzzle = generateDailyAnagrams(new Date());
+        const [existingLock, existingProgress] = await Promise.all([
+          loadDailyLock(),
+          loadDailyProgress(),
+        ]);
+        if (existingLock && existingLock.dateISO === getTodayDateString()) {
+          setLock(existingLock);
+        } else if (existingProgress) {
           setProgress(existingProgress);
         }
-      }
-
-      setLoading(false);
+        setPuzzle(generatedPuzzle);
+        setLoading(false);
+      })();
     });
-
     return () => interaction.cancel();
   }, []);
 
-  if (loading) {
+  if (loading || !puzzle) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: background.backgroundColor,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
+      <View style={{ flex: 1, backgroundColor: background.backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.accent} size="large" />
       </View>
     );
   }
 
-  // For view-results mode, reconstruct the puzzle shape from lock data.
-  // The result overlay only needs the word list — scrambled tiles aren't used.
-  const activePuzzle: AnagramPuzzle = lock
-    ? { rounds: lock.words.map((word) => ({ word, scrambled: [] })) }
-    : puzzle!;
-
   return (
     <AnagramsPlayScreen
-      puzzle={activePuzzle}
+      puzzle={puzzle}
       mode="daily"
       lockedResult={lock}
       initialProgress={progress}
