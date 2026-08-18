@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  Modal,
   PanResponder,
   Pressable,
   ScrollView,
@@ -14,7 +15,7 @@ import {
   Animated,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { usePreventRemove } from '@react-navigation/core';
@@ -282,6 +283,7 @@ export default function WordBuilder() {
   const { background } = useTheme();
   
   // Countdown timer for next daily challenge
+  const insets = useSafeAreaInsets();
   const countdownToNextDaily = useCountdownToMidnight();
   
   // Segment State
@@ -1733,12 +1735,38 @@ export default function WordBuilder() {
       </Animated.View>
       </View>
 
-      {/* Daily Result Modal — full-screen takeover so it matches Furdle's result screen */}
-      {showDailyResultModal && dailyResult && (
+      {/* Daily results — native Modal + transparent card so this reads as a
+          full results SCREEN (cream page background, white stat pills), exactly
+          like Anagrams / Word Ladder / Furdle. Previously a solid white card on
+          a cream page, which looked like a floating white box. */}
+      <Modal
+        visible={showDailyResultModal && !!dailyResult}
+        transparent={false}
+        animationType="none"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setShowDailyResultModal(false)}
+      >
+        {dailyResult && (
         <View style={[styles.modalOverlay, { backgroundColor: background.backgroundColor }]}>
-          <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
-          <View style={[styles.modalCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-            <Text style={[styles.modalBrand, { color: background.secondaryText }]}>WORD BUILDER</Text>
+          <View style={[styles.modalPageHeader, { paddingTop: insets.top + 10 }]}>
+            <View style={styles.modalHeaderSpacer} />
+            <Text style={[styles.modalBrand, { color: background.secondaryText }]}>WORDSMITH</Text>
+            <Pressable
+              style={({ pressed }) => [styles.modalCloseIcon, { opacity: pressed ? 0.6 : 1 }]}
+              onPress={() => setShowDailyResultModal(false)}
+              hitSlop={16}
+            >
+              <X size={22} color={background.secondaryText} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.modalScrollContent, { paddingBottom: insets.bottom + 24 }]}
+            showsVerticalScrollIndicator={false}
+          >
+          <View style={styles.modalCard}>
             <Text style={[styles.modalTitle, { color: background.textColor }]}>
               {dailyResult.score >= 2000 ? 'Outstanding!' :
                dailyResult.score >= 1000 ? 'Great Job!' :
@@ -1758,11 +1786,11 @@ export default function WordBuilder() {
             <View style={[styles.modalDividerLine, { backgroundColor: background.borderColor }]} />
             <Text style={[styles.modalSectionTitle, { color: background.textColor }]}>STATS</Text>
             <View style={styles.modalStatsRow}>
-              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.cardColor }]}>
                 <Text style={[styles.modalStatPillLabel, { color: background.textColor }]}>Streak</Text>
                 <Text style={[styles.modalStatPillValue, { color: background.textColor }]}>{dailyChallenge?.dailyStreak ?? 0}</Text>
               </View>
-              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}>
+              <View style={[styles.modalStatPill, { borderColor: background.borderColor, backgroundColor: background.cardColor }]}>
                 <Text style={[styles.modalStatPillLabel, { color: background.textColor }]}>Best</Text>
                 <Text style={[styles.modalStatPillValue, { color: background.textColor }]}>{dailyChallenge?.bestDailyStreak ?? 0}</Text>
               </View>
@@ -1774,8 +1802,8 @@ export default function WordBuilder() {
 
             <View style={styles.modalButtonRow}>
               <TouchableOpacity
-                style={[styles.modalPillButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
-                onPress={() => setShowDailyResultModal(false)}
+                style={[styles.modalPillButton, styles.modalPillButtonFullWidth, { borderColor: background.borderColor, backgroundColor: background.cardColor }]}
+                onPress={() => { setShowDailyResultModal(false); backToAppMenu(); }}
               >
                 <Text style={[styles.modalPillButtonText, { color: background.textColor }]}>Main Menu</Text>
               </TouchableOpacity>
@@ -1787,17 +1815,11 @@ export default function WordBuilder() {
                 <Text style={styles.modalShareBtnText}>Share Result</Text>
               </View>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalSecondaryButton, { borderColor: background.borderColor, backgroundColor: background.backgroundColor }]}
-              onPress={() => setShowDailyResultModal(false)}
-            >
-              <Text style={[styles.modalSecondaryButtonText, { color: background.textColor }]}>Close</Text>
-            </TouchableOpacity>
           </View>
           </ScrollView>
         </View>
-      )}
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1960,11 +1982,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // Daily result modal
-  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 },
-  modalScrollContent: { flexGrow: 1, padding: 20, justifyContent: 'center' },
-  modalCard: { width: '100%', borderRadius: 18, borderWidth: 2, padding: 16 },
-  modalBrand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 6 },
-  modalTitle: { textAlign: 'center', fontSize: 22, fontWeight: '900', marginBottom: 4 },
+  // Inside a native Modal, so this fills the screen on its own.
+  modalOverlay: { flex: 1 },
+  modalPageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  modalHeaderSpacer: { width: 22 },
+  modalCloseIcon: { width: 22, alignItems: 'flex-end' },
+  modalScrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 18 },
+  // Transparent — the page background shows through, matching the other games'
+  // result screens. A solid cardColor here is what made it look like a box.
+  modalCard: { width: '100%', maxWidth: 420, borderRadius: 18, padding: 8 },
+  modalBrand: { textAlign: 'center', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  modalTitle: { textAlign: 'center', fontSize: 24, fontWeight: '900', marginBottom: 8, marginTop: 20 },
   modalSubtitle: { textAlign: 'center', fontSize: 14, fontWeight: '600', marginBottom: 12 },
   modalScoreBox: { borderWidth: 2, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', marginBottom: 4 },
   modalScoreBoxLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
@@ -1980,6 +2015,7 @@ const styles = StyleSheet.create({
   modalCountdownValue: { textAlign: 'center', fontSize: 18, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
   modalButtonRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 12 },
   modalPillButton: { borderWidth: 2, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, minWidth: 120, alignItems: 'center' },
+  modalPillButtonFullWidth: { width: '100%', paddingVertical: 12, minWidth: undefined },
   modalPillButtonText: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   modalGreenShareBtn: { marginTop: 10, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center', backgroundColor: '#22c55e' },
   modalShareBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },

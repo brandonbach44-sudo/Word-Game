@@ -17,16 +17,16 @@ export default function AnagramsGameScreen() {
   const [puzzle, setPuzzle] = useState<AnagramPuzzle | null>(null);
   const [savedProgress, setSavedProgress] = useState<PracticeProgressState | null>(null);
 
-  // Defer heavy puzzle generation until after navigation animation completes.
-  // InteractionManager.runAfterInteractions() does NOT work with Expo Router's
-  // native stack — native animations are invisible to JS's InteractionManager,
-  // so the callback fires immediately during the animation and the synchronous
-  // BFS/word-graph work on the JS thread causes a SIGSEGV crash on iOS.
-  // setTimeout(500) reliably waits past the ~300ms navigation animation.
+  // Generate immediately on mount. The old crash here was a missing
+  // ConfirmModal import in the play screen, not slow generation, so the
+  // artificial delay (which showed players a spinner) is gone. The word graph
+  // is pre-warmed at app startup (see app/_layout.tsx).
   useEffect(() => {
     setPuzzle(null);
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+    (async () => {
       const p = await loadPracticeProgress();
+      if (cancelled) return;
       if (p) {
         setSavedProgress(p);
         setPuzzle({ rounds: p.rounds });
@@ -34,8 +34,10 @@ export default function AnagramsGameScreen() {
         setSavedProgress(null);
         setPuzzle(generatePracticeAnagrams());
       }
-    }, 500);
-    return () => clearTimeout(timer);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [key]);
 
   const handlePlayAgain = () => {

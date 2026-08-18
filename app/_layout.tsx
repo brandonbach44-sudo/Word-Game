@@ -16,7 +16,7 @@ import { syncDailyReminder } from '../src/shared/dailyReminders';
 import '../src/shared/words';
 // Pre-warm the Word Ladder length buckets so the pattern map / neighbor index
 // isn't built cold the first time a player opens Word Ladder.
-import { getWordsOfLength } from '../src/wordladder/utils/wordGraph';
+import { getWordsOfLength, getNeighbors } from '../src/wordladder/utils/wordGraph';
 
 // Sends the player straight into the game a reminder notification was
 // about, instead of dropping them at the home grid to go find it — pulled
@@ -55,9 +55,16 @@ export default function RootLayout() {
     // this is a pure optimization, not required for correctness.
     const warmTimer = setTimeout(() => {
       try {
-        getWordsOfLength(4); // easy   (4-letter words)
-        getWordsOfLength(5); // medium (5-letter words, daily)
-        getWordsOfLength(6); // hard   (6-letter words)
+        // Build BOTH the length buckets and the wildcard pattern map for each
+        // Word Ladder length. Calling getNeighbors on any word of a length is
+        // what forces that length's pattern map to be built and cached, which
+        // is the expensive part of puzzle generation. Doing it here — while the
+        // player is still reading the home menu — means tapping into a game
+        // generates its puzzle instantly, with no loading spinner.
+        for (const len of [4, 5, 6]) {
+          const words = getWordsOfLength(len);
+          if (words.length > 0) getNeighbors(words[0]);
+        }
       } catch {
         // Ignore — the games build these lazily on demand anyway.
       }

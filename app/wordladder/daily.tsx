@@ -23,30 +23,31 @@ export default function WordLadderDailyScreen() {
   const [puzzle, setPuzzle] = useState<LadderPuzzle | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Defer puzzle generation until AFTER the iOS navigation animation finishes.
-  // InteractionManager.runAfterInteractions() does NOT work with Expo Router's
-  // native stack — native animations are invisible to JS's InteractionManager,
-  // so the callback fires immediately during the animation and the synchronous
-  // BFS/word-graph work on the JS thread causes a SIGSEGV crash on iOS.
-  // setTimeout(500) reliably waits past the ~300ms navigation animation.
+  // Generate immediately on mount. The crash this screen used to have was a
+  // missing ConfirmModal import in the play screen, NOT slow generation, so no
+  // artificial delay is needed — and a delay only showed players a spinner.
+  // The word graph is pre-warmed at app startup (see app/_layout.tsx), so this
+  // is fast enough to run inline.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      (async () => {
-        const generatedPuzzle = generateDailyLadder(new Date());
-        const [existingLock, existingProgress] = await Promise.all([
-          loadDailyLock(),
-          loadDailyProgress(),
-        ]);
-        if (existingLock && existingLock.dateISO === getTodayDateString()) {
-          setLock(existingLock);
-        } else if (existingProgress) {
-          setProgress(existingProgress);
-        }
-        setPuzzle(generatedPuzzle);
-        setLoading(false);
-      })();
-    }, 500);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    (async () => {
+      const generatedPuzzle = generateDailyLadder(new Date());
+      const [existingLock, existingProgress] = await Promise.all([
+        loadDailyLock(),
+        loadDailyProgress(),
+      ]);
+      if (cancelled) return;
+      if (existingLock && existingLock.dateISO === getTodayDateString()) {
+        setLock(existingLock);
+      } else if (existingProgress) {
+        setProgress(existingProgress);
+      }
+      setPuzzle(generatedPuzzle);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading || !puzzle) {
