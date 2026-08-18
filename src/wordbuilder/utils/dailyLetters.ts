@@ -17,8 +17,10 @@ function dateToSeed(date: Date): number {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
-  // Create unique seed from date components
-  return year * 10000 + month * 100 + day;
+  // Multiply by 100 so consecutive days are 100 apart — prevents the retry
+  // loop (max 20 steps) from ever landing on an adjacent day's base seed,
+  // which would produce duplicate letters two days in a row.
+  return (year * 10000 + month * 100 + day) * 100;
 }
 
 // Vowel weights — favors E and A (no J, Q, X, Z)
