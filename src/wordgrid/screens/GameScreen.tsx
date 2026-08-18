@@ -25,7 +25,6 @@ import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { FallingLetters } from '../../shared/FallingLetters';
-import DailyCalendar, { type CalendarHistory } from '../../shared/DailyCalendar';
 import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
@@ -45,8 +44,6 @@ import {
   type DailyWordGridStats,
   type WordGridDailyProgress,
   useCountdownToMidnight,
-  saveWGDailyHistoryEntry,
-  loadWGDailyHistory,
 } from '../utils/dailyChallenge';
 import { validatePath, type Position } from '../utils/pathFinder';
 import { calculateWordScore, LONGEST_WORD_BONUS } from '../utils/scoring';
@@ -175,7 +172,6 @@ export default function GameScreen() {
   // ── Stats & achievements ──────────────────────────────────────────────────
   const [stats, setStats] = useState<WordGridStats | null>(null);
   const [dailyStats, setDailyStats] = useState<DailyWordGridStats | null>(null);
-  const [dailyHistory, setDailyHistory] = useState<CalendarHistory>({});
   const [unlockedAchievements, setUnlockedAchievements] = useState<
     (Achievement & { unlockedAt: string })[]
   >([]);
@@ -186,7 +182,6 @@ export default function GameScreen() {
     loadWordGridStats().then(setStats);
     loadDailyWordGridStats().then(setDailyStats);
     getUnlockedAchievements().then(setUnlockedAchievements);
-    loadWGDailyHistory().catch(() => ({})).then(h => setDailyHistory((h as CalendarHistory) ?? {}));
   }, []);
 
   useEffect(() => {
@@ -367,11 +362,6 @@ export default function GameScreen() {
       if (gameMode === 'daily') {
         const newDailyStats = await saveDailyWordGridResult(finalScore, finalFoundWords.length);
         setDailyStats(newDailyStats);
-        await saveWGDailyHistoryEntry({
-          dateISO: getTodayDateString(),
-          result: 'played',
-          detail: `${finalScore} pts · ${finalFoundWords.length} word${finalFoundWords.length !== 1 ? 's' : ''}`,
-        });
         resumedDailyRef.current = false;
         await clearWordGridDailyProgress();
         const text = buildWordGridDailyShareText({
@@ -633,7 +623,7 @@ export default function GameScreen() {
               contentContainerStyle={styles.resultsPageContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={[styles.resultsCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}>
+              <View style={styles.resultsCard}>
 
                 <Text style={[styles.gameOverTitle, { color: bg.textColor }]}>Time's Up!</Text>
                 <Text style={[styles.gameOverSubtitle, { color: bg.secondaryText }]}>
@@ -642,7 +632,7 @@ export default function GameScreen() {
 
                 {/* ── This Game ── */}
                 <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
-                <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>THIS GAME</Text>
+                <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>This game</Text>
                 <View style={styles.statsRow}>
                   <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
                     <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Words</Text>
@@ -670,7 +660,7 @@ export default function GameScreen() {
                 {stats && stats.gamesPlayed > 0 && (
                   <>
                     <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
-                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>YOUR STATS</Text>
+                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>Your stats</Text>
                     <View style={styles.statsRow}>
                       <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
                         <Text style={[styles.statPillLabel, { color: bg.textColor }]}>High Score</Text>
@@ -698,7 +688,7 @@ export default function GameScreen() {
                 {gameMode === 'daily' && dailyStats && (
                   <>
                     <View style={[styles.resultsDivider, { backgroundColor: bg.borderColor }]} />
-                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>DAILY STREAK</Text>
+                    <Text style={[styles.resultsSectionTitle, { color: bg.textColor }]}>Daily streak</Text>
                     <View style={styles.statsRow}>
                       <View style={[styles.statPill, { borderColor: bg.borderColor, backgroundColor: bg.backgroundColor }]}>
                         <Text style={[styles.statPillLabel, { color: bg.textColor }]}>Current</Text>
@@ -1029,21 +1019,6 @@ export default function GameScreen() {
               <Text style={[styles.loadingText, { color: bg.secondaryText }]}>Loading stats...</Text>
             )}
 
-            {/* Daily History Calendar */}
-            {Object.keys(dailyHistory).length > 0 && (
-              <>
-                <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>Daily History</Text>
-                <DailyCalendar
-                  history={dailyHistory}
-                  accentColor={COLORS.accent}
-                  textColor={bg.textColor}
-                  secondaryTextColor={bg.secondaryText}
-                  cardColor={bg.cardColor}
-                  borderColor={bg.borderColor}
-                />
-              </>
-            )}
-
             <Text style={[styles.statsTitle, { color: bg.textColor, marginTop: 25 }]}>Quick Play</Text>
 
             {stats ? (
@@ -1315,11 +1290,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: 18,
-    borderWidth: 2,
-    padding: 16,
+    padding: 8,
   },
   resultsDivider: { height: 1, marginVertical: 12, opacity: 0.35 },
-  resultsSectionTitle: { fontSize: 14, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
+  resultsSectionTitle: { fontSize: 13, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 1 },
   // Results page — Wordle/Hangman card style
   resultsPageHeader: {
     flexDirection: 'row',
