@@ -280,3 +280,42 @@ export function buildWordGridDailyShareText(params: {
   lines.push('', 'wordfury.app');
   return lines.join('\n');
 }
+
+// ── Daily History (per-day record for the calendar) ──────────────────────────
+// Mirrors the shape every other game stores so the shared DailyCalendar can
+// render it directly. Word Grid has no win/lose state — you always finish with
+// some score — so results are recorded as 'played'.
+const WORDGRID_DAILY_HISTORY_KEY = 'wordgrid_daily_history_v1';
+
+export type WordGridDailyHistoryEntry = {
+  dateISO: string;
+  result: 'won' | 'lost' | 'played';
+  detail: string; // e.g. "1,240 pts · 12 words"
+};
+export type WordGridDailyHistory = Record<string, WordGridDailyHistoryEntry>;
+
+export async function loadWordGridDailyHistory(): Promise<WordGridDailyHistory> {
+  try {
+    const raw = await AsyncStorage.getItem(WORDGRID_DAILY_HISTORY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.warn('loadWordGridDailyHistory error', e);
+    return {};
+  }
+}
+
+export async function saveWordGridDailyHistoryEntry(
+  entry: WordGridDailyHistoryEntry,
+): Promise<WordGridDailyHistory> {
+  try {
+    const history = await loadWordGridDailyHistory();
+    const updated: WordGridDailyHistory = { ...history, [entry.dateISO]: entry };
+    await AsyncStorage.setItem(WORDGRID_DAILY_HISTORY_KEY, JSON.stringify(updated));
+    return updated;
+  } catch (e) {
+    console.warn('saveWordGridDailyHistoryEntry error', e);
+    return {};
+  }
+}

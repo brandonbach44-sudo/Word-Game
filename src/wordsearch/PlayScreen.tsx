@@ -34,19 +34,18 @@ import {
   type WordSearchDailyProgress,
   type WordSearchDailyLock,
   saveWSDailyHistoryEntry,
-} from '../../src/wordsearch/utils/wsStorage';
+ WordSearchPracticeProgress } from '../../src/wordsearch/utils/wsStorage';
 import { useCountdownToMidnight, getTodayDateString } from '../../src/wordsearch/utils/storage';
 import { maybeRequestReview } from '../../src/shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../src/shared/dailyReminders';
 import { AchievementPopup } from '../../src/shared/AchievementPopup';
 import WordSearchResultOverlay, { type WordSearchResultData } from '../../src/wordsearch/components/WordSearchResultOverlay';
 
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Result data shape ─────────────────────────────────────────────────────────
 type ResultData = WordSearchResultData;
-
-import type { WordSearchPracticeProgress } from '../../src/wordsearch/utils/wsStorage';
 
 interface PlayScreenProps {
   themeId: WordSearchThemeId;

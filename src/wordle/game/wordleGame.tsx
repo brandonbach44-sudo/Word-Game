@@ -11,26 +11,15 @@ import {
   Switch,
   Text,
   View,
+  ImageBackground,
 } from "react-native";
 import { Flame, Share2, Trophy } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { DailyLockState } from "../storage/wordleStorage";
-
-import { useTheme } from "../../shared/ThemeContext";
-
-import WordleResultOverlay from "../components/wordleResultoverlay";
-import { WordleKey } from "../components/WordleKey";
-import { AchievementPopup } from "../../shared/AchievementPopup";
-import { FallingLetters } from "../../shared/FallingLetters";
-import DailyCalendar, { type CalendarHistory } from "../../shared/DailyCalendar";
-import { maybeRequestReview } from "../../shared/reviewPrompt";
-import { syncDailyReminder, maybeFlagReminderOptIn } from "../../shared/dailyReminders";
-import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
-import { LinearGradient } from "expo-linear-gradient";
-import { ImageBackground } from "react-native";
-// AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
-import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
-import { PROFANITY_BLOCKLIST } from "../../shared/profanityBlocklist";
+import type {
+  DailyLockState,
+  WordleDailyProgress,
+  WordlePrefs,
+} from "../storage/wordleStorage";
 import {
   clearDailyProgress,
   loadDailyLock,
@@ -44,10 +33,23 @@ import {
   loadPracticeProgress,
   savePracticeProgress,
   clearPracticeProgress,
-  type WordleDailyProgress,
-  type WordlePrefs,
   saveWordleDailyHistoryEntry,
 } from "../storage/wordleStorage";
+
+import { useTheme } from "../../shared/ThemeContext";
+
+import WordleResultOverlay from "../components/wordleResultoverlay";
+import { WordleKey } from "../components/WordleKey";
+import { AchievementPopup } from "../../shared/AchievementPopup";
+import { FallingLetters } from "../../shared/FallingLetters";
+import DailyCalendar, { type CalendarHistory } from "../../shared/DailyCalendar";
+import { maybeRequestReview } from "../../shared/reviewPrompt";
+import { syncDailyReminder, maybeFlagReminderOptIn } from "../../shared/dailyReminders";
+import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
+import { LinearGradient } from "expo-linear-gradient";
+// AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
+import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
+import { PROFANITY_BLOCKLIST } from "../../shared/profanityBlocklist";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 

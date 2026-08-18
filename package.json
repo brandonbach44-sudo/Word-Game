@@ -9,7 +9,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "push": "powershell -ExecutionPolicy Bypass -File ./scripts/push-to-github.ps1"
+    "push": "npm run check && git push origin main",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
+    "build:ios": "npm run check && eas build --platform ios --profile production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

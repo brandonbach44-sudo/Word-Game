@@ -1,7 +1,7 @@
 // app/hexhive/daily.tsx
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, InteractionManager, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { getDailyPuzzle, type HexHivePuzzle } from '../../src/hexhive/utils/generator';
 import { loadDailyProgress } from '../../src/hexhive/utils/storage';
@@ -13,18 +13,24 @@ export default function HexHiveDailyScreen() {
   const [initialFoundWords, setInitialFoundWords] = useState<string[] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
+  // Generate immediately on mount. InteractionManager.runAfterInteractions()
+  // does not work with Expo Router's native stack — native animations are
+  // invisible to JS, so the callback fired straight away anyway while still
+  // showing players a loading spinner. Hex Hive puzzles are curated letter
+  // sets, so generation is a lookup, not a search.
   useEffect(() => {
-    // Defer until after navigation animation to avoid blocking the JS thread
-    // with puzzle generation while AsyncStorage callbacks are queued.
-    const interaction = InteractionManager.runAfterInteractions(async () => {
+    let cancelled = false;
+    (async () => {
       const generated = getDailyPuzzle(new Date());
-      setPuzzle(generated);
       const progress = await loadDailyProgress();
+      if (cancelled) return;
+      setPuzzle(generated);
       if (progress) setInitialFoundWords(progress.foundWords);
       setLoading(false);
-    });
-
-    return () => interaction.cancel();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading || !puzzle) {

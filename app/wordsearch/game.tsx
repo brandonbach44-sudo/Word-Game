@@ -9,13 +9,12 @@ import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES } from '../../src/wordsearch/data/themes';
 import PlayScreen from '../../src/wordsearch/PlayScreen';
-import { generatePuzzle, type PlacedWord } from '../../src/wordsearch/utils/generator';
+import { generatePuzzle, type PlacedWord , WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 import { DIFFICULTY_CONFIG, type Difficulty } from '../../src/wordsearch/utils/difficultyConfig';
 import {
   loadWordSearchPracticeProgress,
   type WordSearchPracticeProgress,
 } from '../../src/wordsearch/utils/wsStorage';
-import type { WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 
 export default function WordSearchGameRoute() {
   const { background } = useTheme();

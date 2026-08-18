@@ -4,9 +4,9 @@
 // and computes the full solution set for a puzzle.
 
 import { PUZZLES, type HexHivePuzzle } from '../data/puzzles';
-export type { HexHivePuzzle };
 import { HEXHIVE_WORDS } from './dictionary';
 import { scoreWordForPuzzle } from './scoring';
+export type { HexHivePuzzle };
 
 export function dateToSeed(date: Date): number {
   const year = date.getFullYear();

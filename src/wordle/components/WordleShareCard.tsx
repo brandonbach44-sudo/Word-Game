@@ -77,6 +77,10 @@ export const WordleShareCard = React.forwardRef<View, Props>(
   }
 );
 
+// forwardRef components need an explicit displayName for React devtools
+// and to satisfy react/display-name.
+WordleShareCard.displayName = 'WordleShareCard';
+
 const styles = StyleSheet.create({
   card: {
     width: 320,

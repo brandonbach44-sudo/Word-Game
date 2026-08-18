@@ -14,8 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
-const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/ThemeContext';
 import { COLORS } from '../shared/theme';
@@ -74,6 +72,8 @@ import {
   updateStatsAfterGame,
   DEBUG_UNLOCK_ALL_HANGMAN,
 } from './utils/storage';
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
