@@ -501,17 +501,24 @@ export default function HangmanScreen() {
       return;
     }
 
-    // Direct modulo selection — consecutive days always produce a different
-    // category (cycle = number of categories, ~15 days before any repeat).
-    // Multiply seed by 8 for word selection to decouple it from the category
-    // index so the same-category days don't also repeat the same word.
-    // This replaces the previous LCG which had a 2-day repeat bug where seeds
-    // differing by 1 would collide back to the same category every 2 days.
+    // Mulberry32 PRNG — same algorithm used across all Word Fury daily modes.
+    // Statistically independent outputs for consecutive yyyymmdd seeds, so
+    // consecutive days never repeat the same category or word.
+    function mulberry32(seed: number): () => number {
+      return function (): number {
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
     const seed = dateToSeed(new Date());
+    const rand = mulberry32(seed);
     const categoryNames = Object.keys(WORD_CATEGORIES);
-    const pickedCategory = categoryNames[seed % categoryNames.length];
+    const pickedCategory = categoryNames[Math.floor(rand() * categoryNames.length)];
     const categoryWords: string[] = WORD_CATEGORIES[pickedCategory];
-    const pickedWord = categoryWords[(seed * 8) % categoryWords.length];
+    const pickedWord = categoryWords[Math.floor(rand() * categoryWords.length)];
     const dailyEntry = { word: pickedWord, category: pickedCategory };
 
     if (!dailyEntry) {
