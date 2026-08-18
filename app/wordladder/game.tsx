@@ -4,7 +4,7 @@
 
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, InteractionManager, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import { generatePracticeLadder, type LadderDifficulty, type LadderPuzzle } from '../../src/wordladder/utils/generator';
@@ -21,11 +21,14 @@ export default function WordLadderGameRoute() {
   const [savedProgress, setSavedProgress] = useState<QuickPlayProgressState | null>(null);
 
   // Defer heavy BFS puzzle generation until after navigation animation completes.
-  // Running it synchronously (via useMemo) blocks Hermes during the navigation
-  // transition and causes SIGSEGV crashes on iOS.
+  // InteractionManager.runAfterInteractions() does NOT work with Expo Router's
+  // native stack — native animations are invisible to JS's InteractionManager,
+  // so the callback fires immediately during the animation and the synchronous
+  // BFS/word-graph work on the JS thread causes a SIGSEGV crash on iOS.
+  // setTimeout(500) reliably waits past the ~300ms navigation animation.
   useEffect(() => {
     setPuzzle(null);
-    const interaction = InteractionManager.runAfterInteractions(async () => {
+    const timer = setTimeout(async () => {
       const p = await loadQuickPlayProgress();
       if (p) {
         setSavedProgress(p);
@@ -41,8 +44,8 @@ export default function WordLadderGameRoute() {
         setSavedProgress(null);
         setPuzzle(generatePracticeLadder(difficulty));
       }
-    });
-    return () => interaction.cancel();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [puzzleKey]);
 
   // On play-again, wipe the saved progress and trigger a new generation.

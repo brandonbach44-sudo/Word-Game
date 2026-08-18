@@ -3,7 +3,7 @@
 
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, InteractionManager, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { COLORS } from '../../src/shared/theme';
 import type { AnagramPuzzle } from '../../src/anagrams/utils/generator';
@@ -18,10 +18,14 @@ export default function AnagramsGameScreen() {
   const [savedProgress, setSavedProgress] = useState<PracticeProgressState | null>(null);
 
   // Defer heavy puzzle generation until after navigation animation completes.
-  // Running it synchronously during render blocks Hermes and causes SIGSEGV crashes.
+  // InteractionManager.runAfterInteractions() does NOT work with Expo Router's
+  // native stack — native animations are invisible to JS's InteractionManager,
+  // so the callback fires immediately during the animation and the synchronous
+  // BFS/word-graph work on the JS thread causes a SIGSEGV crash on iOS.
+  // setTimeout(500) reliably waits past the ~300ms navigation animation.
   useEffect(() => {
     setPuzzle(null);
-    const interaction = InteractionManager.runAfterInteractions(async () => {
+    const timer = setTimeout(async () => {
       const p = await loadPracticeProgress();
       if (p) {
         setSavedProgress(p);
@@ -30,8 +34,8 @@ export default function AnagramsGameScreen() {
         setSavedProgress(null);
         setPuzzle(generatePracticeAnagrams());
       }
-    });
-    return () => interaction.cancel();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [key]);
 
   const handlePlayAgain = () => {
