@@ -91,7 +91,7 @@ export function getRankProgress(score: number, maxScore: number): RankProgress {
 // This also means every rank below Master is actually reachable before the
 // round ends, instead of Skilled/Sharp/Great/Amazing/Genius being decorative
 // waypoints toward an unreachable 100%.
-export const WIN_TARGET_PCT = 0.15;
+export const WIN_TARGET_PCT = 0.20;
 
 export function getEffectiveMaxScore(trueMaxScore: number): number {
   return Math.max(1, Math.round(WIN_TARGET_PCT * trueMaxScore));
