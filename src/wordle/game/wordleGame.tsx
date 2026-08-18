@@ -22,6 +22,7 @@ import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
 import { AchievementPopup } from "../../shared/AchievementPopup";
 import { FallingLetters } from "../../shared/FallingLetters";
+import DailyCalendar, { type CalendarHistory } from "../../shared/DailyCalendar";
 import { maybeRequestReview } from "../../shared/reviewPrompt";
 import { syncDailyReminder, maybeFlagReminderOptIn } from "../../shared/dailyReminders";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
@@ -45,6 +46,7 @@ import {
   clearPracticeProgress,
   type WordleDailyProgress,
   type WordlePrefs,
+  saveWordleDailyHistoryEntry,
 } from "../storage/wordleStorage";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -1208,6 +1210,13 @@ export default function WordleGame() {
         try {
           await saveDailyLock(lock);
           await clearDailyProgress();
+          await saveWordleDailyHistoryEntry({
+            dateISO: lock.dateISO,
+            result: lock.result,
+            detail: lock.result === 'won'
+              ? `${lock.guessesCount}/6 guesses ★`
+              : 'X/6',
+          });
         } catch (e) {
           console.warn("Failed to save daily lock", e);
         }
@@ -2080,37 +2089,16 @@ export default function WordleGame() {
                   <StatsCard label="Letters Typed" value={`${(stats.daily.totalLettersTyped+stats.practice.totalLettersTyped).toLocaleString()}`} textColor={TEXT} secondaryText={SUBTEXT} cardColor={CARD} borderColor={BORDER} />
                 </View>
 
-                {/* 7-day calendar */}
-                {(()=>{
-                  const days=Array.from({length:7},(_,i)=>{
-                    const d=new Date(); d.setDate(d.getDate()-(6-i));
-                    const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-                    return {iso, result:(stats.dailyHistory??{})[iso], label:d.toLocaleDateString("en-US",{weekday:"narrow"}), dateNum:d.getDate()};
-                  });
-                  return (
-                    <View style={[styles.calendarCard,{backgroundColor:CARD,borderColor:BORDER}]}>
-                      <Text style={[styles.calendarTitle,{color:TEXT}]}>Last 7 Days</Text>
-                      <View style={styles.calendarRow}>
-                        {days.map(({iso,result,label,dateNum})=>{
-                          const won=result==="won";
-                          const lost=result==="lost";
-                          const attempted=won||lost;
-                          const tileBg=won?COLOR_CORRECT:lost?COLOR_LOST:"transparent";
-                          const tileTextColor=attempted?"#fff":SUBTEXT;
-                          const borderCol=won?COLOR_CORRECT_BORDER:lost?COLOR_LOST_BORDER:BORDER;
-                          return (
-                            <View key={iso} style={styles.calendarCell}>
-                              <Text style={[styles.calendarDayLabel,{color:SUBTEXT}]}>{label}</Text>
-                              <View style={[styles.calendarTile,{backgroundColor:tileBg,borderColor:borderCol}]}>
-                                <Text style={[styles.calendarDateNum,{color:tileTextColor}]}>{dateNum}</Text>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  );
-                })()}
+                {/* Monthly history calendar */}
+                <Text style={[styles.sectionTitle, { color: TEXT, marginBottom: 8 }]}>Daily History</Text>
+                <DailyCalendar
+                  history={Object.fromEntries(Object.entries(stats.dailyHistory ?? {}).map(([iso, r]) => [iso, { result: r as 'won' | 'lost' }]))}
+                  accentColor={COLOR_CORRECT}
+                  textColor={TEXT}
+                  secondaryTextColor={SUBTEXT}
+                  cardColor={CARD}
+                  borderColor={BORDER}
+                />
 
                 {/* Guess distribution chart */}
                 <GuessDistChart
