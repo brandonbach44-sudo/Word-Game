@@ -369,6 +369,16 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
     PanResponder.create({
       onStartShouldSetPanResponder: () => !gameFinishedRef.current,
       onMoveShouldSetPanResponder: () => !gameFinishedRef.current,
+      // Once the finger is down on the grid, this drag owns the gesture until
+      // it lifts. Word search selection is a long free-form pan across the
+      // whole screen, so it is the single most stealable gesture in the app:
+      // the root Stack's full-screen back gesture used to grab it right after
+      // onPanResponderGrant, which lit the first cell and then terminated the
+      // drag -- the selection appeared and instantly vanished, and the game
+      // could not be played at all. Refusing termination keeps any future
+      // parent recognizer from doing the same thing.
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
 
       onPanResponderGrant: evt => {
         // Re-measure every touch so the grid position is always fresh
