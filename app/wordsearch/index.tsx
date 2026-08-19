@@ -145,6 +145,25 @@ const WordSearchEntryScreen: React.FC = () => {
       },
       onPanResponderRelease: (_, gs) => {
         const base = dragBase.current;
+        // Linear navigation. The tab strip is a single left-to-right track and
+        // its left end is the way out of the game, so a right-swipe while
+        // already on the first tab pops back instead of dead-ending. This is
+        // what the root Stack's full-screen back gesture used to do from
+        // anywhere on screen -- which is exactly why it had to go: it swallowed
+        // these horizontal pans, so tabs became unreachable by swipe and a
+        // right-swipe deep in Stats jumped straight out of the game.
+        if (gs.dx > 25 || gs.vx > 0.3) {
+          if (base <= 0) {
+            Animated.spring(tabAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 70,
+              friction: 12,
+            }).start();
+            router.back();
+            return;
+          }
+        }
         let newIdx = Math.round(base);
         if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, TABS.length - 1);
         else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);

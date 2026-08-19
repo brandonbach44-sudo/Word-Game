@@ -107,7 +107,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>
+        {/* fullScreenGestureEnabled is deliberately OFF. It made swipe-back work from
+            anywhere on screen, but the native recognizer wins against the JS
+            PanResponders that drive every game's Play/Stats/Customize tab strip --
+            so tabs could not be swiped to at all, and a right-swipe inside Stats
+            exited the game instead of stepping back one tab. Swipe-back still works
+            from the left edge, and each game menu now pops back on a right-swipe
+            from its first tab, which keeps the whole path linear. */}
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="wordbuilder" />
