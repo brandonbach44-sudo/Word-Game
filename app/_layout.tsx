@@ -117,6 +117,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="fury" />
           <Stack.Screen name="wordbuilder" />
           <Stack.Screen name="wordle/index" />
           <Stack.Screen name="hangman/index" />

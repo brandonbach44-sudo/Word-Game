@@ -3,6 +3,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -17,9 +18,10 @@ import { useTheme } from '../src/shared/ThemeContext';
 import { ConfirmModal } from '../src/shared/ConfirmModal';
 import { COLORS } from '../src/shared/theme';
 import { consumeReminderOptInPending, requestReminderPermission, gameIdForRoute } from '../src/shared/dailyReminders';
+import { COLORBLIND_GAME_ACCENTS, GAME_ACCENTS } from '../src/shared/gameColors';
 import { refreshDailyRitual, acceptSkipOffer, declineSkipOffer, type DailyRitualSummary } from '../src/shared/dailyRitual';
 import { HapticManager } from '../src/shared/HapticManager';
-import { ShieldCheck } from 'lucide-react-native';
+import { ChevronRight, ShieldCheck } from 'lucide-react-native';
 import { useCountdownToMidnight } from '../src/wordladder/utils/ladderStorage';
 
 const GAMES = [
@@ -27,7 +29,7 @@ const GAMES = [
     name: 'Wordsmith',
     description: 'Build words from random letters before time runs out',
     route: '/wordbuilder',
-    accentColor: '#7F77DD',
+    accentColor: GAME_ACCENTS.wordsmith,
     bgColor: '#EEEDFE',
     borderColor: '#AFA9EC',
     textColor: '#3C3489',
@@ -38,7 +40,7 @@ const GAMES = [
     name: 'Furdle',
     description: 'Guess the 5-letter word in 6 tries',
     route: '/wordle',
-    accentColor: '#1D9E75',
+    accentColor: GAME_ACCENTS.furdle,
     bgColor: '#E1F5EE',
     borderColor: '#5DCAA5',
     textColor: '#085041',
@@ -49,7 +51,7 @@ const GAMES = [
     name: 'Hangman',
     description: 'Guess the word before running out of attempts',
     route: '/hangman',
-    accentColor: '#D85A30',
+    accentColor: GAME_ACCENTS.hangman,
     bgColor: '#FAECE7',
     borderColor: '#F0997B',
     textColor: '#4A1B0C',
@@ -60,7 +62,7 @@ const GAMES = [
     name: 'Word Grid',
     description: 'Swipe to connect letters and find hidden words',
     route: '/wordgrid',
-    accentColor: '#378ADD',
+    accentColor: GAME_ACCENTS.wordgrid,
     bgColor: '#E6F1FB',
     borderColor: '#85B7EB',
     textColor: '#0C447C',
@@ -71,7 +73,7 @@ const GAMES = [
     name: 'Word Search',
     description: 'Find themed words hidden in a letter grid',
     route: '/wordsearch',
-    accentColor: '#BA7517',
+    accentColor: GAME_ACCENTS.wordsearch,
     bgColor: '#FAEEDA',
     borderColor: '#EF9F27',
     textColor: '#412402',
@@ -82,7 +84,7 @@ const GAMES = [
     name: 'Word Ladder',
     description: 'Change one letter at a time to reach the target word',
     route: '/wordladder',
-    accentColor: '#7A8B4E',
+    accentColor: GAME_ACCENTS.wordladder,
     bgColor: '#EEF2E3',
     borderColor: '#A9BC7C',
     textColor: '#33401C',
@@ -94,7 +96,7 @@ const GAMES = [
     name: 'Hex Hive',
     description: 'Find words using the hexagon letters — every word needs the center letter',
     route: '/hexhive',
-    accentColor: '#D4A017',
+    accentColor: GAME_ACCENTS.hexhive,
     bgColor: '#FBF1DA',
     borderColor: '#E8C468',
     textColor: '#4A3600',
@@ -106,7 +108,7 @@ const GAMES = [
     name: 'Anagrams',
     description: 'Unscramble 5 words, easiest to hardest',
     route: '/anagrams',
-    accentColor: '#C0392B',
+    accentColor: GAME_ACCENTS.anagrams,
     bgColor: '#FBE7E4',
     borderColor: '#E8938A',
     textColor: '#5C1810',
@@ -123,14 +125,14 @@ const GAMES = [
 // rather than reusing the original hand-picked brand hues which weren't
 // chosen with that constraint in mind.
 const COLORBLIND_GAME_COLORS: Record<string, { accentColor: string; bgColor: string; borderColor: string; textColor: string; descColor: string }> = {
-  '/wordbuilder': { accentColor: '#D55E00', bgColor: '#FBEAE0', borderColor: '#E8A87C', textColor: '#4A2000', descColor: '#7A3600' }, // vermillion
-  '/wordle':      { accentColor: '#009E73', bgColor: '#DFF5EE', borderColor: '#66C9AA', textColor: '#00382A', descColor: '#00614A' }, // bluish green
-  '/hangman':     { accentColor: '#CC79A7', bgColor: '#FAE9F1', borderColor: '#E3AECB', textColor: '#4A1F35', descColor: '#7A3A5C' }, // reddish purple
-  '/wordgrid':    { accentColor: '#0072B2', bgColor: '#DFF0FA', borderColor: '#6FB3DD', textColor: '#002E4A', descColor: '#004E7A' }, // blue
-  '/wordsearch':  { accentColor: '#E69F00', bgColor: '#FCF1DC', borderColor: '#F0CA70', textColor: '#4A3200', descColor: '#7A5300' }, // orange
-  '/wordladder':  { accentColor: '#56B4E9', bgColor: '#E7F5FC', borderColor: '#A7D9F2', textColor: '#0B3A52', descColor: '#135E82' }, // sky blue
-  '/hexhive':     { accentColor: '#E1C200', bgColor: '#FBF7DC', borderColor: '#E8D670', textColor: '#4A4000', descColor: '#7A6900' }, // yellow
-  '/anagrams':    { accentColor: '#3A3A3A', bgColor: '#EDEDED', borderColor: '#A8A8A8', textColor: '#1A1A1A', descColor: '#333333' }, // near-black (grayscale is always safe)
+  '/wordbuilder': { accentColor: COLORBLIND_GAME_ACCENTS.wordsmith, bgColor: '#FBEAE0', borderColor: '#E8A87C', textColor: '#4A2000', descColor: '#7A3600' }, // vermillion
+  '/wordle':      { accentColor: COLORBLIND_GAME_ACCENTS.furdle, bgColor: '#DFF5EE', borderColor: '#66C9AA', textColor: '#00382A', descColor: '#00614A' }, // bluish green
+  '/hangman':     { accentColor: COLORBLIND_GAME_ACCENTS.hangman, bgColor: '#FAE9F1', borderColor: '#E3AECB', textColor: '#4A1F35', descColor: '#7A3A5C' }, // reddish purple
+  '/wordgrid':    { accentColor: COLORBLIND_GAME_ACCENTS.wordgrid, bgColor: '#DFF0FA', borderColor: '#6FB3DD', textColor: '#002E4A', descColor: '#004E7A' }, // blue
+  '/wordsearch':  { accentColor: COLORBLIND_GAME_ACCENTS.wordsearch, bgColor: '#FCF1DC', borderColor: '#F0CA70', textColor: '#4A3200', descColor: '#7A5300' }, // orange
+  '/wordladder':  { accentColor: COLORBLIND_GAME_ACCENTS.wordladder, bgColor: '#E7F5FC', borderColor: '#A7D9F2', textColor: '#0B3A52', descColor: '#135E82' }, // sky blue
+  '/hexhive':     { accentColor: COLORBLIND_GAME_ACCENTS.hexhive, bgColor: '#FBF7DC', borderColor: '#E8D670', textColor: '#4A4000', descColor: '#7A6900' }, // yellow
+  '/anagrams':    { accentColor: COLORBLIND_GAME_ACCENTS.anagrams, bgColor: '#EDEDED', borderColor: '#A8A8A8', textColor: '#1A1A1A', descColor: '#333333' }, // near-black (grayscale is always safe)
 };
 
 const COMING_SOON: string[] = ['Crossword'];
@@ -223,10 +225,16 @@ export default function Home() {
               5/8 at 9pm reads as an invitation rather than a scolding. The eight
               segments make what's left glanceable without counting. */}
           {ritual && (
-            <View
-              style={[
+            /* Tapping the card opens the cross-game history screen. The card
+               deliberately gains no row and no height for this -- the games are
+               the point of the home screen, so the affordance is a chevron
+               inside the card's existing padding and nothing more. */
+            <Pressable
+              onPress={() => router.push('/fury')}
+              style={({ pressed }) => [
                 styles.todayCard,
                 { backgroundColor: background.cardColor, borderColor: background.borderColor },
+                pressed && { opacity: 0.85 },
               ]}
             >
               <View style={styles.todayTopRow}>
@@ -300,7 +308,13 @@ export default function Home() {
                   ? `Play one daily to keep your ${ritual.streak}-day streak`
                   : `Resets in ${resetsIn}`}
               </Text>
-            </View>
+
+              {/* Absolutely positioned so it costs no layout height: it sits in
+                  the padding the card already had. */}
+              <View style={styles.todayChevron} pointerEvents="none">
+                <ChevronRight size={18} color={background.secondaryText} />
+              </View>
+            </Pressable>
           )}
 
           <View style={styles.grid}>
@@ -568,6 +582,9 @@ const styles = StyleSheet.create({
   todaySegments: { flexDirection: 'row', gap: 4, marginTop: 12 },
   todaySegment: { flex: 1, height: 6, borderRadius: 3 },
   todayReset: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  // Vertically centred against the reset line, inside todayCard's existing
+  // 16px horizontal padding -- adds no height to the card or the screen.
+  todayChevron: { position: 'absolute', right: 8, bottom: 12 },
 
   // ── Tile completion badge ─────────────────────────────────────────────────
   tileCheck: {

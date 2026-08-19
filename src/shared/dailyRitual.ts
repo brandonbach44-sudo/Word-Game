@@ -335,3 +335,32 @@ export async function declineSkipOffer(): Promise<RitualState> {
   await saveRitualState(next);
   return next;
 }
+
+/**
+ * Read-only snapshot for surfaces that DISPLAY the ritual without advancing it.
+ *
+ * refreshDailyRitual() is deliberately not safe to call from a second screen:
+ * it writes, and it hands out one-shot flags (shouldCelebratePerfectDay,
+ * shouldShowSkipIntro) that are cleared by being read. A history screen calling
+ * it would silently swallow the home screen's Perfect Day celebration. So this
+ * exists instead: no writes, no flags, and the same "is the run still alive"
+ * rule as the summary so the two can never disagree about the streak.
+ */
+export async function loadRitualDisplay(): Promise<{
+  streak: number;
+  bestStreak: number;
+  perfectDays: number;
+  skipsAvailable: number;
+}> {
+  const state = await loadRitualState();
+  const today = getTodayISODate();
+  const yesterday = previousISODate(today);
+  const last = state.lastCompletedDateISO;
+  const stillAlive = last === today || last === yesterday;
+  return {
+    streak: stillAlive ? state.currentStreak : 0,
+    bestStreak: state.bestStreak,
+    perfectDays: state.perfectDays,
+    skipsAvailable: state.skipsAvailable,
+  };
+}
