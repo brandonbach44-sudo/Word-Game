@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
-import { COLORS } from '../../shared/theme';
+import { getSemanticColors } from '../../shared/semanticColors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -81,11 +81,11 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   actualWord = '',
 }) => {
   const { background, colorBlindMode } = useTheme();
-  // Same orange/blue colorblind-safe pairing used everywhere else in the
-  // app instead of COLORS.accent (green) / COLORS.danger (red), which don't
-  // change for colorblind mode.
-  const wonColor = colorBlindMode ? '#f97316' : COLORS.accent;
-  const lostColor = colorBlindMode ? '#3b82f6' : COLORS.danger;
+  // Outcome colours come from the shared semantic palette: the app's accent
+  // and danger by default, orange/blue in Color Blind Mode.
+  const semantic = getSemanticColors(colorBlindMode);
+  const wonColor = semantic.outcomeWon;
+  const lostColor = semantic.outcomeLost;
 
   const availableWidth = SCREEN_WIDTH - 32; // paddingHorizontal 16 each side
 

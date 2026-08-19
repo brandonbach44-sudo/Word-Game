@@ -2,6 +2,7 @@ import React from 'react';
 import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Flame, Share2, Trophy } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
+import { getSemanticColors } from '../../shared/semanticColors';
 import { COLORS } from '../../shared/theme'; // used for accent/danger on result text
 import { buildHangmanShareText, formatDisplayDate, useCountdownToMidnight } from '../utils/dailyChallenge';
 
@@ -56,8 +57,9 @@ export const DailyChallengeCard: React.FC<Props> = ({
   const countdown = useCountdownToMidnight();
   // Same orange/blue colorblind-safe pairing used everywhere else in the
   // app instead of COLORS.accent (green) / COLORS.danger (red).
-  const wonColor = colorBlindMode ? '#f97316' : COLORS.accent;
-  const lostColor = colorBlindMode ? '#3b82f6' : COLORS.danger;
+  const semantic = getSemanticColors(colorBlindMode);
+  const wonColor = semantic.outcomeWon;
+  const lostColor = semantic.outcomeLost;
 
   const buildBlocks = () => {
     const blocks: string[] = [];

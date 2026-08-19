@@ -16,6 +16,7 @@ import { Eye, EyeOff, Share2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { useSemanticColors } from '../../shared/semanticColors';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 import { COLORS } from '../../shared/theme';
 import { DIRECTION_VECTORS, type PlacedWord } from '../utils/generator';
@@ -143,6 +144,11 @@ const WordSearchResultOverlay: React.FC<Props> = ({
   foundWordTexts,
 }) => {
   const { background } = useTheme();
+  // The answer key told "found" from "missed" with green against red — the one
+  // pairing lost under the most common forms of colour vision deficiency, on
+  // the single screen whose whole job is showing how you did. Both fills now
+  // come from the shared semantic palette, so Color Blind Mode reaches them.
+  const semantic = useSemanticColors();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const isDaily = mode === 'daily';
@@ -341,11 +347,11 @@ const WordSearchResultOverlay: React.FC<Props> = ({
                   <View style={styles.answerKeyWrap}>
                     <View style={styles.answerKeyLegend}>
                       <View style={styles.legendItem}>
-                        <View style={[styles.legendSwatch, { backgroundColor: COLORS.accent }]} />
+                        <View style={[styles.legendSwatch, { backgroundColor: semantic.correct }]} />
                         <Text style={[styles.legendText, { color: SUBTEXT }]}>Found</Text>
                       </View>
                       <View style={styles.legendItem}>
-                        <View style={[styles.legendSwatch, { backgroundColor: '#ef4444' }]} />
+                        <View style={[styles.legendSwatch, { backgroundColor: semantic.wrong }]} />
                         <Text style={[styles.legendText, { color: SUBTEXT }]}>Missed</Text>
                       </View>
                     </View>
@@ -360,11 +366,11 @@ const WordSearchResultOverlay: React.FC<Props> = ({
                       const cellColor = new Map<string, string>();
                       for (const w of puzzleWords!) {
                         if (!foundSet.has(w.word)) continue;
-                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, COLORS.accent);
+                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, semantic.correct);
                       }
                       for (const w of puzzleWords!) {
                         if (foundSet.has(w.word)) continue;
-                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, '#ef4444');
+                        for (const c of wordCells(w)) cellColor.set(`${c.row},${c.col}`, semantic.wrong);
                       }
 
                       return (

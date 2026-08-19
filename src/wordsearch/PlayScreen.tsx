@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/shared/ThemeContext';
 import { HapticManager } from '../shared/HapticManager';
 import { COLORS } from '../../src/shared/theme';
+import { useSemanticColors } from '../shared/semanticColors';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
 import type { PlacedWord, WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
 import { DIFFICULTY_CONFIG } from '../../src/wordsearch/utils/difficultyConfig';
@@ -177,6 +178,11 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
 }) => {
   const themeName = WORD_SEARCH_THEMES.find(t => t.id === themeId)?.name ?? themeId;
   const { background } = useTheme();
+  // Found cells have to use the same source as the results-screen answer key.
+  // If the grid painted found words green during play while the answer key
+  // painted them orange in Color Blind Mode, the same word would change colour
+  // between finding it and reviewing it.
+  const semantic = useSemanticColors();
   const countdown = useCountdownToMidnight();
 
   // Today's Daily was already completed — this is a "View Results" re-open,
@@ -728,13 +734,18 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                 let cellBg = background.cardColor;
                 let textColor = background.textColor;
                 if (isFound) {
-                  cellBg = COLORS.accent;
-                  textColor = '#fff';
+                  cellBg = semantic.correct;
+                  textColor = semantic.correctText;
                 } else if (isHint) {
-                  cellBg = '#facc15'; // yellow hint
+                  // Amber stands alone here rather than being told apart from
+                  // green or red, so it survives colour vision deficiency as a
+                  // luminance signal and is left as-is.
+                  cellBg = '#facc15';
                   textColor = '#000';
                 } else if (isSelected) {
-                  cellBg = COLORS.accent + '55';
+                  // Same hue as found, lower alpha: the in-progress vs found
+                  // distinction is luminance, not colour, so it holds up too.
+                  cellBg = semantic.correct + '55';
                   textColor = background.textColor;
                 }
 
@@ -745,7 +756,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                       styles.gridCell,
                       {
                         backgroundColor: cellBg,
-                        borderColor: isSelected ? COLORS.accent : isHint ? '#f59e0b' : background.borderColor,
+                        borderColor: isSelected ? semantic.correct : isHint ? '#f59e0b' : background.borderColor,
                       },
                     ]}
                   >
@@ -790,7 +801,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
                 style={[
                   styles.wordText,
                   {
-                    color: found ? COLORS.accent : background.textColor,
+                    color: found ? semantic.correct : background.textColor,
                     textDecorationLine: found ? 'line-through' : 'none',
                     opacity: found ? 0.6 : 1,
                   },

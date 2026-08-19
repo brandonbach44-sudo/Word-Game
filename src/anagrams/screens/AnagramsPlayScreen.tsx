@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { useSemanticColors } from '../../shared/semanticColors';
 import { HapticManager } from '../../shared/HapticManager';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
@@ -98,6 +99,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
   onPlayAgain,
 }) => {
   const { background } = useTheme();
+  const semantic = useSemanticColors();
   const countdown = useCountdownToMidnight();
   const alreadyLocked = mode === 'daily' && !!lockedResult;
 
@@ -836,7 +838,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
                   >
                     {w.toUpperCase()}
                   </Text>
-                  {solved ? <Check size={15} color="#22c55e" /> : <SkipForward size={15} color="#9ca3af" />}
+                  {solved ? <Check size={15} color={semantic.correct} /> : <SkipForward size={15} color="#9ca3af" />}
                 </View>
               );
             })}

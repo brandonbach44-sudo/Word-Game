@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
+import { getSemanticColors } from '../../shared/semanticColors';
 import { HapticManager } from '../../shared/HapticManager';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -46,10 +47,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({
   const themeBorder = background.borderColor;
   const isDark = background.isDark;
 
-  // Matches the orange used for "correct" everywhere else in the app when
-  // colorblind mode is on, instead of green.
-  const correctBg = colorBlindMode ? '#f97316' : '#22c55e';
-  const correctBorder = colorBlindMode ? '#ea580c' : '#16a34a';
+  // Shared with every other game via semanticColors.ts -- same values as
+  // before, one source instead of a per-file copy.
+  const semantic = getSemanticColors(colorBlindMode);
+  const correctBg = semantic.correct;
+  const correctBorder = semantic.correctBorder;
 
   // Matching Wordle's subtle colors
   const subtleBorder = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.14)';

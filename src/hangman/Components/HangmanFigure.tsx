@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Circle, G, Line } from 'react-native-svg';
 import { useTheme } from '../../shared/ThemeContext';
-import { COLORS } from '../../shared/theme';
+import { getSemanticColors } from '../../shared/semanticColors';
 import { FigureSkinId, GallowsSkinId } from '../cosmetics/types';
 import { GALLOWS_SKINS } from '../cosmetics/skins';
 
@@ -105,12 +105,12 @@ export const HangmanFigure: React.FC<HangmanFigureProps> = ({
 }) => {
   const { background, colorBlindMode } = useTheme();
 
-  // Same orange/blue colorblind-safe pairing used everywhere else in the
-  // app instead of COLORS.accent (green) / COLORS.danger (red).
+  // Outcome colours come from the shared semantic palette: the app's accent
+  // and danger by default, orange/blue in Color Blind Mode.
   const figureColor = isWon
-    ? (colorBlindMode ? '#f97316' : COLORS.accent)
+    ? getSemanticColors(colorBlindMode).outcomeWon
     : isLost
-    ? (colorBlindMode ? '#3b82f6' : COLORS.danger)
+    ? getSemanticColors(colorBlindMode).outcomeLost
     : background.textColor;
 
   const skin = GALLOWS_SKINS.find(s => s.id === gallowsSkin) ?? GALLOWS_SKINS[0];

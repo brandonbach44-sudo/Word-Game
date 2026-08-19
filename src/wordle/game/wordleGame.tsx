@@ -38,6 +38,7 @@ import {
 } from "../storage/wordleStorage";
 
 import { useTheme } from "../../shared/ThemeContext";
+import { getSemanticColors } from "../../shared/semanticColors";
 import { HapticManager } from "../../shared/HapticManager";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
@@ -527,16 +528,21 @@ export default function WordleGame() {
   const IS_DARK = background.isDark ?? false;
 
 
-  const COLOR_CORRECT       = colorBlindMode ? "#f97316" : "#22c55e";
-  const COLOR_CORRECT_BORDER = colorBlindMode ? "#ea580c" : "#16a34a";
-  const COLOR_PRESENT        = colorBlindMode ? "#60a5fa" : "#fde047";
-  const COLOR_PRESENT_BORDER = colorBlindMode ? "#3b82f6" : "#facc15";
-  const COLOR_PRESENT_TEXT   = colorBlindMode ? "#fff"    : "#1a1a1a";
+  // Values now come from src/shared/semanticColors.ts, which was seeded from
+  // exactly these numbers -- so Furdle looks identical, it just no longer owns
+  // its own copy of the mapping. Four files each carried one before, and wiring
+  // the other six games would have made ten.
+  const semantic = getSemanticColors(colorBlindMode);
+  const COLOR_CORRECT        = semantic.correct;
+  const COLOR_CORRECT_BORDER = semantic.correctBorder;
+  const COLOR_PRESENT        = semantic.present;
+  const COLOR_PRESENT_BORDER = semantic.presentBorder;
+  const COLOR_PRESENT_TEXT   = semantic.presentText;
   // Won/lost indicator used outside the tile grid (e.g. the main menu's
   // 7-day calendar strip) — same orange/blue colorblind-safe pairing as the
   // tiles above, instead of leaving the "lost" side hardcoded red.
-  const COLOR_LOST          = colorBlindMode ? "#3b82f6" : "#ef4444";
-  const COLOR_LOST_BORDER    = colorBlindMode ? "#2563eb" : "#dc2626";
+  const COLOR_LOST           = semantic.wrong;
+  const COLOR_LOST_BORDER    = semantic.wrongBorder;
 
   const [screen, setScreen] = useState<Screen>("menu");
   const [menuTab, setMenuTab] = useState<MenuTab>("play");

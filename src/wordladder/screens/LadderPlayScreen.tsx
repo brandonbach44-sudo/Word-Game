@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { useSemanticColors } from '../../shared/semanticColors';
 import { HapticManager } from '../../shared/HapticManager';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
@@ -97,6 +98,9 @@ const LadderPlayScreen: React.FC<Props> = ({
   onPlayAgain,
 }) => {
   const { background } = useTheme();
+  // The rejected-step outline is the only colour-only signal in Word Ladder,
+  // so it goes through the shared palette.
+  const semantic = useSemanticColors();
   const wordLength = puzzle.wordLength;
   const countdown = useCountdownToMidnight();
 
@@ -535,7 +539,7 @@ const LadderPlayScreen: React.FC<Props> = ({
                       width: tileSize,
                       height: tileSize,
                       backgroundColor: background.cardColor,
-                      borderColor: error ? '#e94560' : background.borderColor,
+                      borderColor: error ? semantic.wrong : background.borderColor,
                       borderWidth: 1.5,
                     },
                   ]}

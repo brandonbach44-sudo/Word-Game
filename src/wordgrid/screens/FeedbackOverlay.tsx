@@ -1,6 +1,7 @@
 // src/wordgrid/screens/FeedbackOverlay.tsx
 import React, { useEffect } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { useSemanticColors } from '../../shared/semanticColors';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 type FeedbackProps = {
@@ -11,6 +12,13 @@ type FeedbackProps = {
 };
 
 export function FeedbackOverlay({ points, success, alreadyFound, onComplete }: FeedbackProps) {
+  // These three states were told apart by hue alone, in literal CSS colour
+  // names ('green' / 'red' / 'orange') that no setting could reach. Valid vs
+  // invalid is exactly the distinction green-red loses under the most common
+  // forms of colour vision deficiency, so it goes through the shared semantic
+  // palette now. "Already found" keeps amber, which stands alone rather than
+  // being distinguished from the other two by hue.
+  const semantic = useSemanticColors();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(0);
 
@@ -32,7 +40,18 @@ export function FeedbackOverlay({ points, success, alreadyFound, onComplete }: F
 
   return (
     <Animated.View style={[styles.popup, animatedStyle]}>
-      <Text style={[styles.text, success ? styles.success : alreadyFound ? styles.duplicate : styles.fail]}>
+      <Text
+        style={[
+          styles.text,
+          {
+            color: success
+              ? semantic.correct
+              : alreadyFound
+                ? semantic.warning
+                : semantic.wrong,
+          },
+        ]}
+      >
         {success ? `+${points}` : alreadyFound ? 'Already found!' : 'Invalid!'}
       </Text>
     </Animated.View>
@@ -49,7 +68,4 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
-  success: { color: 'green' },
-  fail: { color: 'red' },
-  duplicate: { color: 'orange' },
 });

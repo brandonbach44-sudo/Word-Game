@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSemanticColors } from '../../shared/semanticColors';
 import Svg, { Polygon } from 'react-native-svg';
 import { Delete, RotateCw } from 'lucide-react-native';
 
@@ -103,6 +104,7 @@ export default function HexGrid({
   tileColor,
   borderColor,
 }: HexGridProps) {
+  const semantic = useSemanticColors();
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -117,11 +119,16 @@ export default function HexGrid({
     }
   }, [feedback, shakeAnim]);
 
+  // Valid keeps the game's own gold accent (it's branding as much as feedback);
+  // invalid goes through the shared palette so it becomes blue in Color Blind
+  // Mode. Gold against pink-red is the pairing most likely to converge under
+  // protanopia, and this is the live typing feedback -- the one place in Hex
+  // Hive where a wrong word is signalled before any text appears.
   const guessColor =
     feedback === 'valid' || feedback === 'pangram'
       ? accentColor
       : feedback === 'invalid' || feedback === 'too_short' || feedback === 'already_found'
-      ? '#e94560'
+      ? semantic.wrong
       : textColor;
 
   const feedbackMessage =

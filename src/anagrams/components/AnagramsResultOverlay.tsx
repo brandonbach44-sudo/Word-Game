@@ -9,6 +9,7 @@ import { Check, Share2, SkipForward, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { useSemanticColors } from '../../shared/semanticColors';
 import { AchievementPopup, AchievementLike } from '../../shared/AchievementPopup';
 import type { RoundResult } from '../utils/scoring';
 
@@ -113,6 +114,7 @@ const AnagramsResultOverlay: React.FC<Props> = ({
   onDismissAchievement,
 }) => {
   const { background } = useTheme();
+  const semantic = useSemanticColors();
   const insets = useSafeAreaInsets();
 
   const handleShare = async () => {
@@ -184,7 +186,7 @@ const AnagramsResultOverlay: React.FC<Props> = ({
                 <Text style={[styles.wordText, { color: TEXT }, !solved && styles.wordTextMissed]}>
                   {w.toUpperCase()}
                 </Text>
-                {solved ? <Check size={15} color="#22c55e" /> : <SkipForward size={15} color="#9ca3af" />}
+                {solved ? <Check size={15} color={semantic.correct} /> : <SkipForward size={15} color="#9ca3af" />}
               </View>
             );
           })}
