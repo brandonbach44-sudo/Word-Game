@@ -6,6 +6,7 @@
 // thresholds are much smaller than Word Builder's.
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { Lock } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -275,7 +276,7 @@ export const AnagramsCubesTab: React.FC = () => {
                     </Text>
                     {!isUnlocked && (
                       <View style={styles.lockOverlay}>
-                        <Text style={styles.lockIcon}>🔒</Text>
+                        <Lock size={18} color="#6b7280" />
                       </View>
                     )}
                     {isCurrentlyEquipped && (

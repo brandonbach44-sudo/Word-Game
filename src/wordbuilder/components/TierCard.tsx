@@ -1,4 +1,5 @@
 import React from 'react';
+import { Lock } from 'lucide-react-native';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { TierName, TIERS } from '../utils/tiers';
 import { TierProgress } from '../utils/storage';
@@ -44,7 +45,7 @@ export const TierCard = ({
       {!isUnlocked && !isDefault && (
         <View style={styles.lockedOverlay}>
           <View style={styles.lockedBadge}>
-            <Text style={styles.lockedBadgeText}>🔒 LOCKED</Text>
+            <Text style={styles.lockedBadgeText}>LOCKED</Text>
           </View>
         </View>
       )}
@@ -66,7 +67,7 @@ export const TierCard = ({
           {/* Lock icon on tile for locked tiers */}
           {!isUnlocked && !isDefault && (
             <View style={styles.tileLockOverlay}>
-              <Text style={styles.tileLockIcon}>🔒</Text>
+              <Lock size={18} color="#6b7280" />
             </View>
           )}
         </View>

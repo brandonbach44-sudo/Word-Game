@@ -27,7 +27,6 @@ export type WordSearchThemeId =
 export interface WordSearchTheme {
   id: WordSearchThemeId;
   name: string;
-  emoji: string;
   words: string[];
 }
 
@@ -35,7 +34,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'animals',
     name: 'Animals',
-    emoji: '🦁',
     words: [
       'LION', 'TIGER', 'ELEPHANT', 'GIRAFFE', 'PENGUIN',
       'DOLPHIN', 'GORILLA', 'CHEETAH', 'LEOPARD', 'KANGAROO',
@@ -54,7 +52,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'sports',
     name: 'Sports',
-    emoji: '⚽',
     words: [
       'SOCCER', 'TENNIS', 'BASEBALL', 'FOOTBALL', 'HOCKEY',
       'CRICKET', 'RUGBY', 'SWIMMING', 'CYCLING', 'BOXING',
@@ -73,7 +70,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'countries',
     name: 'Countries',
-    emoji: '🌍',
     words: [
       'FRANCE', 'BRAZIL', 'CANADA', 'JAPAN', 'GERMANY',
       'MEXICO', 'ITALY', 'EGYPT', 'INDIA', 'SPAIN',
@@ -92,7 +88,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'space',
     name: 'Space',
-    emoji: '🚀',
     words: [
       'MOON', 'MARS', 'VENUS', 'SATURN', 'JUPITER',
       'MERCURY', 'NEPTUNE', 'URANUS', 'COMET', 'ASTEROID',
@@ -111,7 +106,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'food',
     name: 'Food',
-    emoji: '🍕',
     words: [
       'PIZZA', 'BURGER', 'SUSHI', 'TACO', 'PASTA',
       'RAMEN', 'WAFFLE', 'PANCAKE', 'BURRITO', 'LASAGNA',
@@ -130,7 +124,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'music',
     name: 'Music',
-    emoji: '🎵',
     words: [
       'GUITAR', 'PIANO', 'VIOLIN', 'TRUMPET', 'DRUMS',
       'FLUTE', 'CELLO', 'CLARINET', 'TROMBONE', 'SAXOPHONE',
@@ -149,7 +142,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'ocean',
     name: 'Ocean',
-    emoji: '🌊',
     words: [
       'SHARK', 'WHALE', 'CORAL', 'JELLYFISH', 'SEAHORSE',
       'STARFISH', 'LOBSTER', 'SEAWEED', 'BARNACLE', 'PLANKTON',
@@ -168,7 +160,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'weather',
     name: 'Weather',
-    emoji: '⛈️',
     words: [
       'THUNDER', 'HURRICANE', 'TORNADO', 'BLIZZARD', 'DRIZZLE',
       'SUNSHINE', 'RAINFALL', 'SNOWFALL', 'OVERCAST', 'HUMIDITY',
@@ -187,7 +178,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'nature',
     name: 'Nature',
-    emoji: '🌲',
     words: [
       'MOUNTAIN', 'VOLCANO', 'CANYON', 'GLACIER', 'MEADOW',
       'FOREST', 'JUNGLE', 'SAVANNA', 'TUNDRA', 'DESERT',
@@ -206,7 +196,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'holidays',
     name: 'Holidays',
-    emoji: '🎉',
     words: [
       'CHRISTMAS', 'HALLOWEEN', 'EASTER', 'HANUKKAH', 'DIWALI',
       'RAMADAN', 'PASSOVER', 'CARNIVAL', 'SOLSTICE', 'BIRTHDAY',
@@ -225,7 +214,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'cities',
     name: 'World Cities',
-    emoji: '🏙️',
     words: [
       'LONDON', 'PARIS', 'TOKYO', 'BERLIN', 'SYDNEY',
       'MOSCOW', 'DUBAI', 'CAIRO', 'ATHENS', 'ROME',
@@ -244,7 +232,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'technology',
     name: 'Technology',
-    emoji: '💻',
     words: [
       'ROBOT', 'LAPTOP', 'TABLET', 'KEYBOARD', 'MONITOR',
       'SPEAKER', 'CAMERA', 'PRINTER', 'SCANNER', 'ROUTER',
@@ -263,7 +250,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'body',
     name: 'Human Body',
-    emoji: '🫀',
     words: [
       'BRAIN', 'HEART', 'LIVER', 'KIDNEY', 'STOMACH',
       'MUSCLE', 'SKELETON', 'ARTERY', 'NERVE', 'TENDON',
@@ -283,7 +269,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'movies',
     name: 'Movies',
-    emoji: '🎬',
     words: [
       'AVATAR', 'TITANIC', 'JAWS', 'ALIEN', 'GREASE',
       'ROCKY', 'PSYCHO', 'CASABLANCA', 'GLADIATOR', 'INCEPTION',
@@ -302,7 +287,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'tv_shows',
     name: 'TV Shows',
-    emoji: '📺',
     words: [
       'FRIENDS', 'SEINFELD', 'LOST', 'DEXTER', 'SUITS',
       'BILLIONS', 'SUCCESSION', 'OZARK', 'HOMELAND', 'SCRUBS',
@@ -321,7 +305,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'video_games',
     name: 'Video Games',
-    emoji: '🎮',
     words: [
       'MINECRAFT', 'FORTNITE', 'ZELDA', 'POKEMON', 'MARIO',
       'TETRIS', 'HALO', 'ROBLOX', 'OVERWATCH', 'VALORANT',
@@ -340,7 +323,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'music_artists',
     name: 'Music Artists',
-    emoji: '🎤',
     words: [
       'BEYONCE', 'ADELE', 'RIHANNA', 'DRAKE', 'EMINEM',
       'MADONNA', 'SHAKIRA', 'BOWIE', 'NIRVANA', 'METALLICA',
@@ -359,7 +341,6 @@ export const WORD_SEARCH_THEMES: WordSearchTheme[] = [
   {
     id: 'superheroes',
     name: 'Superheroes',
-    emoji: '🦸',
     words: [
       'BATMAN', 'SUPERMAN', 'SPIDERMAN', 'THOR', 'HULK',
       'WOLVERINE', 'CYCLOPS', 'DEADPOOL', 'AQUAMAN', 'FLASH',

@@ -1,6 +1,7 @@
 // app/wordladder/index.tsx
 
 import { router, useFocusEffect } from 'expo-router';
+import { AchievementIcon } from '../../src/shared/AchievementIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -166,7 +167,7 @@ export default function WordLadderEntryScreen() {
   const handleShare = async () => {
     if (!dailyLock) return;
     const result = dailyLock.result === 'won' ? `Solved in ${dailyLock.steps} steps (par ${dailyLock.par})` : `Gave up (par ${dailyLock.par})`;
-    const streakLine = (stats?.daily.currentStreak ?? 0) > 1 ? `\n🔥 ${stats?.daily.currentStreak} day streak` : '';
+    const streakLine = (stats?.daily.currentStreak ?? 0) > 1 ? `\n${stats?.daily.currentStreak} day streak` : '';
     const message = `Word Ladder Daily\n${formatDisplayDate()}\n${dailyLock.start.toUpperCase()} → ${dailyLock.end.toUpperCase()}\n${result}${streakLine}`;
     try {
       await Share.share({ message });
@@ -441,7 +442,9 @@ export default function WordLadderEntryScreen() {
               <View style={styles.achievementsGrid}>
                 {LADDER_ACHIEVEMENTS.filter((a) => unlocked.some((u) => u.id === a.id)).map((achievement) => (
                   <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <View style={styles.achievementEmoji}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
                   </View>
@@ -464,7 +467,9 @@ export default function WordLadderEntryScreen() {
                     key={achievement.id}
                     style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                   >
-                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                    <View style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
                   </View>

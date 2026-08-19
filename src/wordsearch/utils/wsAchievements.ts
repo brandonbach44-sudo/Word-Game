@@ -21,7 +21,6 @@ export type WSAchievementCategory =
 
 export interface WSAchievement {
   id: string;
-  emoji: string;
   name: string;
   description: string;
   category: WSAchievementCategory;
@@ -32,42 +31,36 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── COMPLETION MILESTONES ────────────────────────────────────────────────
   {
     id: 'ws_first_win',
-    emoji: '🎉',
     name: 'First Find',
     description: 'Complete your first Word Search puzzle',
     category: 'completion',
   },
   {
     id: 'ws_games_10',
-    emoji: '🔟',
     name: 'Getting Warmed Up',
     description: 'Play 10 Word Search puzzles',
     category: 'completion',
   },
   {
     id: 'ws_games_50',
-    emoji: '🌟',
     name: 'Word Hunter',
     description: 'Play 50 Word Search puzzles',
     category: 'completion',
   },
   {
     id: 'ws_games_100',
-    emoji: '💯',
     name: 'Centurion',
     description: 'Play 100 Word Search puzzles',
     category: 'completion',
   },
   {
     id: 'ws_games_250',
-    emoji: '🏅',
     name: 'Dedicated Searcher',
     description: 'Play 250 Word Search puzzles',
     category: 'completion',
   },
   {
     id: 'ws_games_500',
-    emoji: '⭐',
     name: 'Word Search Veteran',
     description: 'Play 500 Word Search puzzles',
     category: 'completion',
@@ -76,56 +69,48 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── DIFFICULTY BADGES ────────────────────────────────────────────────────
   {
     id: 'ws_easy_done',
-    emoji: '✅',
     name: 'Easy Does It',
     description: 'Complete an Easy puzzle with all words found',
     category: 'difficulty',
   },
   {
     id: 'ws_easy_5',
-    emoji: '🟢',
     name: 'Easy Street',
     description: 'Complete 5 Easy puzzles',
     category: 'difficulty',
   },
   {
     id: 'ws_challenge_done',
-    emoji: '🔥',
     name: 'Challenge Accepted',
     description: 'Complete a Challenge puzzle with all words found',
     category: 'difficulty',
   },
   {
     id: 'ws_challenge_5',
-    emoji: '🟡',
     name: 'Rising to It',
     description: 'Complete 5 Challenge puzzles',
     category: 'difficulty',
   },
   {
     id: 'ws_extreme_done',
-    emoji: '💀',
     name: 'Extreme Explorer',
     description: 'Complete an Extreme puzzle with all words found',
     category: 'difficulty',
   },
   {
     id: 'ws_extreme_5',
-    emoji: '🔴',
     name: 'Extreme Regular',
     description: 'Complete 5 Extreme puzzles',
     category: 'difficulty',
   },
   {
     id: 'ws_extreme_master',
-    emoji: '👑',
     name: 'Extreme Master',
     description: 'Complete 10 Extreme puzzles',
     category: 'difficulty',
   },
   {
     id: 'ws_all_three',
-    emoji: '🎖️',
     name: 'All-Rounder',
     description: 'Complete at least one puzzle on all three difficulties',
     category: 'difficulty',
@@ -134,28 +119,24 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── SPEED ACHIEVEMENTS ───────────────────────────────────────────────────
   {
     id: 'ws_speed_2min',
-    emoji: '⚡',
     name: 'Quick Finder',
     description: 'Complete any puzzle in under 2 minutes',
     category: 'speed',
   },
   {
     id: 'ws_speed_1min',
-    emoji: '🚀',
     name: 'Speed Seeker',
     description: 'Complete any puzzle in under 1 minute',
     category: 'speed',
   },
   {
     id: 'ws_speed_30sec',
-    emoji: '🌪️',
     name: 'Lightning Eyes',
     description: 'Complete any puzzle in under 30 seconds',
     category: 'speed',
   },
   {
     id: 'ws_extreme_fast',
-    emoji: '🏎️',
     name: 'Extreme Speed',
     description: 'Complete an Extreme puzzle in under 3 minutes',
     category: 'speed',
@@ -164,35 +145,30 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── WIN STREAK ───────────────────────────────────────────────────────────
   {
     id: 'ws_streak_3',
-    emoji: '🔥',
     name: 'On a Roll',
     description: 'Win 3 games in a row (all words found)',
     category: 'streak',
   },
   {
     id: 'ws_streak_7',
-    emoji: '🌊',
     name: 'Unstoppable',
     description: 'Win 7 games in a row',
     category: 'streak',
   },
   {
     id: 'ws_streak_10',
-    emoji: '💥',
     name: 'On Fire',
     description: 'Win 10 games in a row',
     category: 'streak',
   },
   {
     id: 'ws_streak_20',
-    emoji: '🧱',
     name: 'Unbreakable',
     description: 'Win 20 games in a row',
     category: 'streak',
   },
   {
     id: 'ws_streak_30',
-    emoji: '🏆',
     name: 'Legendary Run',
     description: 'Win 30 games in a row',
     category: 'streak',
@@ -201,49 +177,42 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── DAILY STREAK ─────────────────────────────────────────────────────────
   {
     id: 'ws_daily_3',
-    emoji: '📅',
     name: '3-Day Streak',
     description: 'Play the Daily Challenge 3 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_7',
-    emoji: '🗓️',
     name: 'Week Warrior',
     description: 'Play the Daily Challenge 7 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_14',
-    emoji: '📆',
     name: 'Two-Week Streak',
     description: 'Play the Daily Challenge 14 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_30',
-    emoji: '🌙',
     name: 'Monthly Regular',
     description: 'Play the Daily Challenge 30 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_60',
-    emoji: '🌕',
     name: 'Two Months Strong',
     description: 'Play the Daily Challenge 60 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_100',
-    emoji: '💯',
     name: 'Daily Devotee',
     description: 'Play the Daily Challenge 100 days in a row',
     category: 'daily',
   },
   {
     id: 'ws_daily_365',
-    emoji: '🎆',
     name: 'Year One',
     description: 'Play the Daily Challenge 365 days in a row',
     category: 'daily',
@@ -252,28 +221,24 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── DAILY PLAYED COUNT ───────────────────────────────────────────────────
   {
     id: 'ws_daily_plays_10',
-    emoji: '🎯',
     name: 'Daily Regular',
     description: 'Complete 10 Daily Challenges',
     category: 'daily',
   },
   {
     id: 'ws_daily_plays_30',
-    emoji: '🎲',
     name: 'Daily Enthusiast',
     description: 'Complete 30 Daily Challenges',
     category: 'daily',
   },
   {
     id: 'ws_daily_plays_100',
-    emoji: '🏅',
     name: 'Daily Champion',
     description: 'Complete 100 Daily Challenges',
     category: 'daily',
   },
   {
     id: 'ws_daily_plays_250',
-    emoji: '🏆',
     name: 'Daily Legend',
     description: 'Complete 250 Daily Challenges',
     category: 'daily',
@@ -282,35 +247,30 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── SINGLE-GAME SCORE MILESTONES ─────────────────────────────────────────
   {
     id: 'ws_score_500',
-    emoji: '💎',
     name: 'High Scorer',
     description: 'Score 500 or more in a single game',
     category: 'score',
   },
   {
     id: 'ws_score_1000',
-    emoji: '🏅',
     name: 'Score Legend',
     description: 'Score 1,000 or more in a single game',
     category: 'score',
   },
   {
     id: 'ws_score_1500',
-    emoji: '👑',
     name: 'Score King',
     description: 'Score 1,500 or more in a single game',
     category: 'score',
   },
   {
     id: 'ws_score_2000',
-    emoji: '🌟',
     name: 'Score God',
     description: 'Score 2,000 or more in a single game',
     category: 'score',
   },
   {
     id: 'ws_new_best',
-    emoji: '🏆',
     name: 'Personal Best',
     description: 'Set a new all-time high score',
     category: 'score',
@@ -319,77 +279,66 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── LIFETIME SCORE ───────────────────────────────────────────────────────
   {
     id: 'ws_lifetime_500',
-    emoji: '🪙',
     name: 'Copper',
     description: 'Reach 500 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_2500',
-    emoji: '🥉',
     name: 'Bronze',
     description: 'Reach 2,500 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_10000',
-    emoji: '🥈',
     name: 'Silver',
     description: 'Reach 10,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_25000',
-    emoji: '🥇',
     name: 'Gold',
     description: 'Reach 25,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_50000',
-    emoji: '❤️',
     name: 'Ruby',
     description: 'Reach 50,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_100000',
-    emoji: '💚',
     name: 'Emerald',
     description: 'Reach 100,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_250000',
-    emoji: '💠',
     name: 'Platinum',
     description: 'Reach 250,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_500000',
-    emoji: '💎',
     name: 'Diamond',
     description: 'Reach 500,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_1000000',
-    emoji: '👑',
     name: 'Legendary',
     description: 'Reach 1,000,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_2500000',
-    emoji: '✨',
     name: 'Iridescence',
     description: 'Reach 2,500,000 lifetime score',
     category: 'lifetime',
   },
   {
     id: 'ws_lifetime_5000000',
-    emoji: '🌸',
     name: 'Rose Quartz',
     description: 'Reach 5,000,000 lifetime score',
     category: 'lifetime',
@@ -398,35 +347,30 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── TOTAL WORDS FOUND ────────────────────────────────────────────────────
   {
     id: 'ws_words_50',
-    emoji: '🐣',
     name: 'First Steps',
     description: 'Find 50 words total across all games',
     category: 'words',
   },
   {
     id: 'ws_words_200',
-    emoji: '📖',
     name: 'Reader',
     description: 'Find 200 words total across all games',
     category: 'words',
   },
   {
     id: 'ws_words_500',
-    emoji: '📚',
     name: 'Bookworm',
     description: 'Find 500 words total across all games',
     category: 'words',
   },
   {
     id: 'ws_words_1000',
-    emoji: '🏛️',
     name: 'Librarian',
     description: 'Find 1,000 words total across all games',
     category: 'words',
   },
   {
     id: 'ws_words_5000',
-    emoji: '🌌',
     name: 'Archivist',
     description: 'Find 5,000 words total across all games',
     category: 'words',
@@ -435,7 +379,6 @@ export const WS_ACHIEVEMENTS: WSAchievement[] = [
   // ── SPECIAL ─────────────────────────────────────────────────────────────
   {
     id: 'ws_perfect_game',
-    emoji: '⭐',
     name: 'Flawless',
     description: 'Find every word in a puzzle without the time running out',
     category: 'special',

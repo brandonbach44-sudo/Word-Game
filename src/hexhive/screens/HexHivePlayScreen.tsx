@@ -363,7 +363,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
   const handleShareResult = async () => {
     const pangramCount = foundWords.filter((w) => solution.pangrams.includes(w)).length;
     const lines = [
-      '🐝 HEX HIVE',
+      'HEX HIVE',
       buildRankBar(rank.index),
       `Rank: ${rank.name}`,
       `${score} pts · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}${pangramCount > 0 ? ` · ${pangramCount} pangram${pangramCount === 1 ? '' : 's'}` : ''}`,
@@ -382,12 +382,12 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
     const pangramCount = foundWords.filter((w) => solution.pangrams.includes(w)).length;
     const streak = statsRef.current?.currentStreak ?? 0;
     const lines = [
-      `🐝 HEX HIVE DAILY — ${formatDisplayDate()}`,
+      `HEX HIVE DAILY — ${formatDisplayDate()}`,
       buildRankBar(rank.index),
-      `Rank: ${rank.name} ✓ Solved!`,
+      `Rank: ${rank.name} — Solved`,
       `${score} pts · ${foundWords.length} word${foundWords.length === 1 ? '' : 's'}${pangramCount > 0 ? ` · ${pangramCount} pangram${pangramCount === 1 ? '' : 's'}` : ''}`,
     ];
-    if (streak > 1) lines.push(`🔥 ${streak} day streak`);
+    if (streak > 1) lines.push(`${streak} day streak`);
     lines.push('', 'wordfury.app');
     try {
       await Share.share({ message: lines.join('\n') });
@@ -447,7 +447,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
 
       {mode === 'daily' && dailyWon ? (
         <View style={[styles.boardCard, styles.solvedCard, { borderColor: BORDER, backgroundColor: CARD }]}>
-          <Text style={[styles.title2, { color: TEXT, marginTop: 0 }]}>🐝 Solved!</Text>
+          <Text style={[styles.title2, { color: TEXT, marginTop: 0 }]}>Solved!</Text>
           <Text style={[styles.subtitle, { color: SUBTEXT }]}>
             You reached {rank.name} rank today. Come back tomorrow for a new hive.
           </Text>
@@ -603,7 +603,7 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
-            <Text style={[styles.title2, { color: TEXT }]}>Solved! 🐝</Text>
+            <Text style={[styles.title2, { color: TEXT }]}>Solved!</Text>
             <Text style={[styles.subtitle, { color: SUBTEXT }]}>
               You reached {rank.name} rank — today&apos;s hive is complete.
             </Text>

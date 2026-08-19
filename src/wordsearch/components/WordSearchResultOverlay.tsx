@@ -194,7 +194,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
     const progressBar = '🟩'.repeat(filledPips) + '⬜'.repeat(pipCount - filledPips);
     const pct = Math.round((resultData.foundWords / totalForPips) * 100);
 
-    const header = isDaily ? `🔍 WORD SEARCH DAILY — ${dateStr}` : '🔍 WORD SEARCH';
+    const header = isDaily ? `WORD SEARCH DAILY — ${dateStr}` : 'WORD SEARCH';
     const scoreLine = resultData.allFound && resultData.timeBonus > 0
       ? `Score: ${resultData.score.toLocaleString()} (+${resultData.timeBonus} time bonus${resultData.multiplier > 1 ? `, ${resultData.multiplier}× multiplier` : ''})`
       : `Score: ${resultData.score.toLocaleString()}`;
@@ -210,7 +210,7 @@ const WordSearchResultOverlay: React.FC<Props> = ({
       scoreLine,
     ];
     if (isDaily && lifetimeStats && lifetimeStats.currentStreak > 1) {
-      lines.push(`🔥 ${lifetimeStats.currentStreak} day streak`);
+      lines.push(`${lifetimeStats.currentStreak} day streak`);
     }
     lines.push('', 'wordfury.app');
 

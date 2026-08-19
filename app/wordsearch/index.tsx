@@ -1,6 +1,7 @@
 // app/wordsearch/index.tsx
 
 import { router, useFocusEffect } from 'expo-router';
+import { AchievementIcon } from '../../src/shared/AchievementIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -155,7 +156,7 @@ const WordSearchEntryScreen: React.FC = () => {
   ).current;
 
   const handleShare = async () => {
-    const result = dailyStats?.lastDailyResult === 'won' ? '✅' : '❌';
+    const result = dailyStats?.lastDailyResult === 'won' ? 'Won' : 'Lost';
     const streakLine = (dailyStats?.streak ?? 0) > 1 ? `Streak: ${dailyStats!.streak} days\n` : '';
     const message = `Word Search Daily\n${formatDisplayDate()}\n\n${result} Score: ${dailyStats?.lastDailyScore ?? 0}\n${streakLine}\nPlay Word Fury!`;
     try { await Share.share({ message }); } catch {}
@@ -226,7 +227,7 @@ const WordSearchEntryScreen: React.FC = () => {
                 <View style={styles.dailyCompletedInfo}>
                   <Text style={styles.dailyCompletedScore}>{dailyStats.lastDailyScore}</Text>
                   <Text style={[styles.dailyCompletedLabel, { color: background.secondaryText }]}>
-                    {dailyStats.lastDailyResult === 'won' ? 'All words found! 🎉' : 'Better luck tomorrow'}
+                    {dailyStats.lastDailyResult === 'won' ? 'All words found' : 'Better luck tomorrow'}
                   </Text>
                 </View>
               )}
@@ -387,7 +388,9 @@ const WordSearchEntryScreen: React.FC = () => {
               <View style={styles.achievementsGrid}>
                 {WS_ACHIEVEMENTS.filter((a) => unlockedAchievements.some((u) => u.id === a.id)).map((achievement) => (
                   <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <View style={styles.achievementEmoji}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
                   </View>
@@ -410,7 +413,9 @@ const WordSearchEntryScreen: React.FC = () => {
                     key={achievement.id}
                     style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                   >
-                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                    <View style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
                   </View>

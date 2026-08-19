@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AchievementIcon } from '../../src/shared/AchievementIcon';
 import {
   Alert,
   Dimensions,
@@ -716,7 +717,7 @@ export default function WordBuilder() {
       setFoundWords([...foundWords, word]);
       
       if (bonusApplied) {
-        setMessage(`+${points} points! 🎉 2x ALL LETTERS BONUS!`);
+        setMessage(`+${points} points — 2x ALL LETTERS BONUS!`);
         HapticManager.bonus();
       } else {
         setMessage(`+${points} points!`);
@@ -852,7 +853,7 @@ export default function WordBuilder() {
     modeLabel?: string;
   }) => {
     const { isDaily, scoreValue, wordsFound, totalPossible, percentFound, streak, bestWord, modeLabel } = params;
-    const lines: string[] = [isDaily ? `🔤 WORDSMITH DAILY — ${formatDate()}` : '🔤 WORDSMITH'];
+    const lines: string[] = [isDaily ? `WORDSMITH DAILY — ${formatDate()}` : 'WORDSMITH'];
     if (!isDaily && modeLabel) lines.push(modeLabel);
     lines.push(`Score: ${scoreValue.toLocaleString()} pts`);
     lines.push(
@@ -861,7 +862,7 @@ export default function WordBuilder() {
         : `${wordsFound} word${wordsFound === 1 ? '' : 's'}`
     );
     if (!isDaily && bestWord) lines.push(`Best word: ${bestWord.toUpperCase()}`);
-    if (isDaily && streak && streak > 1) lines.push(`🔥 ${streak} day streak`);
+    if (isDaily && streak && streak > 1) lines.push(`${streak} day streak`);
     lines.push('', 'wordfury.app');
     return lines.join('\n');
   };
@@ -1688,7 +1689,9 @@ export default function WordBuilder() {
                   key={achievement.id}
                   style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                 >
-                  <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                  <View style={styles.achievementEmoji}>
+                    <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                  </View>
                   <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
                   <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
                 </View>
@@ -1715,7 +1718,9 @@ export default function WordBuilder() {
                     key={achievement.id}
                     style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                   >
-                    <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                    <View style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
                     {progress > 0 && (

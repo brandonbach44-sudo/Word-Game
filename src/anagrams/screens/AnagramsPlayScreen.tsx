@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
+import { Check, FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { HapticManager } from '../../shared/HapticManager';
@@ -503,16 +503,16 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     const emojiRow = displayResults.map(roundEmoji).join(' ');
 
     const lines: string[] = [];
-    lines.push(isDaily ? `🔤 ANAGRAMS DAILY — ${formatDisplayDate()}` : '🔤 ANAGRAMS');
+    lines.push(isDaily ? `ANAGRAMS DAILY — ${formatDisplayDate()}` : 'ANAGRAMS');
     if (!isDaily) {
       lines.push(displayWords.map((w) => w.toUpperCase()).join(' · '));
     }
     lines.push(emojiRow);
     lines.push('');
-    lines.push(`Score: ${runTotalScore.toLocaleString()}${runPerfectBonus ? ' ⭐ Perfect Run!' : ''}`);
+    lines.push(`Score: ${runTotalScore.toLocaleString()}${runPerfectBonus ? ' Perfect Run!' : ''}`);
     lines.push(`${wordsSolvedCount}/${TOTAL_ROUNDS} solved · ${totalHints} hint${totalHints === 1 ? '' : 's'} · ${timeStr}`);
     if (isDaily && finalStreaks.current && finalStreaks.current > 1) {
-      lines.push(`🔥 ${finalStreaks.current} day streak`);
+      lines.push(`${finalStreaks.current} day streak`);
     }
     lines.push('');
     lines.push('wordfury.app');
@@ -836,7 +836,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
                   >
                     {w.toUpperCase()}
                   </Text>
-                  <Text style={styles.recapWordIcon}>{solved ? '✅' : '⏭️'}</Text>
+                  {solved ? <Check size={15} color="#22c55e" /> : <SkipForward size={15} color="#9ca3af" />}
                 </View>
               );
             })}

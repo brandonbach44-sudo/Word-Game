@@ -12,7 +12,6 @@ export type HexHiveAchievementCategory = 'milestone' | 'volume' | 'streak' | 'sk
 
 export interface Achievement {
   id: string;
-  emoji: string;
   name: string;
   description: string;
   requirement: number;
@@ -26,52 +25,52 @@ export interface UnlockedAchievement {
 
 export const HEXHIVE_ACHIEVEMENTS: Achievement[] = [
   // ── Milestone ───────────────────────────────────────────────────────
-  { id: 'hh_first_word', emoji: '✏️', name: 'First Word', description: 'Find your first word in Hex Hive', requirement: 1, category: 'milestone' },
-  { id: 'hh_first_pangram', emoji: '⭐', name: 'First Pangram', description: 'Find a word using all 7 letters', requirement: 1, category: 'milestone' },
-  { id: 'hh_first_full_clear', emoji: '🏆', name: 'First Win', description: 'Solve a daily puzzle (reach Genius rank)', requirement: 1, category: 'milestone' },
+  { id: 'hh_first_word', name: 'First Word', description: 'Find your first word in Hex Hive', requirement: 1, category: 'milestone' },
+  { id: 'hh_first_pangram', name: 'First Pangram', description: 'Find a word using all 7 letters', requirement: 1, category: 'milestone' },
+  { id: 'hh_first_full_clear', name: 'First Win', description: 'Solve a daily puzzle (reach Genius rank)', requirement: 1, category: 'milestone' },
 
   // ── Volume (lifetime, daily + Quick Play combined) ───────────────────
-  { id: 'hh_words_50', emoji: '📝', name: 'Wordsmith', description: 'Find 50 total words', requirement: 50, category: 'volume' },
-  { id: 'hh_words_250', emoji: '📚', name: 'Lexicon', description: 'Find 250 total words', requirement: 250, category: 'volume' },
-  { id: 'hh_words_1000', emoji: '🗂️', name: 'Encyclopedic', description: 'Find 1,000 total words', requirement: 1000, category: 'volume' },
-  { id: 'hh_words_2500', emoji: '📖', name: 'Bookworm', description: 'Find 2,500 total words', requirement: 2500, category: 'volume' },
-  { id: 'hh_words_5000', emoji: '🏛️', name: 'Wordsmith Legend', description: 'Find 5,000 total words', requirement: 5000, category: 'volume' },
-  { id: 'hh_pangrams_10', emoji: '🌟', name: 'Pangram Hunter', description: 'Find 10 total pangrams', requirement: 10, category: 'volume' },
-  { id: 'hh_pangrams_25', emoji: '✨', name: 'Pangram Master', description: 'Find 25 total pangrams', requirement: 25, category: 'volume' },
-  { id: 'hh_pangrams_50', emoji: '💫', name: 'Pangram Legend', description: 'Find 50 total pangrams', requirement: 50, category: 'volume' },
+  { id: 'hh_words_50', name: 'Wordsmith', description: 'Find 50 total words', requirement: 50, category: 'volume' },
+  { id: 'hh_words_250', name: 'Lexicon', description: 'Find 250 total words', requirement: 250, category: 'volume' },
+  { id: 'hh_words_1000', name: 'Encyclopedic', description: 'Find 1,000 total words', requirement: 1000, category: 'volume' },
+  { id: 'hh_words_2500', name: 'Bookworm', description: 'Find 2,500 total words', requirement: 2500, category: 'volume' },
+  { id: 'hh_words_5000', name: 'Wordsmith Legend', description: 'Find 5,000 total words', requirement: 5000, category: 'volume' },
+  { id: 'hh_pangrams_10', name: 'Pangram Hunter', description: 'Find 10 total pangrams', requirement: 10, category: 'volume' },
+  { id: 'hh_pangrams_25', name: 'Pangram Master', description: 'Find 25 total pangrams', requirement: 25, category: 'volume' },
+  { id: 'hh_pangrams_50', name: 'Pangram Legend', description: 'Find 50 total pangrams', requirement: 50, category: 'volume' },
 
   // ── Skill ───────────────────────────────────────────────────────────
-  { id: 'hh_reach_amazing', emoji: '🎯', name: 'Amazing', description: 'Reach Amazing rank in a daily puzzle', requirement: 1, category: 'skill' },
-  { id: 'hh_reach_genius', emoji: '🧠', name: 'Genius', description: 'Reach Genius rank in a daily puzzle', requirement: 1, category: 'skill' },
-  { id: 'hh_reach_master', emoji: '👑', name: 'Master', description: 'Reach Master rank in a daily puzzle', requirement: 1, category: 'skill' },
-  { id: 'hh_long_word_9', emoji: '📏', name: 'Long Haul', description: 'Find a word with 9 or more letters', requirement: 9, category: 'skill' },
-  { id: 'hh_long_word_11', emoji: '📐', name: 'Marathon Word', description: 'Find a word with 11 or more letters', requirement: 11, category: 'skill' },
-  { id: 'hh_long_word_13', emoji: '🧵', name: 'Linguist', description: 'Find a word with 13 or more letters', requirement: 13, category: 'skill' },
+  { id: 'hh_reach_amazing', name: 'Amazing', description: 'Reach Amazing rank in a daily puzzle', requirement: 1, category: 'skill' },
+  { id: 'hh_reach_genius', name: 'Genius', description: 'Reach Genius rank in a daily puzzle', requirement: 1, category: 'skill' },
+  { id: 'hh_reach_master', name: 'Master', description: 'Reach Master rank in a daily puzzle', requirement: 1, category: 'skill' },
+  { id: 'hh_long_word_9', name: 'Long Haul', description: 'Find a word with 9 or more letters', requirement: 9, category: 'skill' },
+  { id: 'hh_long_word_11', name: 'Marathon Word', description: 'Find a word with 11 or more letters', requirement: 11, category: 'skill' },
+  { id: 'hh_long_word_13', name: 'Linguist', description: 'Find a word with 13 or more letters', requirement: 13, category: 'skill' },
 
   // ── Streak ──────────────────────────────────────────────────────────
-  { id: 'hh_streak_3', emoji: '🔥', name: 'On a Roll', description: 'Reach a 3-day streak', requirement: 3, category: 'streak' },
-  { id: 'hh_streak_7', emoji: '🔥', name: 'Week Streak', description: 'Reach a 7-day streak', requirement: 7, category: 'streak' },
-  { id: 'hh_streak_30', emoji: '🏅', name: 'Monthly Regular', description: 'Reach a 30-day streak', requirement: 30, category: 'streak' },
-  { id: 'hh_streak_100', emoji: '💯', name: 'Devoted', description: 'Reach a 100-day streak', requirement: 100, category: 'streak' },
-  { id: 'hh_fullclear_streak_3', emoji: '🧹', name: 'Clean Sweep', description: 'Solve the daily puzzle 3 days in a row', requirement: 3, category: 'streak' },
-  { id: 'hh_fullclear_streak_7', emoji: '🧼', name: 'Perfectionist', description: 'Solve the daily puzzle 7 days in a row', requirement: 7, category: 'streak' },
+  { id: 'hh_streak_3', name: 'On a Roll', description: 'Reach a 3-day streak', requirement: 3, category: 'streak' },
+  { id: 'hh_streak_7', name: 'Week Streak', description: 'Reach a 7-day streak', requirement: 7, category: 'streak' },
+  { id: 'hh_streak_30', name: 'Monthly Regular', description: 'Reach a 30-day streak', requirement: 30, category: 'streak' },
+  { id: 'hh_streak_100', name: 'Devoted', description: 'Reach a 100-day streak', requirement: 100, category: 'streak' },
+  { id: 'hh_fullclear_streak_3', name: 'Clean Sweep', description: 'Solve the daily puzzle 3 days in a row', requirement: 3, category: 'streak' },
+  { id: 'hh_fullclear_streak_7', name: 'Perfectionist', description: 'Solve the daily puzzle 7 days in a row', requirement: 7, category: 'streak' },
 
   // ── Daily ───────────────────────────────────────────────────────────
-  { id: 'hh_days_10', emoji: '📅', name: 'Regular Player', description: 'Play 10 daily puzzles', requirement: 10, category: 'daily' },
-  { id: 'hh_days_50', emoji: '🗓️', name: 'Dedicated', description: 'Play 50 daily puzzles', requirement: 50, category: 'daily' },
-  { id: 'hh_days_100', emoji: '📆', name: 'Centurion', description: 'Play 100 daily puzzles', requirement: 100, category: 'daily' },
-  { id: 'hh_fullclears_10', emoji: '🎖️', name: 'Completionist', description: 'Solve 10 daily puzzles', requirement: 10, category: 'daily' },
-  { id: 'hh_fullclears_25', emoji: '🏵️', name: 'Puzzle Perfectionist', description: 'Solve 25 daily puzzles', requirement: 25, category: 'daily' },
+  { id: 'hh_days_10', name: 'Regular Player', description: 'Play 10 daily puzzles', requirement: 10, category: 'daily' },
+  { id: 'hh_days_50', name: 'Dedicated', description: 'Play 50 daily puzzles', requirement: 50, category: 'daily' },
+  { id: 'hh_days_100', name: 'Centurion', description: 'Play 100 daily puzzles', requirement: 100, category: 'daily' },
+  { id: 'hh_fullclears_10', name: 'Completionist', description: 'Solve 10 daily puzzles', requirement: 10, category: 'daily' },
+  { id: 'hh_fullclears_25', name: 'Puzzle Perfectionist', description: 'Solve 25 daily puzzles', requirement: 25, category: 'daily' },
 
   // ── Quick Play ────────────────────────────────────────────────────────
-  { id: 'hh_qp_first_round', emoji: '⚡', name: 'Quick Starter', description: 'Play your first Quick Play round', requirement: 1, category: 'practice' },
-  { id: 'hh_qp_rounds_10', emoji: '🏃', name: 'Speed Runner', description: 'Play 10 Quick Play rounds', requirement: 10, category: 'practice' },
-  { id: 'hh_qp_rounds_50', emoji: '🎽', name: 'Blitz Regular', description: 'Play 50 Quick Play rounds', requirement: 50, category: 'practice' },
-  { id: 'hh_qp_score_50', emoji: '🥉', name: 'Quick 50', description: 'Score 50+ points in a single Quick Play round', requirement: 50, category: 'practice' },
-  { id: 'hh_qp_score_100', emoji: '🥈', name: 'Quick 100', description: 'Score 100+ points in a single Quick Play round', requirement: 100, category: 'practice' },
-  { id: 'hh_qp_words_10', emoji: '💨', name: 'Rapid Fire', description: 'Find 10+ words in a single Quick Play round', requirement: 10, category: 'practice' },
-  { id: 'hh_qp_words_20', emoji: '🌪️', name: 'Lightning Round', description: 'Find 20+ words in a single Quick Play round', requirement: 20, category: 'practice' },
-  { id: 'hh_qp_pangram', emoji: '🐝', name: 'Speed Pangram', description: 'Find a pangram in Quick Play before time runs out', requirement: 1, category: 'practice' },
+  { id: 'hh_qp_first_round', name: 'Quick Starter', description: 'Play your first Quick Play round', requirement: 1, category: 'practice' },
+  { id: 'hh_qp_rounds_10', name: 'Speed Runner', description: 'Play 10 Quick Play rounds', requirement: 10, category: 'practice' },
+  { id: 'hh_qp_rounds_50', name: 'Blitz Regular', description: 'Play 50 Quick Play rounds', requirement: 50, category: 'practice' },
+  { id: 'hh_qp_score_50', name: 'Quick 50', description: 'Score 50+ points in a single Quick Play round', requirement: 50, category: 'practice' },
+  { id: 'hh_qp_score_100', name: 'Quick 100', description: 'Score 100+ points in a single Quick Play round', requirement: 100, category: 'practice' },
+  { id: 'hh_qp_words_10', name: 'Rapid Fire', description: 'Find 10+ words in a single Quick Play round', requirement: 10, category: 'practice' },
+  { id: 'hh_qp_words_20', name: 'Lightning Round', description: 'Find 20+ words in a single Quick Play round', requirement: 20, category: 'practice' },
+  { id: 'hh_qp_pangram', name: 'Speed Pangram', description: 'Find a pangram in Quick Play before time runs out', requirement: 1, category: 'practice' },
 ];
 
 async function loadUnlockedIds(): Promise<UnlockedAchievement[]> {

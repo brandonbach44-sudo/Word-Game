@@ -241,15 +241,15 @@ export function buildHangmanShareText(params: {
   const resultLine = won
     ? `✅ Won with ${incorrectCount}/${maxAttempts} wrong guess${incorrectCount === 1 ? '' : 'es'}!`
     : isDaily
-      ? '💀 Lost — better luck tomorrow!'
-      : '💀 Lost';
+      ? 'Lost — better luck tomorrow!'
+      : 'Lost';
 
-  const lines: string[] = [isDaily ? '🎯 HANGMAN DAILY' : '🎯 HANGMAN'];
+  const lines: string[] = [isDaily ? 'HANGMAN DAILY' : 'HANGMAN'];
   if (isDaily) lines.push(formatDisplayDate());
   if (category) lines.push(`Category: ${category}`);
   lines.push('', resultLine, blockRow);
   if (word) lines.push(`Word: ${word.toUpperCase()}`);
-  if (isDaily && streak && streak > 1) lines.push(`🔥 ${streak} day streak`);
+  if (isDaily && streak && streak > 1) lines.push(`${streak} day streak`);
   lines.push('', 'wordfury.app');
 
   return lines.join('\n');

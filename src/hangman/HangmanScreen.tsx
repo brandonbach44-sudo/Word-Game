@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { AchievementIcon } from '../shared/AchievementIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -1278,7 +1279,9 @@ export default function HangmanScreen() {
                         { backgroundColor: background.cardColor, borderColor: background.borderColor },
                       ]}
                     >
-                      <Text style={[styles.achievementEmoji]}>{achievement.emoji}</Text>
+                      <View style={[styles.achievementEmoji]}>
+                        <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                      </View>
                       <Text style={[styles.achievementName, { color: background.textColor }]} numberOfLines={1}>
                         {achievement.name}
                       </Text>
@@ -1315,7 +1318,9 @@ export default function HangmanScreen() {
                         { backgroundColor: background.cardColor, borderColor: background.borderColor },
                       ]}
                     >
-                      <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                      <View style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>
+                        <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                      </View>
                       <Text style={[
                         styles.achievementName,
                         { color: background.textColor },

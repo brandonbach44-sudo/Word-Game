@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Share2, X } from 'lucide-react-native';
+import { Check, Share2, SkipForward, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../shared/ThemeContext';
@@ -184,7 +184,7 @@ const AnagramsResultOverlay: React.FC<Props> = ({
                 <Text style={[styles.wordText, { color: TEXT }, !solved && styles.wordTextMissed]}>
                   {w.toUpperCase()}
                 </Text>
-                <Text style={styles.wordIcon}>{solved ? '✅' : '⏭️'}</Text>
+                {solved ? <Check size={15} color="#22c55e" /> : <SkipForward size={15} color="#9ca3af" />}
               </View>
             );
           })}

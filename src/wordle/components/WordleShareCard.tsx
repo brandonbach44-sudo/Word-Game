@@ -67,7 +67,7 @@ export const WordleShareCard = React.forwardRef<View, Props>(
 
         {/* Streak */}
         {currentStreak != null && currentStreak > 0 && (
-          <Text style={styles.streak}>🔥 {currentStreak} day streak</Text>
+          <Text style={styles.streak}>{currentStreak} day streak</Text>
         )}
 
         {/* Footer */}

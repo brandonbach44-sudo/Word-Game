@@ -1,6 +1,7 @@
 // app/hexhive/index.tsx
 
 import { router, useFocusEffect } from 'expo-router';
+import { AchievementIcon } from '../../src/shared/AchievementIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -202,7 +203,9 @@ function AchievementCard({
 
   return (
     <View style={[styles.achievementCard, { backgroundColor: cardColor, borderColor, opacity }]}>
-      <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+      <View style={styles.achievementEmoji}>
+        <AchievementIcon category={achievement.category} size={26} color={textColor} />
+      </View>
       <Text style={[styles.achievementName, { color: textColor }]}>{achievement.name}</Text>
       <Text style={[styles.achievementDesc, { color: secondaryText }]}>{achievement.description}</Text>
       {showProgress && (
@@ -309,7 +312,7 @@ export default function HexHiveEntryScreen() {
     const puzzle = getDailyPuzzle(new Date());
     const solution = getPuzzleSolution(puzzle);
     const rank = getRankProgress(dailyScore, getEffectiveMaxScore(solution.maxScore));
-    const streakLine = (stats?.currentStreak ?? 0) > 1 ? `\n🔥 ${stats?.currentStreak} day streak` : '';
+    const streakLine = (stats?.currentStreak ?? 0) > 1 ? `\n${stats?.currentStreak} day streak` : '';
     const message = `Hex Hive\n${formatDisplayDate()}\nRank: ${rank.name} (${dailyScore} pts)\n${dailyWordCount} words found${streakLine}`;
     try {
       await Share.share({ message });
@@ -380,7 +383,7 @@ export default function HexHiveEntryScreen() {
                 <View style={styles.dailyCompletedInfo}>
                   {dailyFullyCleared && (
                     <View style={styles.fullClearBadge}>
-                      <Text style={styles.fullClearBadgeText}>🐝 Solved!</Text>
+                      <Text style={styles.fullClearBadgeText}>Solved!</Text>
                     </View>
                   )}
                   <Text style={[styles.dailyCompletedScore, { color: ACCENT }]}>{dailyScore}</Text>

@@ -4,6 +4,7 @@
 // achievement-shaped object ({ emoji, name, description }) so each game's
 // own Achievement type works without adaptation.
 import React, { useEffect, useRef } from 'react';
+import { AchievementIcon } from './AchievementIcon';
 import {
   View,
   Text,
@@ -16,7 +17,8 @@ import {
 const { width } = Dimensions.get('window');
 
 export type AchievementLike = {
-  emoji: string;
+  /** Drives the icon — see AchievementIcon.tsx. */
+  category?: string;
   name: string;
   description: string;
 };
@@ -110,7 +112,9 @@ export const AchievementPopup: React.FC<AchievementPopupProps> = ({
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.emoji}>{achievement.emoji}</Text>
+          <View style={styles.iconWrap}>
+            <AchievementIcon category={achievement.category} size={26} color={textColor} />
+          </View>
           <View style={styles.textContainer}>
             <Text style={[styles.name, { color: textColor }]}>{achievement.name}</Text>
             <Text style={[styles.description, { color: textColor, opacity: 0.7 }]}>
@@ -159,8 +163,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 40,
+  iconWrap: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 15,
   },
   textContainer: {

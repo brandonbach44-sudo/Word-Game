@@ -694,7 +694,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         {comboDisplay && (
           <View style={styles.comboBadge} pointerEvents="none">
             <Text style={styles.comboBadgeText}>
-              🔥 {comboDisplay.multiplier}× COMBO!
+              {comboDisplay.multiplier}× COMBO!
             </Text>
           </View>
         )}
@@ -766,7 +766,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         {/* Hints remaining indicator (Easy only) */}
         {difficulty === 'easy' && hintsRemaining > 0 && (
           <Text style={[styles.hintsLabel, { color: background.secondaryText }]}>
-            💡 {hintsRemaining} hint{hintsRemaining !== 1 ? 's' : ''} — tap a word to reveal its start
+            {hintsRemaining} hint{hintsRemaining !== 1 ? 's' : ''} — tap a word to reveal its start
           </Text>
         )}
 

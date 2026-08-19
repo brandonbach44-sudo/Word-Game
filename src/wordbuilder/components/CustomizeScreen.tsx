@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Lock } from 'lucide-react-native';
 import {
   View,
   Text,
@@ -331,7 +332,7 @@ export const CustomizeScreen: React.FC<CustomizeScreenProps> = ({ onBack, embedd
                   </Text>
                   {!isUnlocked && (
                     <View style={styles.lockOverlay}>
-                      <Text style={styles.lockIcon}>🔒</Text>
+                      <Lock size={18} color="#6b7280" />
                     </View>
                   )}
                   {isCurrentlyEquipped && (

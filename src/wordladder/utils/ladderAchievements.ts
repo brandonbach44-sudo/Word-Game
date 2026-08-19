@@ -18,7 +18,6 @@ export type LadderAchievementCategory =
 
 export interface Achievement {
   id: string;
-  emoji: string;
   name: string;
   description: string;
   requirement: number;
@@ -32,33 +31,33 @@ export interface UnlockedAchievement {
 
 export const LADDER_ACHIEVEMENTS: Achievement[] = [
   // ── Completion ──────────────────────────────────────────────────────
-  { id: 'll_first_win', emoji: '🪜', name: 'First Rung', description: 'Complete your first Word Ladder', requirement: 1, category: 'completion' },
-  { id: 'll_games_10', emoji: '🔟', name: 'Climbing', description: 'Complete 10 Word Ladders', requirement: 10, category: 'completion' },
-  { id: 'll_games_50', emoji: '🌟', name: 'Ladder Regular', description: 'Complete 50 Word Ladders', requirement: 50, category: 'completion' },
-  { id: 'll_games_100', emoji: '💯', name: 'Centurion', description: 'Complete 100 Word Ladders', requirement: 100, category: 'completion' },
+  { id: 'll_first_win', name: 'First Rung', description: 'Complete your first Word Ladder', requirement: 1, category: 'completion' },
+  { id: 'll_games_10', name: 'Climbing', description: 'Complete 10 Word Ladders', requirement: 10, category: 'completion' },
+  { id: 'll_games_50', name: 'Ladder Regular', description: 'Complete 50 Word Ladders', requirement: 50, category: 'completion' },
+  { id: 'll_games_100', name: 'Centurion', description: 'Complete 100 Word Ladders', requirement: 100, category: 'completion' },
 
   // ── Difficulty ──────────────────────────────────────────────────────
-  { id: 'll_easy_win', emoji: '🟢', name: 'Easy Rung', description: 'Win an Easy ladder', requirement: 1, category: 'difficulty' },
-  { id: 'll_medium_win', emoji: '🟡', name: 'Medium Rung', description: 'Win a Medium ladder', requirement: 1, category: 'difficulty' },
-  { id: 'll_hard_win', emoji: '🔴', name: 'Hard Rung', description: 'Win a Hard ladder', requirement: 1, category: 'difficulty' },
-  { id: 'll_hard_10', emoji: '🧗', name: 'Summit Seeker', description: 'Win 10 Hard ladders', requirement: 10, category: 'difficulty' },
+  { id: 'll_easy_win', name: 'Easy Rung', description: 'Win an Easy ladder', requirement: 1, category: 'difficulty' },
+  { id: 'll_medium_win', name: 'Medium Rung', description: 'Win a Medium ladder', requirement: 1, category: 'difficulty' },
+  { id: 'll_hard_win', name: 'Hard Rung', description: 'Win a Hard ladder', requirement: 1, category: 'difficulty' },
+  { id: 'll_hard_10', name: 'Summit Seeker', description: 'Win 10 Hard ladders', requirement: 10, category: 'difficulty' },
 
   // ── Skill ───────────────────────────────────────────────────────────
-  { id: 'll_perfect_1', emoji: '🎯', name: 'Right on Par', description: 'Solve a ladder in exactly par steps', requirement: 1, category: 'skill' },
-  { id: 'll_perfect_10', emoji: '🏹', name: 'Precision Climber', description: 'Solve 10 ladders in exactly par steps', requirement: 10, category: 'skill' },
-  { id: 'll_no_hint_10', emoji: '🧠', name: 'Self-Made', description: 'Win 10 ladders without using a hint', requirement: 10, category: 'skill' },
+  { id: 'll_perfect_1', name: 'Right on Par', description: 'Solve a ladder in exactly par steps', requirement: 1, category: 'skill' },
+  { id: 'll_perfect_10', name: 'Precision Climber', description: 'Solve 10 ladders in exactly par steps', requirement: 10, category: 'skill' },
+  { id: 'll_no_hint_10', name: 'Self-Made', description: 'Win 10 ladders without using a hint', requirement: 10, category: 'skill' },
 
   // ── Speed ───────────────────────────────────────────────────────────
-  { id: 'll_speedy_60', emoji: '⚡', name: 'Quick Climb', description: 'Solve a ladder in under 60 seconds', requirement: 60, category: 'speed' },
-  { id: 'll_speedy_30', emoji: '🚀', name: 'Lightning Ladder', description: 'Solve a ladder in under 30 seconds', requirement: 30, category: 'speed' },
+  { id: 'll_speedy_60', name: 'Quick Climb', description: 'Solve a ladder in under 60 seconds', requirement: 60, category: 'speed' },
+  { id: 'll_speedy_30', name: 'Lightning Ladder', description: 'Solve a ladder in under 30 seconds', requirement: 30, category: 'speed' },
 
   // ── Streak (daily) ──────────────────────────────────────────────────
-  { id: 'll_streak_3', emoji: '🔥', name: 'On a Roll', description: 'Reach a 3-day Daily Ladder streak', requirement: 3, category: 'streak' },
-  { id: 'll_streak_7', emoji: '🔥', name: 'Week Streak', description: 'Reach a 7-day Daily Ladder streak', requirement: 7, category: 'streak' },
-  { id: 'll_streak_30', emoji: '🏆', name: 'Monthly Climber', description: 'Reach a 30-day Daily Ladder streak', requirement: 30, category: 'streak' },
+  { id: 'll_streak_3', name: 'On a Roll', description: 'Reach a 3-day Daily Ladder streak', requirement: 3, category: 'streak' },
+  { id: 'll_streak_7', name: 'Week Streak', description: 'Reach a 7-day Daily Ladder streak', requirement: 7, category: 'streak' },
+  { id: 'll_streak_30', name: 'Monthly Climber', description: 'Reach a 30-day Daily Ladder streak', requirement: 30, category: 'streak' },
 
   // ── Daily ───────────────────────────────────────────────────────────
-  { id: 'll_daily_10', emoji: '📅', name: 'Daily Devotee', description: 'Complete 10 Daily Ladders', requirement: 10, category: 'daily' },
+  { id: 'll_daily_10', name: 'Daily Devotee', description: 'Complete 10 Daily Ladders', requirement: 10, category: 'daily' },
 ];
 
 async function loadUnlockedIds(): Promise<UnlockedAchievement[]> {

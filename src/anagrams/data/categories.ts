@@ -29,7 +29,7 @@ export type AnagramsCategoryId = 'animals' | 'food' | 'countries' | 'space' | 'n
 export interface AnagramsCategory {
   id: AnagramsCategoryId;
   name: string;
-  emoji: string;
+  icon: string;
   words: string[]; // uppercase, 4-7 letters, deduped
 }
 
@@ -151,13 +151,13 @@ const CITIES: string[] = [
 ];
 
 export const ANAGRAMS_CATEGORIES: AnagramsCategory[] = [
-  { id: 'animals', name: 'Animals', emoji: '🦁', words: ANIMALS },
-  { id: 'food', name: 'Food', emoji: '🍕', words: FOOD },
-  { id: 'countries', name: 'Countries', emoji: '🌍', words: COUNTRIES },
-  { id: 'space', name: 'Space', emoji: '🚀', words: SPACE },
-  { id: 'nature', name: 'Nature', emoji: '⛰️', words: NATURE },
-  { id: 'sports_teams', name: 'Sports Teams', emoji: '🏆', words: SPORTS_TEAMS },
-  { id: 'cities', name: 'Cities', emoji: '🏙️', words: CITIES },
+  { id: 'animals', name: 'Animals', icon: 'PawPrint', words: ANIMALS },
+  { id: 'food', name: 'Food', icon: 'UtensilsCrossed', words: FOOD },
+  { id: 'countries', name: 'Countries', icon: 'Globe', words: COUNTRIES },
+  { id: 'space', name: 'Space', icon: 'Rocket', words: SPACE },
+  { id: 'nature', name: 'Nature', icon: 'TreePine', words: NATURE },
+  { id: 'sports_teams', name: 'Sports Teams', icon: 'Trophy', words: SPORTS_TEAMS },
+  { id: 'cities', name: 'Cities', icon: 'Building2', words: CITIES },
 ];
 
 export function getAnagramsCategory(id: AnagramsCategoryId): AnagramsCategory {

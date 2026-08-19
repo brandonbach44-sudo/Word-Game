@@ -1,5 +1,6 @@
 // src/wordgrid/screens/GameScreen.tsx
 import { router } from 'expo-router';
+import { AchievementIcon } from '../../shared/AchievementIcon';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -514,7 +515,7 @@ export default function GameScreen() {
           ? foundWords.reduce((best, w) => (w.points > best.points ? w : best), foundWords[0])
           : null;
         const lines = [
-          '🔠 WORD GRID',
+          'WORD GRID',
           `Score: ${score} pts · ${foundWords.length} word${foundWords.length !== 1 ? 's' : ''}`,
         ];
         if (topWordForShare) {
@@ -1090,7 +1091,9 @@ export default function GameScreen() {
                     key={achievement.id}
                     style={[styles.achievementCard, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
                   >
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <View style={styles.achievementEmoji}>
+                      <AchievementIcon category={achievement.category} size={26} color={bg.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, { color: bg.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: bg.secondaryText }]}>{achievement.description}</Text>
                   </View>
@@ -1115,7 +1118,9 @@ export default function GameScreen() {
                     key={achievement.id}
                     style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: bg.cardColor, borderColor: bg.borderColor }]}
                   >
-                    <Text style={[styles.achievementEmoji, { opacity: 0.5 }]}>{achievement.emoji}</Text>
+                    <View style={[styles.achievementEmoji, { opacity: 0.5 }]}>
+                      <AchievementIcon category={achievement.category} size={26} color={bg.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, { color: bg.textColor, opacity: 0.5 }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: bg.secondaryText, opacity: 0.5 }]}>{achievement.description}</Text>
                     {achievement.progress > 0 && (

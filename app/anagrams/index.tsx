@@ -1,6 +1,7 @@
 // app/anagrams/index.tsx
 
 import { router, useFocusEffect } from 'expo-router';
+import { AchievementIcon } from '../../src/shared/AchievementIcon';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -165,7 +166,7 @@ export default function AnagramsEntryScreen() {
     const result = dailyLock.won
       ? `Solved all 5 words — Score ${dailyLock.totalScore}${dailyLock.perfectBonusApplied ? ' (Perfect Run!)' : ''}`
       : `Score ${dailyLock.totalScore}`;
-    const streakLine = (stats?.daily.currentStreak ?? 0) > 1 ? `\n🔥 ${stats?.daily.currentStreak} day streak` : '';
+    const streakLine = (stats?.daily.currentStreak ?? 0) > 1 ? `\n${stats?.daily.currentStreak} day streak` : '';
     const message = `Anagrams Daily\n${formatDisplayDate()}\n${result}${streakLine}`;
     try {
       await Share.share({ message });
@@ -445,7 +446,9 @@ export default function AnagramsEntryScreen() {
               <View style={styles.achievementsGrid}>
                 {ANAGRAMS_ACHIEVEMENTS.filter((a) => unlocked.some((u) => u.id === a.id)).map((achievement) => (
                   <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-                    <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+                    <View style={styles.achievementEmoji}>
+                      <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                    </View>
                     <Text style={[styles.achievementName, { color: background.textColor }]}>{achievement.name}</Text>
                     <Text style={[styles.achievementDesc, { color: background.secondaryText }]}>{achievement.description}</Text>
                   </View>
@@ -471,7 +474,9 @@ export default function AnagramsEntryScreen() {
                       key={achievement.id}
                       style={[styles.achievementCard, styles.achievementCardLocked, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}
                     >
-                      <Text style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>{achievement.emoji}</Text>
+                      <View style={[styles.achievementEmoji, styles.achievementEmojiLocked]}>
+                        <AchievementIcon category={achievement.category} size={26} color={background.textColor} />
+                      </View>
                       <Text style={[styles.achievementName, styles.achievementTextLocked, { color: background.textColor }]}>{achievement.name}</Text>
                       <Text style={[styles.achievementDesc, styles.achievementTextLocked, { color: background.secondaryText }]}>{achievement.description}</Text>
                       {showProgress && (

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Lock } from 'lucide-react-native';
 import { 
   View, 
   Text, 
@@ -145,7 +146,7 @@ export const TierPreviewPanel = ({
             <View style={styles.tierInfo}>
               {!isTierUnlocked && (
                 <View style={styles.lockedBadge}>
-                  <Text style={styles.lockedBadgeText}>🔒 LOCKED</Text>
+                  <Text style={styles.lockedBadgeText}>LOCKED</Text>
                 </View>
               )}
             </View>
@@ -156,7 +157,7 @@ export const TierPreviewPanel = ({
                 {/* Dark overlay for locked tiles */}
                 {!selectedProgress.isUnlocked && (
                   <View style={styles.lockedOverlay} pointerEvents="none">
-                    <Text style={styles.lockedIcon}>🔒</Text>
+                    <Lock size={22} color="#6b7280" />
                   </View>
                 )}
                 <GameTile
@@ -230,7 +231,7 @@ export const TierPreviewPanel = ({
                         <View style={styles.thumbnailTileWrapper} pointerEvents="none">
                           {!variantProgress.isUnlocked && (
                             <View style={styles.thumbnailLockedOverlay} pointerEvents="none">
-                              <Text style={styles.thumbnailLockIcon}>🔒</Text>
+                              <Lock size={14} color="#6b7280" />
                             </View>
                           )}
                           <GameTile
@@ -316,7 +317,7 @@ export const TierPreviewPanel = ({
                   ? '✓ Equipped' 
                   : canEquipSelected 
                     ? tierName === 'default' ? 'Equip This Style' : 'Equip This Variant'
-                    : '🔒 Locked'}
+                    : 'Locked'}
               </Text>
             </TouchableOpacity>
           </ScrollView>

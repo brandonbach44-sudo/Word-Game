@@ -5,53 +5,54 @@ const ACHIEVEMENTS_KEY = 'wordgrid_achievements';
 
 export interface Achievement {
   id: string;
-  emoji: string;
+  /** Drives the icon — see src/shared/AchievementIcon.tsx. */
+  category: string;
   name: string;
   description: string;
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
   // Games played
-  { id: 'games_1',   emoji: '👋', name: 'First Swipe',      description: 'Play your first Word Grid game' },
-  { id: 'games_10',  emoji: '🎮', name: 'Getting Hooked',   description: 'Play 10 games' },
-  { id: 'games_50',  emoji: '🕹️', name: 'Grid Grinder',     description: 'Play 50 games' },
-  { id: 'games_100', emoji: '🎯', name: 'Dedicated',        description: 'Play 100 games' },
-  { id: 'games_250', emoji: '🏅', name: 'Veteran',          description: 'Play 250 games' },
-  { id: 'games_500', emoji: '⭐', name: 'Grid Master',      description: 'Play 500 games' },
+  { id: 'games_1', category: 'games_played', name: 'First Swipe',      description: 'Play your first Word Grid game' },
+  { id: 'games_10', category: 'games_played', name: 'Getting Hooked',   description: 'Play 10 games' },
+  { id: 'games_50', category: 'games_played', name: 'Grid Grinder',     description: 'Play 50 games' },
+  { id: 'games_100', category: 'games_played', name: 'Dedicated',        description: 'Play 100 games' },
+  { id: 'games_250', category: 'games_played', name: 'Veteran',          description: 'Play 250 games' },
+  { id: 'games_500', category: 'games_played', name: 'Grid Master',      description: 'Play 500 games' },
 
   // Single-game score milestones
-  { id: 'score_500',   emoji: '🌱', name: 'Warming Up',   description: 'Score 500+ in one game' },
-  { id: 'score_1000',  emoji: '🔥', name: 'On Fire',      description: 'Score 1,000+ in one game' },
-  { id: 'score_2000',  emoji: '💯', name: 'Century Club', description: 'Score 2,000+ in one game' },
-  { id: 'score_4000',  emoji: '🌟', name: 'Rising Star',  description: 'Score 4,000+ in one game' },
-  { id: 'score_6000',  emoji: '👑', name: 'Word King',    description: 'Score 6,000+ in one game' },
-  { id: 'score_10000', emoji: '💎', name: 'Diamond Mind', description: 'Score 10,000+ in one game' },
+  { id: 'score_500', category: 'score_milestone', name: 'Warming Up',   description: 'Score 500+ in one game' },
+  { id: 'score_1000', category: 'score_milestone', name: 'On Fire',      description: 'Score 1,000+ in one game' },
+  { id: 'score_2000', category: 'score_milestone', name: 'Century Club', description: 'Score 2,000+ in one game' },
+  { id: 'score_4000', category: 'score_milestone', name: 'Rising Star',  description: 'Score 4,000+ in one game' },
+  { id: 'score_6000', category: 'score_milestone', name: 'Word King',    description: 'Score 6,000+ in one game' },
+  { id: 'score_10000', category: 'score_milestone', name: 'Diamond Mind', description: 'Score 10,000+ in one game' },
 
   // Words per game milestones
-  { id: 'wpg_5',  emoji: '📝', name: 'Word Scout',   description: 'Find 5+ words in one game' },
-  { id: 'wpg_10', emoji: '🔍', name: 'Word Hunter',  description: 'Find 10+ words in one game' },
-  { id: 'wpg_15', emoji: '🦅', name: 'Eagle Eye',    description: 'Find 15+ words in one game' },
-  { id: 'wpg_20', emoji: '🐙', name: 'Octopus',      description: 'Find 20+ words in one game' },
-  { id: 'wpg_25', emoji: '🧠', name: 'Grid Genius',  description: 'Find 25+ words in one game' },
+  { id: 'wpg_5', category: 'words_per_game', name: 'Word Scout',   description: 'Find 5+ words in one game' },
+  { id: 'wpg_10', category: 'words_per_game', name: 'Word Hunter',  description: 'Find 10+ words in one game' },
+  { id: 'wpg_15', category: 'words_per_game', name: 'Eagle Eye',    description: 'Find 15+ words in one game' },
+  { id: 'wpg_20', category: 'words_per_game', name: 'Octopus',      description: 'Find 20+ words in one game' },
+  { id: 'wpg_25', category: 'words_per_game', name: 'Grid Genius',  description: 'Find 25+ words in one game' },
 
   // Word length milestones (single word in any game)
-  { id: 'word_5', emoji: '📚', name: 'Wordsmith',    description: 'Find a 5-letter word' },
-  { id: 'word_6', emoji: '🎓', name: 'Scholar',      description: 'Find a 6-letter word' },
-  { id: 'word_7', emoji: '🔬', name: 'Linguist',     description: 'Find a 7-letter word' },
-  { id: 'word_8', emoji: '🏆', name: 'Lexicographer', description: 'Find an 8+ letter word' },
+  { id: 'word_5', category: 'word_length', name: 'Wordsmith',    description: 'Find a 5-letter word' },
+  { id: 'word_6', category: 'word_length', name: 'Scholar',      description: 'Find a 6-letter word' },
+  { id: 'word_7', category: 'word_length', name: 'Linguist',     description: 'Find a 7-letter word' },
+  { id: 'word_8', category: 'word_length', name: 'Lexicographer', description: 'Find an 8+ letter word' },
 
   // Lifetime words found
-  { id: 'total_words_50',   emoji: '🐣', name: 'Hatchling',  description: 'Find 50 total words' },
-  { id: 'total_words_250',  emoji: '📖', name: 'Reader',     description: 'Find 250 total words' },
-  { id: 'total_words_1000', emoji: '📚', name: 'Librarian',  description: 'Find 1,000 total words' },
-  { id: 'total_words_5000', emoji: '🏛️', name: 'Archivist',  description: 'Find 5,000 total words' },
+  { id: 'total_words_50', category: 'words_found', name: 'Hatchling',  description: 'Find 50 total words' },
+  { id: 'total_words_250', category: 'words_found', name: 'Reader',     description: 'Find 250 total words' },
+  { id: 'total_words_1000', category: 'words_found', name: 'Librarian',  description: 'Find 1,000 total words' },
+  { id: 'total_words_5000', category: 'words_found', name: 'Archivist',  description: 'Find 5,000 total words' },
 
   // Lifetime score milestones
-  { id: 'lifetime_10000',   emoji: '🪙',  name: 'Copper',    description: 'Reach 10,000 lifetime score' },
-  { id: 'lifetime_50000',   emoji: '🥉',  name: 'Bronze',    description: 'Reach 50,000 lifetime score' },
-  { id: 'lifetime_100000',  emoji: '🥈',  name: 'Silver',    description: 'Reach 100,000 lifetime score' },
-  { id: 'lifetime_500000',  emoji: '🥇',  name: 'Gold',      description: 'Reach 500,000 lifetime score' },
-  { id: 'lifetime_1000000', emoji: '💎',  name: 'Diamond',   description: 'Reach 1,000,000 lifetime score' },
+  { id: 'lifetime_10000', category: 'lifetime_score',  name: 'Copper',    description: 'Reach 10,000 lifetime score' },
+  { id: 'lifetime_50000', category: 'lifetime_score',  name: 'Bronze',    description: 'Reach 50,000 lifetime score' },
+  { id: 'lifetime_100000', category: 'lifetime_score',  name: 'Silver',    description: 'Reach 100,000 lifetime score' },
+  { id: 'lifetime_500000', category: 'lifetime_score',  name: 'Gold',      description: 'Reach 500,000 lifetime score' },
+  { id: 'lifetime_1000000', category: 'lifetime_score',  name: 'Diamond',   description: 'Reach 1,000,000 lifetime score' },
 ];
 
 // ── Storage ────────────────────────────────────────────────

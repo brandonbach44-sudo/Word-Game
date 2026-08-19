@@ -5,12 +5,25 @@
 // confirmation step.
 
 import { router } from 'expo-router';
+import { Building2, Globe, PawPrint, Rocket, Star, TreePine, Trophy, UtensilsCrossed } from 'lucide-react-native';
 import React from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../src/shared/ThemeContext';
 import { ANAGRAMS_CATEGORIES } from '../../src/anagrams/data/categories';
+
+// Category icons, keyed by the `icon` name in the category data. Explicit map
+// rather than a dynamic lookup so a bad name can never resolve to undefined.
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  PawPrint,
+  UtensilsCrossed,
+  Globe,
+  Rocket,
+  TreePine,
+  Trophy,
+  Building2,
+};
 
 export default function AnagramsCategoriesScreen() {
   const { background } = useTheme();
@@ -42,7 +55,12 @@ export default function AnagramsCategoriesScreen() {
               onPress={() => router.push({ pathname: '/anagrams/category-game', params: { category: category.id } })}
               activeOpacity={0.8}
             >
-              <Text style={styles.cardEmoji}>{category.emoji}</Text>
+              <View style={styles.cardIcon}>
+                {(() => {
+                  const Icon = CATEGORY_ICONS[category.icon] ?? Star;
+                  return <Icon size={26} color={background.textColor} />;
+                })()}
+              </View>
               <Text style={[styles.cardName, { color: background.textColor }]}>{category.name}</Text>
             </TouchableOpacity>
           ))}
@@ -84,6 +102,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 110,
   },
-  cardEmoji: { fontSize: 32, marginBottom: 8 },
+  cardIcon: { height: 30, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   cardName: { fontSize: 16, fontWeight: 'bold' },
 });

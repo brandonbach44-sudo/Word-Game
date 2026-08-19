@@ -271,12 +271,12 @@ export function buildWordGridDailyShareText(params: {
   const { score, wordsCount, streak, dateStr = formatDisplayDate() } = params;
   const blocks = buildScoreBlocks(score);
   const lines: string[] = [
-    `🔠 WORD GRID DAILY — ${dateStr}`,
+    `WORD GRID DAILY — ${dateStr}`,
     blocks,
     '',
     `Score: ${score} pts · ${wordsCount} word${wordsCount === 1 ? '' : 's'}`,
   ];
-  if (streak > 1) lines.push(`🔥 ${streak} day streak`);
+  if (streak > 1) lines.push(`${streak} day streak`);
   lines.push('', 'wordfury.app');
   return lines.join('\n');
 }

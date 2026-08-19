@@ -420,7 +420,7 @@ const LadderPlayScreen: React.FC<Props> = ({
   const shareTimeSeconds = alreadyLocked && lockedResult ? lockedResult.timeSeconds : elapsed;
 
   const shareText = useMemo(() => {
-    const header = mode === 'daily' ? `🪜 WORD LADDER DAILY — ${formatDisplayDate()}` : '🪜 WORD LADDER';
+    const header = mode === 'daily' ? `WORD LADDER DAILY — ${formatDisplayDate()}` : 'WORD LADDER';
     const climbLine = displayChain.map((w) => w.toUpperCase()).join(' → ');
     const minutes = Math.floor(shareTimeSeconds / 60);
     const seconds = shareTimeSeconds % 60;
@@ -435,7 +435,7 @@ const LadderPlayScreen: React.FC<Props> = ({
 
     const lines: string[] = [header, climbLine, '', resultLine, statsLine];
     if (mode === 'daily' && finalStreaks.current && finalStreaks.current > 1) {
-      lines.push(`🔥 ${finalStreaks.current} day streak`);
+      lines.push(`${finalStreaks.current} day streak`);
     }
     lines.push('', 'wordfury.app');
 

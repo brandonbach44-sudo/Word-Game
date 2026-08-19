@@ -14,7 +14,6 @@ export type AnagramsAchievementCategory = 'completion' | 'skill' | 'speed' | 'st
 
 export interface Achievement {
   id: string;
-  emoji: string;
   name: string;
   description: string;
   requirement: number;
@@ -30,20 +29,6 @@ export interface UnlockedAchievement {
 // which don't have an unlock achievement since there's nothing to earn.
 const EARNABLE_CUBE_TIERS = ANAGRAMS_TIER_ORDER.filter((t) => t !== 'default' && t !== 'classic');
 
-const CUBE_TIER_EMOJI: Partial<Record<TierName, string>> = {
-  copper: '🪙',
-  bronze: '🥉',
-  silver: '🥈',
-  gold: '🥇',
-  platinum: '💠',
-  ruby: '❤️',
-  emerald: '💚',
-  diamond: '💎',
-  legendary: '🌈',
-  iridescence: '🔮',
-  rose_quartz: '🌸',
-};
-
 /**
  * One achievement per unlockable cube tier — id, name, and (crucially)
  * `requirement` are all derived directly from anagramsTiers.ts, so an
@@ -54,7 +39,6 @@ const CUBE_TIER_ACHIEVEMENTS: Achievement[] = EARNABLE_CUBE_TIERS.map((tierName)
   const tier = ANAGRAMS_TIERS[tierName]!;
   return {
     id: `ag_cube_${tierName}`,
-    emoji: CUBE_TIER_EMOJI[tierName] ?? '🧊',
     name: `${tier.displayName} Cube`,
     description: `Unlock the ${tier.displayName} cube — ${tier.baseThreshold.toLocaleString()} Daily Anagrams lifetime score`,
     requirement: tier.baseThreshold,
@@ -64,25 +48,25 @@ const CUBE_TIER_ACHIEVEMENTS: Achievement[] = EARNABLE_CUBE_TIERS.map((tierName)
 
 export const ANAGRAMS_ACHIEVEMENTS: Achievement[] = [
   // ── Completion (volume) ────────────────────────────────────────────
-  { id: 'ag_first_win', emoji: '🔤', name: 'Unscrambled', description: 'Solve all 5 words in a run', requirement: 1, category: 'completion' },
-  { id: 'ag_games_10', emoji: '🔟', name: 'Word Wrangler', description: 'Complete 10 Anagrams runs', requirement: 10, category: 'completion' },
-  { id: 'ag_games_50', emoji: '🌟', name: 'Anagram Regular', description: 'Complete 50 Anagrams runs', requirement: 50, category: 'completion' },
-  { id: 'ag_games_100', emoji: '🎮', name: 'Century Club', description: 'Complete 100 Anagrams runs', requirement: 100, category: 'completion' },
-  { id: 'ag_words_100', emoji: '📚', name: 'Century of Words', description: 'Solve 100 total words', requirement: 100, category: 'completion' },
-  { id: 'ag_words_500', emoji: '📖', name: 'Bookworm', description: 'Solve 500 total words', requirement: 500, category: 'completion' },
+  { id: 'ag_first_win', name: 'Unscrambled', description: 'Solve all 5 words in a run', requirement: 1, category: 'completion' },
+  { id: 'ag_games_10', name: 'Word Wrangler', description: 'Complete 10 Anagrams runs', requirement: 10, category: 'completion' },
+  { id: 'ag_games_50', name: 'Anagram Regular', description: 'Complete 50 Anagrams runs', requirement: 50, category: 'completion' },
+  { id: 'ag_games_100', name: 'Century Club', description: 'Complete 100 Anagrams runs', requirement: 100, category: 'completion' },
+  { id: 'ag_words_100', name: 'Century of Words', description: 'Solve 100 total words', requirement: 100, category: 'completion' },
+  { id: 'ag_words_500', name: 'Bookworm', description: 'Solve 500 total words', requirement: 500, category: 'completion' },
 
   // ── Skill ───────────────────────────────────────────────────────────
-  { id: 'ag_perfect_1', emoji: '🎯', name: 'Perfect Run', description: 'Solve all 5 words with zero hints', requirement: 1, category: 'skill' },
-  { id: 'ag_perfect_10', emoji: '🏹', name: 'Sharp Mind', description: 'Complete 10 Perfect Runs', requirement: 10, category: 'skill' },
-  { id: 'ag_perfect_25', emoji: '🧙', name: 'Grandmaster', description: 'Complete 25 Perfect Runs', requirement: 25, category: 'skill' },
-  { id: 'ag_no_skip_25', emoji: '🧠', name: 'No Word Left Behind', description: 'Solve 25 words in a row without skipping', requirement: 25, category: 'skill' },
-  { id: 'ag_no_skip_100', emoji: '🛡️', name: 'Untouchable', description: 'Solve 100 words in a row without skipping', requirement: 100, category: 'skill' },
+  { id: 'ag_perfect_1', name: 'Perfect Run', description: 'Solve all 5 words with zero hints', requirement: 1, category: 'skill' },
+  { id: 'ag_perfect_10', name: 'Sharp Mind', description: 'Complete 10 Perfect Runs', requirement: 10, category: 'skill' },
+  { id: 'ag_perfect_25', name: 'Grandmaster', description: 'Complete 25 Perfect Runs', requirement: 25, category: 'skill' },
+  { id: 'ag_no_skip_25', name: 'No Word Left Behind', description: 'Solve 25 words in a row without skipping', requirement: 25, category: 'skill' },
+  { id: 'ag_no_skip_100', name: 'Untouchable', description: 'Solve 100 words in a row without skipping', requirement: 100, category: 'skill' },
 
   // ── Single-run score milestones ────────────────────────────────────
-  { id: 'ag_score_2500', emoji: '🌱', name: 'Nice Start', description: 'Score 2,500+ points in a single run', requirement: 2500, category: 'skill' },
-  { id: 'ag_score_5000', emoji: '🔥', name: 'On Fire', description: 'Score 5,000+ points in a single run', requirement: 5000, category: 'skill' },
-  { id: 'ag_score_7000', emoji: '💯', name: 'High Scorer', description: 'Score 7,000+ points in a single run', requirement: 7000, category: 'skill' },
-  { id: 'ag_score_8500', emoji: '💎', name: 'Word Wizard', description: 'Score 8,500+ points in a single run', requirement: 8500, category: 'skill' },
+  { id: 'ag_score_2500', name: 'Nice Start', description: 'Score 2,500+ points in a single run', requirement: 2500, category: 'skill' },
+  { id: 'ag_score_5000', name: 'On Fire', description: 'Score 5,000+ points in a single run', requirement: 5000, category: 'skill' },
+  { id: 'ag_score_7000', name: 'High Scorer', description: 'Score 7,000+ points in a single run', requirement: 7000, category: 'skill' },
+  { id: 'ag_score_8500', name: 'Word Wizard', description: 'Score 8,500+ points in a single run', requirement: 8500, category: 'skill' },
 
   // ── Cube tier unlocks — one achievement per unlockable cube, generated
   // from anagramsTiers.ts so the threshold always matches the actual cube
@@ -91,31 +75,31 @@ export const ANAGRAMS_ACHIEVEMENTS: Achievement[] = [
   ...CUBE_TIER_ACHIEVEMENTS,
 
   // ── Playtime ────────────────────────────────────────────────────────
-  { id: 'ag_playtime_1hr', emoji: '⏳', name: 'Time Well Spent', description: 'Play Anagrams for a cumulative 1 hour', requirement: 3600, category: 'lifetime' },
+  { id: 'ag_playtime_1hr', name: 'Time Well Spent', description: 'Play Anagrams for a cumulative 1 hour', requirement: 3600, category: 'lifetime' },
 
   // ── Speed ───────────────────────────────────────────────────────────
-  { id: 'ag_speedy_word_10', emoji: '⚡', name: 'Quick Unscramble', description: 'Solve a word in under 10 seconds', requirement: 10, category: 'speed' },
-  { id: 'ag_fast_perfect_90', emoji: '🚀', name: 'Speed Solver', description: 'Complete a Perfect Run in under 90 seconds total', requirement: 90, category: 'speed' },
-  { id: 'ag_fast_perfect_60', emoji: '🌪️', name: 'Speed Demon', description: 'Complete a Perfect Run in under 60 seconds total', requirement: 60, category: 'speed' },
+  { id: 'ag_speedy_word_10', name: 'Quick Unscramble', description: 'Solve a word in under 10 seconds', requirement: 10, category: 'speed' },
+  { id: 'ag_fast_perfect_90', name: 'Speed Solver', description: 'Complete a Perfect Run in under 90 seconds total', requirement: 90, category: 'speed' },
+  { id: 'ag_fast_perfect_60', name: 'Speed Demon', description: 'Complete a Perfect Run in under 60 seconds total', requirement: 60, category: 'speed' },
 
   // ── Streak (daily) ──────────────────────────────────────────────────
-  { id: 'ag_streak_3', emoji: '🔥', name: 'On a Roll', description: 'Reach a 3-day Daily Anagrams streak', requirement: 3, category: 'streak' },
-  { id: 'ag_streak_7', emoji: '🔥', name: 'Week Streak', description: 'Reach a 7-day Daily Anagrams streak', requirement: 7, category: 'streak' },
-  { id: 'ag_streak_14', emoji: '🌶️', name: 'Spicy Streak', description: 'Reach a 14-day Daily Anagrams streak', requirement: 14, category: 'streak' },
-  { id: 'ag_streak_30', emoji: '🏆', name: 'Monthly Solver', description: 'Reach a 30-day Daily Anagrams streak', requirement: 30, category: 'streak' },
+  { id: 'ag_streak_3', name: 'On a Roll', description: 'Reach a 3-day Daily Anagrams streak', requirement: 3, category: 'streak' },
+  { id: 'ag_streak_7', name: 'Week Streak', description: 'Reach a 7-day Daily Anagrams streak', requirement: 7, category: 'streak' },
+  { id: 'ag_streak_14', name: 'Spicy Streak', description: 'Reach a 14-day Daily Anagrams streak', requirement: 14, category: 'streak' },
+  { id: 'ag_streak_30', name: 'Monthly Solver', description: 'Reach a 30-day Daily Anagrams streak', requirement: 30, category: 'streak' },
 
   // ── Daily (participation) ──────────────────────────────────────────
-  { id: 'ag_daily_10', emoji: '📅', name: 'Daily Devotee', description: 'Complete 10 Daily Anagrams', requirement: 10, category: 'daily' },
-  { id: 'ag_daily_30', emoji: '🌅', name: 'Daily Marathoner', description: 'Complete 30 Daily Anagrams', requirement: 30, category: 'daily' },
-  { id: 'ag_daily_100', emoji: '👑', name: 'Daily Legend', description: 'Complete 100 Daily Anagrams', requirement: 100, category: 'daily' },
+  { id: 'ag_daily_10', name: 'Daily Devotee', description: 'Complete 10 Daily Anagrams', requirement: 10, category: 'daily' },
+  { id: 'ag_daily_30', name: 'Daily Marathoner', description: 'Complete 30 Daily Anagrams', requirement: 30, category: 'daily' },
+  { id: 'ag_daily_100', name: 'Daily Legend', description: 'Complete 100 Daily Anagrams', requirement: 100, category: 'daily' },
 
   // ── Daily wins (lifetime) — separate from participation and from the
   // day-to-day streak, this rewards total career wins even if a streak
   // gets broken along the way, to keep long-time players coming back.
-  { id: 'ag_daily_wins_10', emoji: '🥇', name: 'Daily Winner', description: 'Win 10 Daily Anagrams (lifetime)', requirement: 10, category: 'daily' },
-  { id: 'ag_daily_wins_50', emoji: '🏅', name: 'Daily Champion', description: 'Win 50 Daily Anagrams (lifetime)', requirement: 50, category: 'daily' },
-  { id: 'ag_daily_wins_150', emoji: '🎖️', name: 'Daily Master', description: 'Win 150 Daily Anagrams (lifetime)', requirement: 150, category: 'daily' },
-  { id: 'ag_daily_wins_365', emoji: '🗓️', name: 'Year of Words', description: 'Win 365 Daily Anagrams (lifetime)', requirement: 365, category: 'daily' },
+  { id: 'ag_daily_wins_10', name: 'Daily Winner', description: 'Win 10 Daily Anagrams (lifetime)', requirement: 10, category: 'daily' },
+  { id: 'ag_daily_wins_50', name: 'Daily Champion', description: 'Win 50 Daily Anagrams (lifetime)', requirement: 50, category: 'daily' },
+  { id: 'ag_daily_wins_150', name: 'Daily Master', description: 'Win 150 Daily Anagrams (lifetime)', requirement: 150, category: 'daily' },
+  { id: 'ag_daily_wins_365', name: 'Year of Words', description: 'Win 365 Daily Anagrams (lifetime)', requirement: 365, category: 'daily' },
 ];
 
 async function loadUnlockedIds(): Promise<UnlockedAchievement[]> {

@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { AchievementIcon } from '../../shared/AchievementIcon';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -48,7 +49,7 @@ import { maybeRequestReview } from "../../shared/reviewPrompt";
 import { syncDailyReminder, maybeFlagReminderOptIn } from "../../shared/dailyReminders";
 import { KEY_SKIN_ORDER, KEY_SKINS, isKeySkinUnlocked, type KeySkinName } from "../utils/keySkins";
 import { LinearGradient } from "expo-linear-gradient";
-// AchievementPopup is the shared component in src/shared — uses compatible shape (emoji, name, description)
+// AchievementPopup is the shared component in src/shared — uses compatible shape (category, name, description)
 import { SOLUTIONS, VALID_GUESSES } from "../data/wordle_words";
 import { PROFANITY_BLOCKLIST } from "../../shared/profanityBlocklist";
 
@@ -154,7 +155,8 @@ type OverlayOrigin = "game_end" | "menu_view";
 
 type Achievement = {
   id: string;
-  emoji: string;
+  /** Drives the icon — see src/shared/AchievementIcon.tsx. */
+  category: string;
   name: string;
   description: string;
   unlocked: boolean;
@@ -490,7 +492,9 @@ const AchievementCard = ({
         { backgroundColor: cardColor, borderColor, opacity },
       ]}
     >
-      <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
+      <View style={styles.achievementEmoji}>
+        <AchievementIcon category={achievement.category} size={26} color={textColor} />
+      </View>
       <Text style={[styles.achievementName, { color: textColor }]}>
         {achievement.name}
       </Text>
@@ -1117,7 +1121,7 @@ export default function WordleGame() {
           result === "won"
             ? (prevDailyStats.currentStreak === 0 || playedYesterdayForShare ? prevDailyStats.currentStreak + 1 : 1)
             : 0;
-        if (shareCurrentStreak > 1) shareStreakLine = `🔥 ${shareCurrentStreak} day streak`;
+        if (shareCurrentStreak > 1) shareStreakLine = `${shareCurrentStreak} day streak`;
       }
 
       const statsLine = `${resultStr}${elapsedSeconds != null ? ` · ${formatSeconds(elapsedSeconds)}` : ""}`;
@@ -1581,47 +1585,47 @@ export default function WordleGame() {
 
     return [
       // First wins
-      { id: "first_win", emoji: "✅", name: "First Win", description: "Win your first game", unlocked: totalWins >= 1 },
-      { id: "daily_win", emoji: "📅", name: "Daily Solver", description: "Win a Daily Challenge", unlocked: dailyWins >= 1 },
-      { id: "practice_win", emoji: "🎯", name: "Practice Pays", description: "Win a Quick Play game", unlocked: practiceWins >= 1 },
+      { id: "first_win", category: "getting_started", name: "First Win", description: "Win your first game", unlocked: totalWins >= 1 },
+      { id: "daily_win", category: "daily", name: "Daily Solver", description: "Win a Daily Challenge", unlocked: dailyWins >= 1 },
+      { id: "practice_win", category: "practice", name: "Practice Pays", description: "Win a Quick Play game", unlocked: practiceWins >= 1 },
       // Guess skill
-      { id: "perfect", emoji: "⚡", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
-      { id: "lucky_guess", emoji: "🍀", name: "Lucky Guess", description: "Win in 2 guesses", unlocked: twoGuessWins >= 1 },
-      { id: "two_try_5", emoji: "🎉", name: "Two Tries", description: "Win in 2 guesses 5 times", unlocked: twoGuessWins >= 5, progress: Math.min(twoGuessWins / 5, 1) },
-      { id: "clutch", emoji: "😅", name: "Clutch", description: "Win on the 6th guess", unlocked: ((stats.daily.guessDistribution?.[6] ?? 0) + (stats.practice.guessDistribution?.[6] ?? 0)) >= 1 },
-      { id: "comeback", emoji: "😤", name: "Comeback", description: "Win after reaching guess 5", unlocked: ((stats.daily.guessDistribution?.[5] ?? 0) + (stats.practice.guessDistribution?.[5] ?? 0)) >= 1 },
+      { id: "perfect", category: "skill", name: "One & Done", description: "Solve in 1 guess", unlocked: perfectWins >= 1 },
+      { id: "lucky_guess", category: "skill", name: "Lucky Guess", description: "Win in 2 guesses", unlocked: twoGuessWins >= 1 },
+      { id: "two_try_5", category: "skill", name: "Two Tries", description: "Win in 2 guesses 5 times", unlocked: twoGuessWins >= 5, progress: Math.min(twoGuessWins / 5, 1) },
+      { id: "clutch", category: "skill", name: "Clutch", description: "Win on the 6th guess", unlocked: ((stats.daily.guessDistribution?.[6] ?? 0) + (stats.practice.guessDistribution?.[6] ?? 0)) >= 1 },
+      { id: "comeback", category: "skill", name: "Comeback", description: "Win after reaching guess 5", unlocked: ((stats.daily.guessDistribution?.[5] ?? 0) + (stats.practice.guessDistribution?.[5] ?? 0)) >= 1 },
       // Streaks
-      { id: "streak_3", emoji: "🌱", name: "On a Roll", description: "Reach a 3-day streak", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
-      { id: "streak_7", emoji: "🔥", name: "Hot Streak", description: "Reach a 7-day streak", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
-      { id: "streak_14", emoji: "🌶️", name: "Spicy", description: "Reach a 14-day streak", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
-      { id: "streak_30", emoji: "🏆", name: "Champion", description: "Reach a 30-day streak", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
+      { id: "streak_3", category: "streak", name: "On a Roll", description: "Reach a 3-day streak", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
+      { id: "streak_7", category: "streak", name: "Hot Streak", description: "Reach a 7-day streak", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
+      { id: "streak_14", category: "streak", name: "Spicy", description: "Reach a 14-day streak", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
+      { id: "streak_30", category: "streak", name: "Champion", description: "Reach a 30-day streak", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
       // Speed
-      { id: "speed_60", emoji: "⏱️", name: "Quick Thinker", description: "Win in under 60 seconds", unlocked: fastestAny != null && fastestAny <= 60 },
-      { id: "speed_30", emoji: "💨", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
-      { id: "speed_20", emoji: "🚀", name: "Speed Demon", description: "Win in under 20 seconds", unlocked: fastestAny != null && fastestAny <= 20 },
+      { id: "speed_60", category: "speed", name: "Quick Thinker", description: "Win in under 60 seconds", unlocked: fastestAny != null && fastestAny <= 60 },
+      { id: "speed_30", category: "speed", name: "Lightning", description: "Win in under 30 seconds", unlocked: fastestAny != null && fastestAny <= 30 },
+      { id: "speed_20", category: "speed", name: "Speed Demon", description: "Win in under 20 seconds", unlocked: fastestAny != null && fastestAny <= 20 },
       // Consistency
-      { id: "sharpshooter", emoji: "🎯", name: "Sharpshooter", description: "80%+ win rate after 20+ dailies", unlocked: stats.daily.gamesPlayed >= 20 && winRateDaily >= 80 },
-      { id: "hat_trick", emoji: "🎩", name: "Hat Trick", description: "Win 3 practice games in a row", unlocked: practiceWins >= 3 },
+      { id: "sharpshooter", category: "skill", name: "Sharpshooter", description: "80%+ win rate after 20+ dailies", unlocked: stats.daily.gamesPlayed >= 20 && winRateDaily >= 80 },
+      { id: "hat_trick", category: "skill", name: "Hat Trick", description: "Win 3 practice games in a row", unlocked: practiceWins >= 3 },
       // Volume
-      { id: "marathon", emoji: "🏃", name: "Marathon", description: "Complete 50 daily challenges", unlocked: stats.daily.gamesPlayed >= 50, progress: Math.min(stats.daily.gamesPlayed / 50, 1) },
-      { id: "play_25", emoji: "🧩", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25, progress: Math.min(lifetimeGames / 25, 1) },
-      { id: "play_100", emoji: "💯", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100, progress: Math.min(lifetimeGames / 100, 1) },
-      { id: "wins_25", emoji: "🥇", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25, progress: Math.min(totalWins / 25, 1) },
-      { id: "wins_50", emoji: "🏅", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50, progress: Math.min(totalWins / 50, 1) },
-      { id: "perfectionist", emoji: "🎓", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10, progress: Math.min(((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) / 10, 1) },
-      { id: "comeback_king", emoji: "👑", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5, progress: Math.min(((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) / 5, 1) },
-      { id: "early_bird", emoji: "🌅", name: "Early Bird", description: "Complete a daily challenge", unlocked: stats.daily.gamesPlayed >= 1 },
+      { id: "marathon", category: "games_played", name: "Marathon", description: "Complete 50 daily challenges", unlocked: stats.daily.gamesPlayed >= 50, progress: Math.min(stats.daily.gamesPlayed / 50, 1) },
+      { id: "play_25", category: "games_played", name: "Word Worker", description: "Play 25 games", unlocked: lifetimeGames >= 25, progress: Math.min(lifetimeGames / 25, 1) },
+      { id: "play_100", category: "games_played", name: "Century Club", description: "Play 100 games", unlocked: lifetimeGames >= 100, progress: Math.min(lifetimeGames / 100, 1) },
+      { id: "wins_25", category: "winning", name: "Winner", description: "Win 25 games", unlocked: totalWins >= 25, progress: Math.min(totalWins / 25, 1) },
+      { id: "wins_50", category: "winning", name: "Elite", description: "Win 50 games", unlocked: totalWins >= 50, progress: Math.min(totalWins / 50, 1) },
+      { id: "perfectionist", category: "skill", name: "Perfectionist", description: "Win 10 games in 3 guesses or fewer", unlocked: ((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) >= 10, progress: Math.min(((stats.daily.guessDistribution?.[1]??0)+(stats.daily.guessDistribution?.[2]??0)+(stats.daily.guessDistribution?.[3]??0)+(stats.practice.guessDistribution?.[1]??0)+(stats.practice.guessDistribution?.[2]??0)+(stats.practice.guessDistribution?.[3]??0)) / 10, 1) },
+      { id: "comeback_king", category: "skill", name: "Comeback King", description: "Win on guess 4, 5, or 6 — five times", unlocked: ((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) >= 5, progress: Math.min(((stats.daily.guessDistribution?.[4]??0)+(stats.daily.guessDistribution?.[5]??0)+(stats.daily.guessDistribution?.[6]??0)+(stats.practice.guessDistribution?.[4]??0)+(stats.practice.guessDistribution?.[5]??0)+(stats.practice.guessDistribution?.[6]??0)) / 5, 1) },
+      { id: "early_bird", category: "special", name: "Early Bird", description: "Complete a daily challenge", unlocked: stats.daily.gamesPlayed >= 1 },
       // Key skin unlocks
-      { id: "skin_bronze", emoji: "🥉", name: "Bronze Keys", description: "Reach a 3-day streak to unlock Bronze keys", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
-      { id: "skin_silver", emoji: "🥈", name: "Silver Keys", description: "Reach a 7-day streak to unlock Silver keys", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
-      { id: "skin_gold", emoji: "🥇", name: "Gold Keys", description: "Reach a 14-day streak to unlock Gold keys", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
-      { id: "skin_platinum", emoji: "🔷", name: "Platinum Keys", description: "Reach a 21-day streak to unlock Platinum keys", unlocked: bestStreak >= 21, progress: Math.min(bestStreak / 21, 1) },
-      { id: "skin_ruby", emoji: "🔴", name: "Ruby Keys", description: "Reach a 30-day streak to unlock Ruby keys", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
-      { id: "skin_emerald", emoji: "💚", name: "Emerald Keys", description: "Reach a 50-day streak to unlock Emerald keys", unlocked: bestStreak >= 50, progress: Math.min(bestStreak / 50, 1) },
-      { id: "skin_diamond", emoji: "💎", name: "Diamond Keys", description: "Reach a 75-day streak to unlock Diamond keys", unlocked: bestStreak >= 75, progress: Math.min(bestStreak / 75, 1) },
-      { id: "skin_legendary", emoji: "🌟", name: "Legendary Keys", description: "Reach a 100-day streak to unlock Legendary keys", unlocked: bestStreak >= 100, progress: Math.min(bestStreak / 100, 1) },
-      { id: "skin_iridescence", emoji: "🪩", name: "Iridescence Keys", description: "Reach a 150-day streak to unlock Iridescence keys", unlocked: bestStreak >= 150, progress: Math.min(bestStreak / 150, 1) },
-      { id: "skin_rose_quartz", emoji: "🌸", name: "Rose Quartz Keys", description: "Reach a 300-day streak to unlock Rose Quartz keys", unlocked: bestStreak >= 300, progress: Math.min(bestStreak / 300, 1) },
+      { id: "skin_bronze", category: "special", name: "Bronze Keys", description: "Reach a 3-day streak to unlock Bronze keys", unlocked: bestStreak >= 3, progress: Math.min(bestStreak / 3, 1) },
+      { id: "skin_silver", category: "special", name: "Silver Keys", description: "Reach a 7-day streak to unlock Silver keys", unlocked: bestStreak >= 7, progress: Math.min(bestStreak / 7, 1) },
+      { id: "skin_gold", category: "special", name: "Gold Keys", description: "Reach a 14-day streak to unlock Gold keys", unlocked: bestStreak >= 14, progress: Math.min(bestStreak / 14, 1) },
+      { id: "skin_platinum", category: "special", name: "Platinum Keys", description: "Reach a 21-day streak to unlock Platinum keys", unlocked: bestStreak >= 21, progress: Math.min(bestStreak / 21, 1) },
+      { id: "skin_ruby", category: "special", name: "Ruby Keys", description: "Reach a 30-day streak to unlock Ruby keys", unlocked: bestStreak >= 30, progress: Math.min(bestStreak / 30, 1) },
+      { id: "skin_emerald", category: "special", name: "Emerald Keys", description: "Reach a 50-day streak to unlock Emerald keys", unlocked: bestStreak >= 50, progress: Math.min(bestStreak / 50, 1) },
+      { id: "skin_diamond", category: "special", name: "Diamond Keys", description: "Reach a 75-day streak to unlock Diamond keys", unlocked: bestStreak >= 75, progress: Math.min(bestStreak / 75, 1) },
+      { id: "skin_legendary", category: "special", name: "Legendary Keys", description: "Reach a 100-day streak to unlock Legendary keys", unlocked: bestStreak >= 100, progress: Math.min(bestStreak / 100, 1) },
+      { id: "skin_iridescence", category: "special", name: "Iridescence Keys", description: "Reach a 150-day streak to unlock Iridescence keys", unlocked: bestStreak >= 150, progress: Math.min(bestStreak / 150, 1) },
+      { id: "skin_rose_quartz", category: "special", name: "Rose Quartz Keys", description: "Reach a 300-day streak to unlock Rose Quartz keys", unlocked: bestStreak >= 300, progress: Math.min(bestStreak / 300, 1) },
     ];
   }, [lifetimeGames, lifetimePerfect, stats.daily, stats.practice, winRateDaily]);
 
@@ -1822,7 +1826,7 @@ export default function WordleGame() {
                             : "";
                           const fallbackResultStr = dailyLock?.result === "won" ? `${dailyLock.guessesCount}/6` : "X/6";
                           const fallbackStatsLine = `${fallbackResultStr}${dailyLock?.timeSeconds != null ? ` · ${formatSeconds(dailyLock.timeSeconds)}` : ""}`;
-                          const fallbackStreakLine = stats.daily.currentStreak > 1 ? `🔥 ${stats.daily.currentStreak} day streak` : "";
+                          const fallbackStreakLine = stats.daily.currentStreak > 1 ? `${stats.daily.currentStreak} day streak` : "";
                           // Built imperatively so the blank-line spacers
                           // survive — see the same fix in endGame() above.
                           const fallbackLines: string[] = [`🟩 FURDLE DAILY #${getDailyIndex()}`];
@@ -2072,7 +2076,7 @@ export default function WordleGame() {
                         {/* Right — streak req for locked tiers */}
                         {!unlocked && (
                           <View style={styles.skinLockBadge}>
-                            <Text style={[styles.skinLockText, { color: SUBTEXT }]}>🔒 {skinCfg.streakRequired} days</Text>
+                            <Text style={[styles.skinLockText, { color: SUBTEXT }]}>{skinCfg.streakRequired} days</Text>
                           </View>
                         )}
                       </Pressable>
