@@ -17,8 +17,9 @@ import { useTheme } from '../src/shared/ThemeContext';
 import { ConfirmModal } from '../src/shared/ConfirmModal';
 import { COLORS } from '../src/shared/theme';
 import { consumeReminderOptInPending, requestReminderPermission, gameIdForRoute } from '../src/shared/dailyReminders';
-import { refreshDailyRitual, type DailyRitualSummary } from '../src/shared/dailyRitual';
+import { refreshDailyRitual, acceptSkipOffer, declineSkipOffer, type DailyRitualSummary } from '../src/shared/dailyRitual';
 import { HapticManager } from '../src/shared/HapticManager';
+import { ShieldCheck } from 'lucide-react-native';
 import { useCountdownToMidnight } from '../src/wordladder/utils/ladderStorage';
 
 const GAMES = [
@@ -140,6 +141,9 @@ export default function Home() {
   const [showReminderOptIn, setShowReminderOptIn] = useState(false);
   const [ritual, setRitual] = useState<DailyRitualSummary | null>(null);
   const [showPerfectDay, setShowPerfectDay] = useState(false);
+  const [showSkipIntro, setShowSkipIntro] = useState(false);
+  const [showSkipOffer, setShowSkipOffer] = useState(false);
+  const [skipRelief, setSkipRelief] = useState<string | null>(null);
   const resetsIn = useCountdownToMidnight();
 
   // Checked every time the player lands back on the home screen — this is
@@ -171,6 +175,14 @@ export default function Home() {
           // this feature exists.
           if (summary.shouldCelebratePerfectDay) {
             setShowPerfectDay(true);
+            HapticManager.achievement();
+          }
+          // A live offer takes priority over the intro — it's time-sensitive
+          // and the player is mid-decision about a streak they care about.
+          if (summary.pendingSkipOffer) {
+            setShowSkipOffer(true);
+          } else if (summary.shouldShowSkipIntro) {
+            setShowSkipIntro(true);
             HapticManager.achievement();
           }
         })
@@ -232,6 +244,18 @@ export default function Home() {
 
                 <View style={styles.todayStreakWrap}>
                   <View style={styles.todayStreakRow}>
+                    {/* Skips are a CROSS-GAME resource, so they're shown on the
+                        cross-game surface and nowhere else. A count on an
+                        individual game's menu would read as "this game has a
+                        skip", which is the wrong model. */}
+                    {ritual.skipsAvailable > 0 && (
+                      <View style={styles.todaySkipBadge}>
+                        <ShieldCheck size={15} color={background.secondaryText} />
+                        <Text style={[styles.todaySkipCount, { color: background.secondaryText }]}>
+                          {ritual.skipsAvailable}
+                        </Text>
+                      </View>
+                    )}
                     <Ionicons name="flame" size={18} color={ritual.streak > 0 ? '#F97316' : background.secondaryText} />
                     <Text style={[styles.todayStreakValue, { color: background.textColor }]}>
                       {ritual.streak}
@@ -264,8 +288,17 @@ export default function Home() {
                 })}
               </View>
 
-              <Text style={[styles.todayReset, { color: background.secondaryText }]}>
-                {ritual.isPerfectDay ? 'Perfect Day — all 8 cleared' : `Resets in ${resetsIn}`}
+              <Text
+                style={[
+                  styles.todayReset,
+                  { color: ritual.streakAtRiskToday ? '#F97316' : background.secondaryText },
+                ]}
+              >
+                {ritual.isPerfectDay
+                  ? 'Perfect Day — all 8 cleared'
+                  : ritual.streakAtRiskToday
+                  ? `Play one daily to keep your ${ritual.streak}-day streak`
+                  : `Resets in ${resetsIn}`}
               </Text>
             </View>
           )}
@@ -348,6 +381,92 @@ export default function Home() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* ── STREAK SKIP OFFER ────────────────────────────────────────────────
+          Shown on returning home after playing on the comeback day. Never
+          auto-spent, never spent without asking: a missed day isn't resolved
+          at midnight, it's resolved when the player next opens the app, so the
+          choice can be offered retroactively when they can see what's at
+          stake. Declining is free and keeps the skip banked. */}
+      <ConfirmModal
+        visible={showSkipOffer && !!ritual?.pendingSkipOffer}
+        title="Missed a day"
+        message={
+          ritual?.pendingSkipOffer
+            ? `You didn't play yesterday. Use a Streak Skip to keep your ${ritual.pendingSkipOffer.streakAtRisk}-day streak going?`
+            : ''
+        }
+        cancelText="Let it reset"
+        confirmText={`Use skip — ${Math.max(0, (ritual?.skipsAvailable ?? 1) - 1)} left`}
+        onCancel={() => {
+          setShowSkipOffer(false);
+          declineSkipOffer()
+            .then(() => refreshDailyRitual())
+            .then(setRitual)
+            .catch(() => {});
+        }}
+        onConfirm={() => {
+          const saved = ritual?.pendingSkipOffer?.streakAtRisk ?? 0;
+          const gamesSaved = ritual
+            ? Object.values(ritual.completion).filter(Boolean).length
+            : 0;
+          setShowSkipOffer(false);
+          acceptSkipOffer()
+            .then(() => refreshDailyRitual())
+            .then((updated) => {
+              setRitual(updated);
+              // Name what was rescued — an abstract counter becomes something
+              // concrete, and this is the screen that teaches the value of the
+              // next skip.
+              setSkipRelief(
+                `Your ${saved}-day Fury Streak is safe` +
+                  (gamesSaved > 0
+                    ? `, along with ${gamesSaved} game streak${gamesSaved === 1 ? '' : 's'}.`
+                    : '.')
+              );
+              HapticManager.achievement();
+            })
+            .catch(() => {});
+        }}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+        destructiveColor={COLORS.accent}
+      />
+
+      {/* The relief — shown immediately after a skip is spent. */}
+      <ConfirmModal
+        visible={!!skipRelief}
+        title="Skip used"
+        message={skipRelief ?? ''}
+        confirmText="Good"
+        hideCancel
+        onCancel={() => setSkipRelief(null)}
+        onConfirm={() => setSkipRelief(null)}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+        destructiveColor={COLORS.accent}
+      />
+
+      {/* One-time explainer, shown at the moment the first skip is banked —
+          players learn the feature by receiving it, not from onboarding. */}
+      <ConfirmModal
+        visible={showSkipIntro}
+        title="Streak Skip earned"
+        message="You've banked a Streak Skip. It covers one missed day and keeps every streak alive — you'll be asked before it's ever used."
+        confirmText="Got it"
+        hideCancel
+        onCancel={() => setShowSkipIntro(false)}
+        onConfirm={() => setShowSkipIntro(false)}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+        destructiveColor={COLORS.accent}
+      />
 
       {/* Perfect Day — fires once per day, guarded by lastPerfectDateISO in the
           ritual store. Shown here rather than inside whichever game happened to
@@ -444,6 +563,8 @@ const styles = StyleSheet.create({
   todayStreakWrap: { alignItems: 'flex-end' },
   todayStreakRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   todayStreakValue: { fontSize: 22, fontWeight: '900' },
+  todaySkipBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, marginRight: 8 },
+  todaySkipCount: { fontSize: 13, fontWeight: '800' },
   todaySegments: { flexDirection: 'row', gap: 4, marginTop: 12 },
   todaySegment: { flex: 1, height: 6, borderRadius: 3 },
   todayReset: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
