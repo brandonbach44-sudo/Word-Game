@@ -160,38 +160,22 @@ export async function hasPlayedTodayDaily(): Promise<boolean> {
 }
 
 // ============================================================================
-// SECTION 4: SEEDED RANDOM (For Daily Challenges)
+// SECTION 4: (removed)
 // ============================================================================
-
-// Deterministic random number generator
-// Same seed = same sequence of random numbers
-export function seededRandom(seed: number): () => number {
-  let state = seed;
-  return () => {
-    state = (state * 1103515245 + 12345) & 0x7fffffff;
-    return state / 0x7fffffff;
-  };
-}
-
-// Get daily content using seeded random
-export function getDailyContent<T>(items: T[], date: Date = new Date()): T {
-  const seed = dateToSeed(date);
-  const index = seed % items.length;
-  return items[index];
-}
-
-// Example: Get daily puzzle with multiple random choices
-export function generateDailyPuzzle<T>(
-  items: T[],
-  count: number,
-  date: Date = new Date()
-): T[] {
-  const seed = dateToSeed(date);
-  const random = seededRandom(seed);
-
-  const shuffled = [...items].sort(() => random() - 0.5);
-  return shuffled.slice(0, count);
-}
+//
+// This section held seededRandom(), getDailyContent() and generateDailyPuzzle().
+// All three were unreferenced, and all three were traps for anyone who went
+// looking for a daily helper in a file that advertised one:
+//
+//  - seededRandom used the `state * 1103515245 + 12345` LCG whose
+//    consecutive-seed correlation caused the Word Search theme rotation bug.
+//  - getDailyContent picked with `seed % items.length`, which is the rotation
+//    bug itself: consecutive yyyymmdd seeds walk the list in fixed order and
+//    repeat with a period equal to its length.
+//  - generateDailyPuzzle shuffled with `sort(() => random() - 0.5)`, which is
+//    not a uniform shuffle at all.
+//
+// The live daily generation is in ./generator.ts and uses mulberry32.
 
 // ============================================================================
 // SECTION 5: GAME STATS STORAGE PATTERN

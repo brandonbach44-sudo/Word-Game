@@ -151,11 +151,34 @@ export function generatePuzzleWithSeed(
   };
 }
 
+/**
+ * Mulberry32 — the same PRNG every other game's daily already uses.
+ *
+ * This was an LCG (`state * 1103515245 + 12345`), which is the exact generator
+ * whose consecutive-seed correlation caused the Word Search theme rotation bug
+ * and got replaced in Furdle, Word Grid, Word Ladder, Wordsmith and Anagrams.
+ * The theme picker in this game was fixed; this one, three functions away and
+ * feeding the same daily, was missed.
+ *
+ * It is not a subtle problem. Seeded with consecutive yyyymmdd dates, the
+ * SECOND value it produces moves by an average of 0.02 from one day to the
+ * next — for practical purposes it is frozen — and the third and fifth are
+ * visibly depressed too. Those values drive shuffleArraySeeded, which chooses
+ * which of a theme's words go into the grid, so consecutive days were drawing
+ * systematically similar word selections rather than independent ones.
+ *
+ * (It has a second, quieter problem: `state * 1103515245` exceeds 2^53 for
+ * realistic seeds, so the multiply loses precision before the mask is applied
+ * and the arithmetic isn't even the LCG it looks like.)
+ */
 function createSeededRandom(seed: number): () => number {
   let state = seed;
   return () => {
-    state = (state * 1103515245 + 12345) & 0x7fffffff;
-    return state / 0x7fffffff;
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
