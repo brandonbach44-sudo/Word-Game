@@ -15,11 +15,11 @@ type Section = {
 const SECTIONS: Section[] = [
   {
     heading: 'Summary',
-    body: 'WordFury is a word game app. It works entirely on your device. We do not collect, store, transmit, or sell any personal data, and we do not use analytics, advertising, or tracking software of any kind. There is no account to create and no data leaves your phone unless you choose to send it to us yourself (see "Feedback" below).',
+    body: 'Word Fury is a word game app. It works entirely on your device. We do not collect, store, transmit, or sell any personal data, and we do not use analytics, advertising, or tracking software of any kind. There is no account to create and no data leaves your phone unless you choose to send it to us yourself (see "Feedback" below).',
   },
   {
     heading: 'What the app stores, and where',
-    body: 'WordFury saves your game progress, statistics, achievements, and settings (like Dark Mode or Color Blind Mode) directly on your device using standard iOS local storage. This information:',
+    body: 'Word Fury saves your game progress, statistics, achievements, and settings (like Dark Mode or Color Blind Mode) directly on your device using standard iOS local storage. This information:',
     bullets: [
       'Never leaves your device',
       'Is not visible to us or to any third party',
@@ -45,7 +45,7 @@ const SECTIONS: Section[] = [
   },
   {
     heading: "Children's privacy",
-    body: 'WordFury does not knowingly collect any information from anyone, including children under 13, because it does not collect information from anyone at all.',
+    body: 'Word Fury does not knowingly collect any information from anyone, including children under 13, because it does not collect information from anyone at all.',
   },
   {
     heading: 'Changes to this policy',
@@ -128,7 +128,7 @@ export const PrivacyPolicyScreen: React.FC = () => {
         </View>
 
         <Text style={[styles.footer, { color: background.secondaryText }]}>
-          WordFury · Developed by Brandon Bach
+          Word Fury · Developed by Brandon Bach
         </Text>
 
         <View style={{ height: 40 }} />

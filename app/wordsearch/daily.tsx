@@ -17,6 +17,17 @@ import {
   type WordSearchDailyLock,
 } from '../../src/wordsearch/utils/wsStorage';
 
+// Mulberry32 — same PRNG used across every other Word Fury daily.
+function mulberry32(seed: number): () => number {
+  return function (): number {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export default function WordSearchDailyScreen() {
   const { background } = useTheme();
   const [puzzle, setPuzzle] = useState<WordSearchPuzzle | null>(null);
@@ -30,8 +41,15 @@ export default function WordSearchDailyScreen() {
         // Get today's seed (same for all users)
         const seed = dateToSeed(new Date());
 
-        // Pick a theme deterministically based on seed
-        const themeIndex = seed % WORD_SEARCH_THEMES.length;
+        // Pick a theme deterministically from the seed. Direct modulo on a
+        // yyyymmdd seed is NOT usable here: consecutive days differ by 1, so
+        // `seed % 19` walked the themes in strict order (0,1,2,...,18,0,1,...)
+        // and repeated the same rotation every 19 days. That's the same bug
+        // players reported in Hangman ("only dog breeds and food"). Running the
+        // seed through mulberry32 first — the PRNG every other game uses —
+        // gives statistically independent picks for consecutive days.
+        const themeRand = mulberry32(seed);
+        const themeIndex = Math.floor(themeRand() * WORD_SEARCH_THEMES.length);
         const dailyTheme = WORD_SEARCH_THEMES[themeIndex];
 
         // Generate puzzle with seeded randomness
