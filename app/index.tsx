@@ -21,7 +21,7 @@ import { consumeReminderOptInPending, requestReminderPermission, gameIdForRoute 
 import { COLORBLIND_GAME_ACCENTS, GAME_ACCENTS } from '../src/shared/gameColors';
 import { refreshDailyRitual, acceptSkipOffer, declineSkipOffer, type DailyRitualSummary } from '../src/shared/dailyRitual';
 import { HapticManager } from '../src/shared/HapticManager';
-import { ChevronRight, ShieldCheck, X } from 'lucide-react-native';
+import { ShieldCheck, X } from 'lucide-react-native';
 import FeedbackForm from '../FeedbackForm';
 import {
   buildReportMessage,
@@ -234,7 +234,23 @@ export default function Home() {
 
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerPlaceholder} />
+          {/* The left slot was an empty 38px spacer balancing the settings gear.
+              It's now the way into the history screen.
+              A chevron on the Today card was the only entry point at first, and
+              nobody found it -- including me, testing my own build. A permanent
+              icon in the header costs the game grid nothing (the header is
+              already this tall) and is somewhere people actually look. */}
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={() => router.push('/fury')}
+            accessibilityLabel="Your Fury history"
+          >
+            <Ionicons
+              name="flame"
+              size={22}
+              color={(ritual?.streak ?? 0) > 0 ? '#F97316' : background.textColor}
+            />
+          </TouchableOpacity>
           <Text style={[styles.title, { color: background.textColor }]}>
             Word Fury
           </Text>
@@ -297,8 +313,12 @@ export default function Home() {
                       {ritual.streak}
                     </Text>
                   </View>
+                  {/* "Fury Streak ›" rather than a bare chevron floating in the
+                      corner: the words say what tapping leads to, and it sits
+                      against the number whose history it shows. Costs no height
+                      -- it's the label that was already here. */}
                   <Text style={[styles.todayLabel, { color: background.secondaryText }]}>
-                    Fury Streak
+                    Fury Streak ›
                   </Text>
                 </View>
               </View>
@@ -337,11 +357,6 @@ export default function Home() {
                   : `Resets in ${resetsIn}`}
               </Text>
 
-              {/* Absolutely positioned so it costs no layout height: it sits in
-                  the padding the card already had. */}
-              <View style={styles.todayChevron} pointerEvents="none">
-                <ChevronRight size={18} color={background.secondaryText} />
-              </View>
             </Pressable>
           )}
 
@@ -661,9 +676,9 @@ const styles = StyleSheet.create({
   todaySegments: { flexDirection: 'row', gap: 4, marginTop: 12 },
   todaySegment: { flex: 1, height: 6, borderRadius: 3 },
   todayReset: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
-  // Vertically centred against the reset line, inside todayCard's existing
-  // 16px horizontal padding -- adds no height to the card or the screen.
-  todayChevron: { position: 'absolute', right: 8, bottom: 12 },
+  // Mirrors settingsButton on the right so the header stays balanced and gains
+  // no height.
+  historyButton: { width: 38, alignItems: 'flex-start', justifyContent: 'center' },
   wordReportRow: {
     flexDirection: 'row',
     alignItems: 'center',
