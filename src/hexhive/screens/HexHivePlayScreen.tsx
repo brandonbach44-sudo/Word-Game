@@ -14,7 +14,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Share2, X } from 'lucide-react-native';
+import { Lightbulb, Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { HapticManager } from '../../shared/HapticManager';
 import { recordRejectedWord } from '../../shared/wordReports';
@@ -355,6 +355,46 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
       HapticManager.hexHive.hexTap();
       return g.slice(0, -1);
     });
+  // ── Quick Play hints ──────────────────────────────────────────────────────
+  // Practice only. The Daily is the same hive for everybody, so a hint there
+  // would quietly change what a rank means; Quick Play has no streak and no
+  // shared result, which turns a hint from a difficulty valve into a way to
+  // learn what this puzzle type even wants from you.
+  //
+  // What it reveals is deliberately the cheapest useful help: the opening two
+  // letters and the length of a word you haven't found. That tells you where to
+  // look without handing over the answer, and it's the same shape of help a
+  // Spelling Bee two-letter list gives.
+  const MAX_HINTS = 3;
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintText, setHintText] = useState<string | null>(null);
+
+  // Quick Play's Play Again swaps the puzzle prop rather than remounting the
+  // screen, so without this the next round would start with the previous
+  // round's hints already spent and its hint text still on screen.
+  useEffect(() => {
+    setHintsUsed(0);
+    setHintText(null);
+  }, [puzzle]);
+
+  const handleHint = () => {
+    if (mode !== 'practice' || hintsUsed >= MAX_HINTS) return;
+    // `solution` is already memoized above — getPuzzleSolution is cached, but
+    // shadowing the memo with a second call is how the two drift apart later.
+    const unfound = solution.words.filter((w) => !foundSet.has(w));
+    if (unfound.length === 0) {
+      setHintText('Nothing left to find — you have them all.');
+      return;
+    }
+    // Shortest first, so the hint points at something actually reachable
+    // rather than the obscure nine-letter word nobody was going to get.
+    const shortest = unfound.reduce((a, b) => (b.length < a.length ? b : a), unfound[0]);
+    const opening = shortest.slice(0, 2).toUpperCase();
+    setHintText(`Try a ${shortest.length}-letter word starting with ${opening}`);
+    setHintsUsed((h) => h + 1);
+    HapticManager.hexHive.hexTap();
+  };
+
   const handleShuffle = () => {
     HapticManager.hexHive.hexTap();
     setOuterLetters((prev) => shuffleLetters(prev));
@@ -478,6 +518,32 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
             cardColor={CARD}
             borderColor={BORDER}
           />
+        </View>
+      )}
+
+      {/* Practice-only hint control. Absent entirely in the Daily rather than
+          shown disabled — a greyed-out button invites people to wonder what
+          they're missing. */}
+      {mode === 'practice' && !dailyWon && (
+        <View style={styles.hintRow}>
+          <Pressable
+            onPress={handleHint}
+            disabled={hintsUsed >= MAX_HINTS}
+            style={({ pressed }) => [
+              styles.hintButton,
+              { borderColor: BORDER, backgroundColor: CARD, opacity: hintsUsed >= MAX_HINTS ? 0.45 : pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Lightbulb size={14} color={ACCENT} />
+            <Text style={[styles.hintButtonText, { color: TEXT }]}>
+              Hint {MAX_HINTS - hintsUsed > 0 ? `(${MAX_HINTS - hintsUsed})` : ''}
+            </Text>
+          </Pressable>
+          {hintText ? (
+            <Text style={[styles.hintText, { color: SUBTEXT }]} numberOfLines={2}>
+              {hintText}
+            </Text>
+          ) : null}
         </View>
       )}
 
@@ -682,6 +748,24 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     alignItems: 'center',
   },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  hintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  hintButtonText: { fontSize: 12, fontWeight: '800' },
+  hintText: { fontSize: 11.5, flex: 1, fontWeight: '600' },
   wordListWrap: { flex: 1, marginTop: 14 },
 
   // Result overlay — mirrors Wordle's full-page WordleResultOverlay layout/colors.
