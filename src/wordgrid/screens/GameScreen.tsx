@@ -159,6 +159,25 @@ export default function GameScreen() {
       },
       onPanResponderRelease: (_, gs) => {
         const base = dragBase.current;
+        // Linear navigation. The tab strip is a single left-to-right track and
+        // its left end is the way out of the game, so a right-swipe while
+        // already on the first tab pops back instead of dead-ending. This is
+        // what the root Stack's full-screen back gesture used to do from
+        // anywhere on screen -- which is exactly why it had to go: it swallowed
+        // these horizontal pans, so tabs became unreachable by swipe and a
+        // right-swipe deep in Stats jumped straight out of the game.
+        if (gs.dx > 25 || gs.vx > 0.3) {
+          if (base <= 0) {
+            Animated.spring(tabAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 70,
+              friction: 12,
+            }).start();
+            router.back();
+            return;
+          }
+        }
         let newIdx = Math.round(base);
         if (gs.dx < -25 || gs.vx < -0.3) newIdx = Math.min(Math.floor(base) + 1, TABS.length - 1);
         else if (gs.dx > 25 || gs.vx > 0.3) newIdx = Math.max(Math.ceil(base) - 1, 0);
@@ -227,39 +246,53 @@ export default function GameScreen() {
   // True when an in-progress Daily save exists for today — shows "Continue" button.
   const [dailyInProgressToday, setDailyInProgressToday] = useState(false);
 
-  // Resume an in-progress Daily attempt (app closed/backgrounded mid-game),
-  // unless today's Daily is already completed. Stays on the menu screen —
-  // startDailyGame() picks this restored state up when tapped.
+  // Resume an in-progress attempt (app closed/backgrounded mid-game). Daily and
+  // Quick Play are decided in ONE effect, deliberately.
+  //
+  // These used to be two effects that both fired on mount, and the Quick Play
+  // one guarded itself with `if (resumedDailyRef.current) return` — a ref that
+  // the Daily effect only sets AFTER its own async storage read resolves. Which
+  // read won was a race, so a restored Daily could end up wearing Quick Play's
+  // grid (or vice versa): the player taps Daily, gets a round that isn't
+  // today's puzzle, and its result lands in the wrong bucket.
+  //
+  // Gated on dailyStats having loaded, too — `dailyPlayedToday` is derived from
+  // it and reads false while it is still null, which let a finished Daily
+  // resume itself from stale progress.
   useEffect(() => {
-    if (dailyPlayedToday) return;
-    loadWordGridDailyProgress().then((progress) => {
-      if (!progress) return;
-      setDailyInProgressToday(true);
-      setGameMode('daily');
-      setGrid(generateDailyGrid());
-      setScore(progress.score);
-      setFoundWords(progress.foundWords);
-      setFoundWordSet(new Set(progress.foundWords.map((w) => w.word)));
-      setTimeLeft(progress.timeLeft);
-      resumedDailyRef.current = true;
-    });
-     
-  }, [dailyPlayedToday]);
+    if (dailyStats === null) return;
+    let cancelled = false;
+    (async () => {
+      const dailyProgress = dailyPlayedToday ? null : await loadWordGridDailyProgress();
+      if (cancelled) return;
 
-  // Resume an in-progress Quick Play attempt.
-  useEffect(() => {
-    if (resumedDailyRef.current) return;
-    loadWordGridQuickPlayProgress().then((progress) => {
-      if (!progress) return;
+      if (dailyProgress) {
+        setDailyInProgressToday(true);
+        setGameMode('daily');
+        setGrid(generateDailyGrid());
+        setScore(dailyProgress.score);
+        setFoundWords(dailyProgress.foundWords);
+        setFoundWordSet(new Set(dailyProgress.foundWords.map((w) => w.word)));
+        setTimeLeft(dailyProgress.timeLeft);
+        resumedDailyRef.current = true;
+        return;
+      }
+
+      const quickProgress = await loadWordGridQuickPlayProgress();
+      if (cancelled || !quickProgress) return;
       setGameMode('quick');
-      setGrid(progress.grid);
-      setScore(progress.score);
-      setFoundWords(progress.foundWords);
-      setFoundWordSet(new Set(progress.foundWords.map((w) => w.word)));
-      setTimeLeft(progress.timeLeft);
+      setGrid(quickProgress.grid);
+      setScore(quickProgress.score);
+      setFoundWords(quickProgress.foundWords);
+      setFoundWordSet(new Set(quickProgress.foundWords.map((w) => w.word)));
+      setTimeLeft(quickProgress.timeLeft);
       resumedQuickPlayRef.current = true;
-    });
-  }, []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+     
+  }, [dailyStats, dailyPlayedToday]);
 
   // Autosave Daily progress on every change so the attempt survives the app
   // being backgrounded, force-quit, or swiped away mid-game.
@@ -471,6 +504,12 @@ export default function GameScreen() {
 
   const handlePlayAgain = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
+    // Play Again is always a fresh Quick Play round on a random grid, so the
+    // mode has to be set explicitly. Leaving gameMode as 'daily' meant the
+    // round finished into the Daily bookkeeping path and could overwrite a
+    // real Daily result with this throwaway one.
+    setGameMode('quick');
+    resumedQuickPlayRef.current = false;
     setGrid(generateGrid(4));
     setScore(0);
     setFoundWords([]);

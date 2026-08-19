@@ -176,6 +176,11 @@ export async function loadWordGridDailyProgress(): Promise<WordGridDailyProgress
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.dateISO !== getTodayDateString()) return null;
+    // An attempt whose clock already hit zero is not resumable — restoring it
+    // dropped the player straight into a "Time's Up! 0 words - 0 points"
+    // screen, which reads as the Daily result having been wiped. Same guard
+    // Quick Play already had; the asymmetry was the bug.
+    if (typeof parsed.timeLeft !== 'number' || parsed.timeLeft <= 0) return null;
     return parsed;
   } catch {
     return null;
@@ -311,6 +316,11 @@ export async function saveWordGridDailyHistoryEntry(
 ): Promise<WordGridDailyHistory> {
   try {
     const history = await loadWordGridDailyHistory();
+    // One attempt per day, first result wins - mirrors the same rule
+    // saveDailyWordGridResult enforces for the stats. Without this, any later
+    // round that ran while gameMode was still 'daily' could overwrite a real
+    // score with a worse (or zero) one in the calendar.
+    if (history[entry.dateISO]) return history;
     const updated: WordGridDailyHistory = { ...history, [entry.dateISO]: entry };
     await AsyncStorage.setItem(WORDGRID_DAILY_HISTORY_KEY, JSON.stringify(updated));
     return updated;
