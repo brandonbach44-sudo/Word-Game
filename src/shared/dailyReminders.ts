@@ -18,6 +18,7 @@ import { loadWordSearchDailyStats } from '../wordsearch/utils/wsStorage';
 import { hasPlayedTodayDaily as ladderHasPlayedToday, loadLadderStats } from '../wordladder/utils/ladderStorage';
 import { loadHexHiveStats } from '../hexhive/utils/storage';
 import { hasPlayedTodayDaily as anagramsHasPlayedToday, loadAnagramsStats } from '../anagrams/utils/anagramsStorage';
+import { loadRitualState, previousISODate } from './ritualStore';
 
 // Local YYYY-MM-DD — every game's own daily reset already keys off local
 // midnight, so this has to match that, not UTC.
@@ -312,15 +313,60 @@ export function gameIdForRoute(route: string): GameId | null {
   return ROUTE_TO_GAME_ID[route] ?? null;
 }
 
+/**
+ * The one sentence that reaches a player who hasn't opened the app.
+ *
+ * It used to say "3 daily challenges are still open — keep your streaks alive"
+ * no matter what was actually true. The ritual already knows the exact
+ * fraction, the real Fury Streak, and whether a Perfect Day is one game away,
+ * so there is no reason to send the vaguest possible version of that.
+ *
+ * Ordered by urgency, and it stops at the first match — still exactly one
+ * notification a day, as before. A better sentence, not more of them.
+ */
 function buildReminderContent(
   labels: string[],
-  singleGameStreak: number
+  singleGameStreak: number,
+  ctx: { doneCount: number; totalCount: number; furyStreak: number }
 ): { title: string; body: string } {
+  const { doneCount, totalCount, furyStreak } = ctx;
+  const remaining = totalCount - doneCount;
+
+  // 1. Nothing played today and a live cross-game streak. The only case where
+  //    something is genuinely about to be lost, so it gets the strongest words
+  //    — and it names the number, because "your streak" is abstract and "your
+  //    23-day streak" is not.
+  if (doneCount === 0 && furyStreak > 0) {
+    return {
+      title: 'Streak at risk',
+      body: `Your ${furyStreak}-day Fury Streak ends at midnight — one daily keeps it alive.`,
+    };
+  }
+
+  // 2. A Perfect Day is within reach. This is the pull the ritual was built for
+  //    and the reminder had no way to express: at 7 of 8 the last game is worth
+  //    naming, and at 6 or 5 the goal is still close enough to be inviting
+  //    rather than a chore.
+  if (doneCount > 0 && remaining > 0 && remaining <= 3) {
+    // Words rather than numerals for the small count, so it doesn't read as
+    // "6 of 8 done — 2 left" with two different number styles in one sentence.
+    const left = remaining === 1 ? 'one' : remaining === 2 ? 'two' : 'three';
+    return {
+      title: 'Word Fury',
+      body:
+        remaining === 1
+          ? `${doneCount} of ${totalCount} done — one more for a Perfect Day.`
+          : `${doneCount} of ${totalCount} done — ${left} left for a Perfect Day.`,
+    };
+  }
+
+  // 3. Exactly one of their chosen games left. A per-game streak is worth
+  //    naming; without one, a plain invitation.
   if (labels.length === 1) {
     if (singleGameStreak >= 1) {
       return {
-        title: 'Streak at risk!',
-        body: `Your ${labels[0]} streak resets in a few hours — don't lose it!`,
+        title: 'Streak at risk',
+        body: `Your ${labels[0]} streak resets at midnight — don't lose it.`,
       };
     }
     return {
@@ -328,9 +374,22 @@ function buildReminderContent(
       body: `Today's ${labels[0]} challenge is still waiting for you.`,
     };
   }
+
+  // 4. Real progress, but a Perfect Day is still a way off. Lead with what they
+  //    have done rather than what they haven't.
+  if (doneCount > 0) {
+    return {
+      title: 'Word Fury',
+      body: `${doneCount} of ${totalCount} dailies done — ${labels.length} of your games are still open.`,
+    };
+  }
+
+  // 5. Nothing played and no streak to lose, so there is nothing at stake to
+  //    invoke. An invitation, not a warning — inventing urgency here would be
+  //    the kind of nudge that gets notifications turned off.
   return {
     title: 'Word Fury',
-    body: `${labels.length} daily challenges are still open — keep your streaks alive.`,
+    body: `${labels.length} daily challenges are waiting.`,
   };
 }
 
@@ -370,20 +429,46 @@ export async function syncDailyReminder(): Promise<void> {
       return;
     }
 
-    const activeIds = ALL_GAME_IDS.filter((id) => prefs.games[id]);
-    const states = await Promise.all(activeIds.map((id) => GAME_STATE[id]()));
-    const unplayed = activeIds
-      .map((id, i) => ({ id, ...states[i] }))
-      .filter((g) => !g.played);
+    // Read all eight, not just the opted-in ones. The reminder only nags about
+    // games the player chose, but a Perfect Day needs all eight regardless of
+    // reminder prefs — so "5 of 8" has to count the full lineup or the fraction
+    // would quietly lie.
+    const states = await Promise.all(
+      ALL_GAME_IDS.map(async (id) => {
+        try {
+          return await GAME_STATE[id]();
+        } catch {
+          // One game's storage failing must not cost the player their reminder.
+          return { played: false, streak: 0 };
+        }
+      })
+    );
+    const byId = ALL_GAME_IDS.map((id, i) => ({ id, ...states[i] }));
+    const doneCount = byId.filter((g) => g.played).length;
+
+    const unplayed = byId.filter((g) => prefs.games[g.id] && !g.played);
 
     if (unplayed.length === 0) {
       await saveNotifState({ dateISO: today, notificationId: null });
       return;
     }
 
+    // The Fury Streak, read straight from the ritual store. Shown as zero once
+    // the run is already broken, matching what the home screen displays — a
+    // notification promising a streak the app is about to reset would be worse
+    // than saying nothing.
+    const ritualState = await loadRitualState();
+    const lastCompleted = ritualState.lastCompletedDateISO;
+    const furyAlive = lastCompleted === today || lastCompleted === previousISODate(today);
+    const furyStreak = furyAlive ? ritualState.currentStreak : 0;
+
     const labels = unplayed.map((g) => GAME_LABELS[g.id]);
     const singleStreak = unplayed.length === 1 ? unplayed[0].streak : 0;
-    const { title, body } = buildReminderContent(labels, singleStreak);
+    const { title, body } = buildReminderContent(labels, singleStreak, {
+      doneCount,
+      totalCount: ALL_GAME_IDS.length,
+      furyStreak,
+    });
     // Only deep-link when there's exactly one unplayed game to send someone
     // to — with several open, the home grid is the more honest destination.
     const data = unplayed.length === 1 ? { route: GAME_ROUTES[unplayed[0].id] } : undefined;

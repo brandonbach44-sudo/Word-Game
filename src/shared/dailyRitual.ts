@@ -23,15 +23,19 @@
 // Per-game "played today" is ALWAYS derived from each game's own storage via
 // loadDailyCompletionMap() in dailyReminders.ts. It is never copied in here.
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ALL_GAME_IDS,
   getTodayISODate,
   loadDailyCompletionMap,
   type GameId,
 } from './dailyReminders';
-
-const RITUAL_KEY = 'wordfury_daily_ritual_v1';
+import {
+  loadRitualState,
+  previousISODate,
+  saveRitualState,
+  type PendingSkipOffer,
+  type RitualState,
+} from './ritualStore';
 
 export const TOTAL_DAILY_GAMES = ALL_GAME_IDS.length; // 8
 
@@ -51,87 +55,9 @@ const SKIP_PERFECT_INTERVAL = 3; // +1 skip per 3 Perfect Days
  */
 const SKIP_OFFER_MIN_STREAK = 5;
 
-export interface PendingSkipOffer {
-  /** The single missed day a skip would cover. */
-  missedDateISO: string;
-  /** Streak the player keeps if they accept. */
-  streakAtRisk: number;
-  /**
-   * bestStreak as it was BEFORE the provisional hold. While an offer is live
-   * the streak is held optimistically, which can push bestStreak up to a value
-   * the player hasn't actually earned yet — declining must roll it back, or
-   * they'd keep a personal best for a streak they chose not to save.
-   */
-  bestBeforeHold: number;
-}
-
-export interface RitualState {
-  /** Last local date on which at least one daily was completed. */
-  lastCompletedDateISO: string;
-  currentStreak: number;
-  bestStreak: number;
-  /** Lifetime count of days where all eight were cleared. */
-  perfectDays: number;
-  /** Guards the celebration so it fires once per day, not on every home focus. */
-  lastPerfectDateISO: string;
-
-  // ── Skips ──
-  skipsAvailable: number;
-  /** Highest streak milestone already converted into a skip. */
-  lastSkipGrantStreak: number;
-  /** Perfect Days already converted into skips. */
-  perfectDaysGranted: number;
-  /** Live offer, awaiting the player's decision. */
-  pendingSkipOffer: PendingSkipOffer | null;
-  /** One-time explainer guard for the first skip earned. */
-  hasSeenSkipIntro: boolean;
-}
-
-const EMPTY: RitualState = {
-  lastCompletedDateISO: '',
-  currentStreak: 0,
-  bestStreak: 0,
-  perfectDays: 0,
-  lastPerfectDateISO: '',
-  skipsAvailable: 0,
-  lastSkipGrantStreak: 0,
-  perfectDaysGranted: 0,
-  pendingSkipOffer: null,
-  hasSeenSkipIntro: false,
-};
-
-/** Local YYYY-MM-DD for the day before the given ISO date. */
-function previousISODate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return '';
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() - 1);
-  const yy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
-
-export async function loadRitualState(): Promise<RitualState> {
-  try {
-    const raw = await AsyncStorage.getItem(RITUAL_KEY);
-    if (!raw) return { ...EMPTY };
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return { ...EMPTY };
-    return { ...EMPTY, ...parsed };
-  } catch (e) {
-    console.warn('loadRitualState error', e);
-    return { ...EMPTY };
-  }
-}
-
-async function saveRitualState(state: RitualState): Promise<void> {
-  try {
-    await AsyncStorage.setItem(RITUAL_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('saveRitualState error', e);
-  }
-}
+// Re-exported so existing callers keep one import for the ritual.
+export type { PendingSkipOffer, RitualState };
+export { loadRitualState };
 
 /** Grants any skips owed by the streak and Perfect Day milestones. */
 function grantSkips(state: RitualState): { state: RitualState; granted: number } {
