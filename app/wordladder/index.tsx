@@ -2,6 +2,8 @@
 
 import { router, useFocusEffect } from 'expo-router';
 import { AchievementIcon } from '../../src/shared/AchievementIcon';
+import GameIntro, { markIntroSeen, shouldShowIntro } from '../../src/shared/GameIntro';
+import { WordChain } from '../../src/shared/introVisuals';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -83,6 +85,18 @@ const DIFFICULTY_COLORS: Record<LadderDifficulty, string> = {
 
 export default function WordLadderEntryScreen() {
   const { background } = useTheme();
+
+  // First-open worked example. The Perfect Day system walks players into this
+  // game whether or not they've ever seen a word ladder, and "change one letter
+  // each step" is much easier to show than to say.
+  const [showIntro, setShowIntro] = useState(false);
+  useEffect(() => {
+    shouldShowIntro('wordladder').then(setShowIntro);
+  }, []);
+  const closeIntro = useCallback(() => {
+    setShowIntro(false);
+    markIntroSeen('wordladder').catch(() => {});
+  }, []);
 
   const [activeTab, setActiveTab] = useState<Tab>('play');
   const tabAnim = useRef(new Animated.Value(0)).current;
@@ -352,7 +366,14 @@ export default function WordLadderEntryScreen() {
             })}
 
             <View style={[styles.rulesCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-              <Text style={[styles.rulesTitle, { color: background.textColor }]}>How to Play</Text>
+              <View style={styles.rulesTitleRow}>
+                <Text style={[styles.rulesTitle, { color: background.textColor }]}>How to Play</Text>
+                {/* Always reopenable, so the intro is a reference rather than a
+                    one-time thing someone skipped and can never get back. */}
+                <Pressable onPress={() => setShowIntro(true)} hitSlop={8}>
+                  <Text style={[styles.rulesExampleLink, { color: COLORS.accent }]}>See example</Text>
+                </Pressable>
+              </View>
               {[
                 'Change exactly one letter to form a new word each step',
                 'Every word along the way must be a real dictionary word',
@@ -500,6 +521,42 @@ export default function WordLadderEntryScreen() {
           </ScrollView>
         </Animated.View>
       </View>
+
+      <GameIntro
+        visible={showIntro}
+        onClose={closeIntro}
+        accentColor={COLORS.accent}
+        cards={[
+          {
+            heading: 'Climb from one word to another',
+            body: 'You start at one word and have to reach the target. Every rung of the ladder has to be a real word.',
+            visual: (
+              <WordChain
+                words={['COLD', 'CORD', 'CORE', 'CARE']}
+                accent={COLORS.accent}
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+              />
+            ),
+          },
+          {
+            heading: 'One letter at a time',
+            body: 'Each step changes exactly one letter and leaves the rest where they are. The highlighted letter is the one that moved.',
+            visual: (
+              <WordChain
+                words={['CORD', 'CORE']}
+                accent={COLORS.accent}
+                textColor={background.textColor}
+                secondaryText={background.secondaryText}
+              />
+            ),
+          },
+          {
+            heading: 'Fewer steps is better',
+            body: 'Every puzzle has a par, which is the shortest ladder possible. Match it or beat it. Stuck on a rung? A hint reveals one letter.',
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
@@ -575,6 +632,8 @@ const styles = StyleSheet.create({
   modeDesc: { fontSize: 13 },
 
   rulesCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 16, marginTop: 8 },
+  rulesTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rulesExampleLink: { fontSize: 12, fontWeight: '800', textDecorationLine: 'underline' },
   rulesTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   ruleNum: { fontSize: 18, fontWeight: 'bold', width: 28 },

@@ -2,6 +2,8 @@
 
 import { router, useFocusEffect } from 'expo-router';
 import { AchievementIcon } from '../../src/shared/AchievementIcon';
+import GameIntro, { markIntroSeen, shouldShowIntro } from '../../src/shared/GameIntro';
+import { HiveLetters, WordWithRequiredLetter } from '../../src/shared/introVisuals';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -219,6 +221,19 @@ function AchievementCard({
 
 export default function HexHiveEntryScreen() {
   const { background } = useTheme();
+
+  // First-open worked example. Hex Hive's two rules that trip people up -- every
+  // word must use the centre letter, and letters can repeat -- are both far
+  // clearer shown than stated, and the Perfect Day system now sends people in
+  // here who have never played this kind of puzzle.
+  const [showIntro, setShowIntro] = useState(false);
+  useEffect(() => {
+    shouldShowIntro('hexhive').then(setShowIntro);
+  }, []);
+  const closeIntro = useCallback(() => {
+    setShowIntro(false);
+    markIntroSeen('hexhive').catch(() => {});
+  }, []);
 
   const [activeTab, setActiveTab] = useState<Tab>('play');
   const tabAnim = useRef(new Animated.Value(0)).current;
@@ -476,7 +491,14 @@ export default function HexHiveEntryScreen() {
             </TouchableOpacity>
 
             <View style={[styles.rulesCard, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
-              <Text style={[styles.rulesTitle, { color: background.textColor }]}>How to Play</Text>
+              <View style={styles.rulesTitleRow}>
+                <Text style={[styles.rulesTitle, { color: background.textColor }]}>How to Play</Text>
+                {/* Always reopenable, so the intro is a reference rather than a
+                    one-time thing someone skipped and can never get back. */}
+                <Pressable onPress={() => setShowIntro(true)} hitSlop={8}>
+                  <Text style={[styles.rulesExampleLink, { color: ACCENT }]}>See example</Text>
+                </Pressable>
+              </View>
               {[
                 'Every word must use the center (gold) letter',
                 'Words must be at least 4 letters long',
@@ -621,6 +643,51 @@ export default function HexHiveEntryScreen() {
           </ScrollView>
         </Animated.View>
       </View>
+
+      <GameIntro
+        visible={showIntro}
+        onClose={closeIntro}
+        accentColor={ACCENT}
+        cards={[
+          {
+            heading: 'Seven letters, one of them required',
+            body: 'You get seven letters. The gold one in the middle has to appear in every single word you find.',
+            visual: (
+              <HiveLetters
+                center="T"
+                outer={['P', 'L', 'A', 'N', 'E', 'R']}
+                accent={ACCENT}
+                textColor={background.textColor}
+                borderColor={background.borderColor}
+              />
+            ),
+          },
+          {
+            heading: 'Build words four letters or longer',
+            body: 'PLANET works: four or more letters, and it uses the gold T. PLANE would not, because it leaves the centre letter out.',
+            visual: (
+              <WordWithRequiredLetter
+                word="PLANET"
+                required="T"
+                accent={ACCENT}
+                textColor={background.textColor}
+              />
+            ),
+          },
+          {
+            heading: 'Reuse letters freely, and hunt the pangram',
+            body: 'Letters can be used as many times as you like, so PATENT is fine. A word using all seven letters is a pangram and pays a big bonus.',
+            visual: (
+              <WordWithRequiredLetter
+                word="PATENT"
+                required="T"
+                accent={ACCENT}
+                textColor={background.textColor}
+              />
+            ),
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
@@ -689,6 +756,8 @@ const styles = StyleSheet.create({
   modeDesc: { fontSize: 13 },
 
   rulesCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 16, marginTop: 8 },
+  rulesTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rulesExampleLink: { fontSize: 12, fontWeight: '800', textDecorationLine: 'underline' },
   rulesTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   ruleNum: { fontSize: 18, fontWeight: 'bold', width: 28 },
