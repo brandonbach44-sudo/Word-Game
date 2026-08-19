@@ -16,7 +16,10 @@ import { SplashScreen } from '../src/shared/SplashScreen';
 import { useTheme } from '../src/shared/ThemeContext';
 import { ConfirmModal } from '../src/shared/ConfirmModal';
 import { COLORS } from '../src/shared/theme';
-import { consumeReminderOptInPending, requestReminderPermission } from '../src/shared/dailyReminders';
+import { consumeReminderOptInPending, requestReminderPermission, gameIdForRoute } from '../src/shared/dailyReminders';
+import { refreshDailyRitual, type DailyRitualSummary } from '../src/shared/dailyRitual';
+import { HapticManager } from '../src/shared/HapticManager';
+import { useCountdownToMidnight } from '../src/wordladder/utils/ladderStorage';
 
 const GAMES = [
   {
@@ -135,6 +138,9 @@ export default function Home() {
   const { background, colorBlindMode } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
   const [showReminderOptIn, setShowReminderOptIn] = useState(false);
+  const [ritual, setRitual] = useState<DailyRitualSummary | null>(null);
+  const [showPerfectDay, setShowPerfectDay] = useState(false);
+  const resetsIn = useCountdownToMidnight();
 
   // Checked every time the player lands back on the home screen — this is
   // the natural, unhurried moment after a win, not mid-game. The flag can
@@ -145,6 +151,33 @@ export default function Home() {
       consumeReminderOptInPending().then((pending) => {
         if (pending) setShowReminderOptIn(true);
       });
+    }, [])
+  );
+
+  // Recompute the cross-game ritual every time the player lands back home —
+  // which is exactly when they've just finished a daily. refreshDailyRitual
+  // only writes when something actually changed, so this is safe to call on
+  // every focus.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      refreshDailyRitual()
+        .then((summary) => {
+          if (cancelled) return;
+          setRitual(summary);
+          // The Perfect Day celebration fires here rather than inside whichever
+          // game happened to be the eighth — it lands at the natural end of a
+          // session, and it means none of the eight game screens need to know
+          // this feature exists.
+          if (summary.shouldCelebratePerfectDay) {
+            setShowPerfectDay(true);
+            HapticManager.achievement();
+          }
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 
@@ -171,15 +204,83 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.subtitle, { color: background.secondaryText }]}>
-          Select a game to play
-        </Text>
-
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.gamesContainer}>
+          {/* ── TODAY CARD ──────────────────────────────────────────────────────
+              The fraction is the headline, not the streak: "how many are left
+              today" is the question a returning player actually has, and seeing
+              5/8 at 9pm reads as an invitation rather than a scolding. The eight
+              segments make what's left glanceable without counting. */}
+          {ritual && (
+            <View
+              style={[
+                styles.todayCard,
+                { backgroundColor: background.cardColor, borderColor: background.borderColor },
+              ]}
+            >
+              <View style={styles.todayTopRow}>
+                <View style={styles.todayFractionWrap}>
+                  <Text style={[styles.todayFraction, { color: background.textColor }]}>
+                    {ritual.completedCount}
+                    <Text style={[styles.todayFractionTotal, { color: background.secondaryText }]}>
+                      /{ritual.totalCount}
+                    </Text>
+                  </Text>
+                  <Text style={[styles.todayLabel, { color: background.secondaryText }]}>
+                    Dailies today
+                  </Text>
+                </View>
+
+                <View style={styles.todayStreakWrap}>
+                  <View style={styles.todayStreakRow}>
+                    <Ionicons name="flame" size={18} color={ritual.streak > 0 ? '#F97316' : background.secondaryText} />
+                    <Text style={[styles.todayStreakValue, { color: background.textColor }]}>
+                      {ritual.streak}
+                    </Text>
+                  </View>
+                  <Text style={[styles.todayLabel, { color: background.secondaryText }]}>
+                    Fury Streak
+                  </Text>
+                </View>
+              </View>
+
+              {/* One segment per game, lit as each daily is cleared. */}
+              <View style={styles.todaySegments}>
+                {GAMES.map((game) => {
+                  const id = gameIdForRoute(game.route);
+                  const done = id ? ritual.completion[id] : false;
+                  const colors = colorBlindMode ? COLORBLIND_GAME_COLORS[game.route] ?? game : game;
+                  return (
+                    <View
+                      key={game.route}
+                      style={[
+                        styles.todaySegment,
+                        {
+                          backgroundColor: done ? colors.accentColor : background.borderColor,
+                          opacity: done ? 1 : 0.35,
+                        },
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.todayReset, { color: background.secondaryText }]}>
+                {ritual.isPerfectDay ? 'Perfect Day — all 8 cleared' : `Resets in ${resetsIn}`}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.grid}>
             {GAMES.map((game, index) => {
               const isLastOdd = GAMES.length % 2 !== 0 && index === GAMES.length - 1;
               const colors = colorBlindMode ? COLORBLIND_GAME_COLORS[game.route] ?? game : game;
+              // Today's daily done? The Today card says HOW MANY are left; this
+              // badge says WHICH ones, at the moment the player is choosing
+              // where to tap. Deliberately a quiet badge rather than a grey-out
+              // — a finished game must stay inviting, since practice modes and
+              // stats are still in there.
+              const gameId = gameIdForRoute(game.route);
+              const dailyDone = !!(ritual && gameId && ritual.completion[gameId]);
               return (
                 <TouchableOpacity
                   key={game.name}
@@ -196,6 +297,12 @@ export default function Home() {
                 >
                   {/* Color accent bar */}
                   <View style={[styles.accentBar, { backgroundColor: colors.accentColor }]} />
+
+                  {dailyDone && (
+                    <View style={[styles.tileCheck, { backgroundColor: colors.accentColor }]}>
+                      <Ionicons name="checkmark" size={13} color="#fff" />
+                    </View>
+                  )}
 
                   <View style={styles.tileBody}>
                     {/* Icon */}
@@ -241,6 +348,31 @@ export default function Home() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Perfect Day — fires once per day, guarded by lastPerfectDateISO in the
+          ritual store. Shown here rather than inside whichever game happened to
+          be the eighth, so none of the eight game screens need to know this
+          feature exists. */}
+      <ConfirmModal
+        visible={showPerfectDay}
+        title="Perfect Day"
+        message={
+          ritual
+            ? `All 8 dailies cleared. That's ${ritual.perfectDays} perfect ${
+                ritual.perfectDays === 1 ? 'day' : 'days'
+              } — and a ${ritual.streak}-day Fury Streak.`
+            : 'All 8 dailies cleared.'
+        }
+        confirmText="Nice"
+        hideCancel
+        onCancel={() => setShowPerfectDay(false)}
+        onConfirm={() => setShowPerfectDay(false)}
+        backgroundColor={background.cardColor}
+        textColor={background.textColor}
+        secondaryText={background.secondaryText}
+        borderColor={background.borderColor}
+        destructiveColor={COLORS.accent}
+      />
 
       <ConfirmModal
         visible={showReminderOptIn}
@@ -290,11 +422,45 @@ const styles = StyleSheet.create({
   settingsButton: {
     padding: 8,
   },
-  subtitle: {
-    fontSize: 15,
+  // ── Today card (cross-game daily ritual) ──────────────────────────────────
+  todayCard: {
+    // No horizontal margin: gamesContainer already pads 16px, so this keeps the
+    // card's edges flush with the tile grid below it.
     marginBottom: 16,
-    textAlign: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
   },
+  todayTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  todayFractionWrap: { alignItems: 'flex-start' },
+  todayFraction: { fontSize: 30, fontWeight: '900', lineHeight: 34 },
+  todayFractionTotal: { fontSize: 18, fontWeight: '800' },
+  todayLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginTop: 2 },
+  todayStreakWrap: { alignItems: 'flex-end' },
+  todayStreakRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  todayStreakValue: { fontSize: 22, fontWeight: '900' },
+  todaySegments: { flexDirection: 'row', gap: 4, marginTop: 12 },
+  todaySegment: { flex: 1, height: 6, borderRadius: 3 },
+  todayReset: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+
+  // ── Tile completion badge ─────────────────────────────────────────────────
+  tileCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+
   scrollView: {
     flex: 1,
   },

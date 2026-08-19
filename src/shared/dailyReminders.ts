@@ -21,7 +21,7 @@ import { hasPlayedTodayDaily as anagramsHasPlayedToday, loadAnagramsStats } from
 
 // Local YYYY-MM-DD — every game's own daily reset already keys off local
 // midnight, so this has to match that, not UTC.
-function getTodayISODate(): string {
+export function getTodayISODate(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -98,6 +98,35 @@ const GAME_STATE: Record<GameId, () => Promise<GameDailyState>> = {
     return { played, streak: stats.daily?.currentStreak ?? 0 };
   },
 };
+
+/**
+ * Which of the eight dailies has this player finished today, and what is each
+ * game's own streak.
+ *
+ * This reuses GAME_STATE — the same map the reminder scheduler uses — so the
+ * home screen's daily ritual and the notifications can never disagree about
+ * whether a game has been played. Per-game completion is always DERIVED from
+ * each game's own storage and is never copied into a second store.
+ */
+export interface DailyCompletionEntry {
+  played: boolean;
+  streak: number;
+}
+
+export async function loadDailyCompletionMap(): Promise<Record<GameId, DailyCompletionEntry>> {
+  const entries = await Promise.all(
+    ALL_GAME_IDS.map(async (id) => {
+      try {
+        const state = await GAME_STATE[id]();
+        return [id, { played: state.played, streak: state.streak }] as const;
+      } catch {
+        // A single game's storage failing must never break the home screen.
+        return [id, { played: false, streak: 0 }] as const;
+      }
+    })
+  );
+  return Object.fromEntries(entries) as Record<GameId, DailyCompletionEntry>;
+}
 
 // ============================================================================
 // PREFERENCES
@@ -259,7 +288,11 @@ export async function requestReminderPermission(): Promise<ReminderPermissionRes
 // notification tap can deep-link straight into the one game it's about,
 // instead of dropping the player back at the home grid to go find it
 // themselves.
-const GAME_ROUTES: Record<GameId, string> = {
+/**
+ * Route per game. Exported so the home screen can map a tile back to its
+ * GameId without maintaining a second copy of this mapping.
+ */
+export const GAME_ROUTES: Record<GameId, string> = {
   wordsmith: '/wordbuilder',
   furdle: '/wordle',
   hangman: '/hangman',
@@ -269,6 +302,15 @@ const GAME_ROUTES: Record<GameId, string> = {
   hexhive: '/hexhive',
   anagrams: '/anagrams',
 };
+
+const ROUTE_TO_GAME_ID: Record<string, GameId> = Object.fromEntries(
+  (Object.keys(GAME_ROUTES) as GameId[]).map((id) => [GAME_ROUTES[id], id])
+) as Record<string, GameId>;
+
+/** GameId for a tile route, or null if the route isn't one of the eight. */
+export function gameIdForRoute(route: string): GameId | null {
+  return ROUTE_TO_GAME_ID[route] ?? null;
+}
 
 function buildReminderContent(
   labels: string[],

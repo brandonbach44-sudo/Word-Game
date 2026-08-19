@@ -22,6 +22,12 @@ interface ConfirmModalProps {
   secondaryText: string;
   borderColor: string;
   destructiveColor?: string;
+  /**
+   * Render only the confirm button, full width, in the accent colour rather
+   * than the destructive one. For acknowledgements and celebrations where
+   * "cancel" is meaningless.
+   */
+  hideCancel?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -37,6 +43,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   secondaryText,
   borderColor,
   destructiveColor = '#e94560',
+  hideCancel = false,
 }) => {
   return (
     <Modal
@@ -54,9 +61,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <Text style={[styles.message, { color: secondaryText }]}>{message}</Text>
 
           <View style={styles.buttonRow}>
-            <Pressable style={[styles.button, styles.cancelButton, { borderColor }]} onPress={onCancel}>
-              <Text style={[styles.cancelText, { color: textColor }]}>{cancelText}</Text>
-            </Pressable>
+            {!hideCancel && (
+              <Pressable style={[styles.button, styles.cancelButton, { borderColor }]} onPress={onCancel}>
+                <Text style={[styles.cancelText, { color: textColor }]}>{cancelText}</Text>
+              </Pressable>
+            )}
             <Pressable style={[styles.button, styles.confirmButton, { borderColor: destructiveColor }]} onPress={onConfirm}>
               <Text style={[styles.confirmText, { color: destructiveColor }]}>{confirmText}</Text>
             </Pressable>
