@@ -21,7 +21,15 @@ import { consumeReminderOptInPending, requestReminderPermission, gameIdForRoute 
 import { COLORBLIND_GAME_ACCENTS, GAME_ACCENTS } from '../src/shared/gameColors';
 import { refreshDailyRitual, acceptSkipOffer, declineSkipOffer, type DailyRitualSummary } from '../src/shared/dailyRitual';
 import { HapticManager } from '../src/shared/HapticManager';
-import { ChevronRight, ShieldCheck } from 'lucide-react-native';
+import { ChevronRight, ShieldCheck, X } from 'lucide-react-native';
+import FeedbackForm from '../FeedbackForm';
+import {
+  buildReportMessage,
+  clearWordReports,
+  loadPendingReports,
+  markReportsOffered,
+  type WordReport,
+} from '../src/shared/wordReports';
 import { useCountdownToMidnight } from '../src/wordladder/utils/ladderStorage';
 
 const GAMES = [
@@ -157,6 +165,26 @@ export default function Home() {
       consumeReminderOptInPending().then((pending) => {
         if (pending) setShowReminderOptIn(true);
       });
+    }, [])
+  );
+
+  // Words the games rejected that look like real words. Collected silently
+  // during play (see src/shared/wordReports.ts) and surfaced here, at the
+  // bottom of the scroll, because src/shared/words.ts is the dictionary for
+  // several games at once — a gap belongs to the app, not to one game.
+  const [pendingReports, setPendingReports] = useState<WordReport[]>([]);
+  const [showWordReport, setShowWordReport] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      loadPendingReports().then(({ reports, shouldOffer }) => {
+        if (cancelled) return;
+        setPendingReports(shouldOffer ? reports : []);
+      });
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 
@@ -393,8 +421,59 @@ export default function Home() {
               </View>
             </>
           )}
+
+          {/* ── MISSING WORD REPORT ───────────────────────────────────────────
+              Last thing in the scroll, so it costs nothing above the fold and
+              the game grid never moves. Only appears when there is something
+              worth sending, and at most once a day. Nothing interrupts play:
+              a rejected word behaves exactly as it always has. */}
+          {pendingReports.length > 0 && (
+            <View style={[styles.wordReportRow, { borderColor: background.borderColor }]}>
+              <Pressable
+                style={styles.wordReportMain}
+                onPress={() => setShowWordReport(true)}
+              >
+                <Text style={[styles.wordReportText, { color: background.secondaryText }]}>
+                  {pendingReports.length === 1
+                    ? '1 word you tried wasn\'t in our dictionary'
+                    : `${pendingReports.length} words you tried weren't in our dictionary`}
+                </Text>
+                <Text style={[styles.wordReportAction, { color: background.textColor }]}>
+                  Report
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  // Dismissing counts as having been asked, so it doesn't come
+                  // straight back tomorrow morning.
+                  setPendingReports([]);
+                  markReportsOffered().catch(() => {});
+                }}
+                hitSlop={10}
+                style={styles.wordReportDismiss}
+              >
+                <X size={16} color={background.secondaryText} />
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Prefilled with the collected words, so one tap produces a
+          ready-to-send report rather than a blank box and a memory test. */}
+      <FeedbackForm
+        visible={showWordReport}
+        initialCategory="other"
+        initialMessage={buildReportMessage(pendingReports)}
+        onSent={() => {
+          setPendingReports([]);
+          clearWordReports().catch(() => {});
+        }}
+        onClose={() => {
+          setShowWordReport(false);
+          markReportsOffered().catch(() => {});
+        }}
+      />
 
       {/* ── STREAK SKIP OFFER ────────────────────────────────────────────────
           Shown on returning home after playing on the comeback day. Never
@@ -585,6 +664,22 @@ const styles = StyleSheet.create({
   // Vertically centred against the reset line, inside todayCard's existing
   // 16px horizontal padding -- adds no height to the card or the screen.
   todayChevron: { position: 'absolute', right: 8, bottom: 12 },
+  wordReportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    opacity: 0.9,
+  },
+  wordReportMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  wordReportText: { fontSize: 11.5, flexShrink: 1 },
+  wordReportAction: { fontSize: 11.5, fontWeight: '800', textDecorationLine: 'underline' },
+  wordReportDismiss: { paddingLeft: 8 },
 
   // ── Tile completion badge ─────────────────────────────────────────────────
   tileCheck: {

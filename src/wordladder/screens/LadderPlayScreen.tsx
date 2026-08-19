@@ -16,6 +16,7 @@ import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
 import { useSemanticColors } from '../../shared/semanticColors';
+import { recordRejectedWord } from '../../shared/wordReports';
 import { HapticManager } from '../../shared/HapticManager';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
@@ -351,6 +352,10 @@ const LadderPlayScreen: React.FC<Props> = ({
     if (!isValidWord(guess)) {
       HapticManager.wordLadder.stepRejected();
       setError('Not a real word');
+      // The player already proved they know the one-letter rule to get here, so
+      // a rejection at this point is a decent signal the word list is missing
+      // something rather than that they were guessing.
+      recordRejectedWord('wordladder', guess);
       return;
     }
 

@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
 import { HapticManager } from '../../shared/HapticManager';
+import { recordRejectedWord } from '../../shared/wordReports';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
@@ -237,6 +238,13 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
           ? 'invalid'
           : null
       );
+      // Only a true dictionary miss is worth reporting. 'too_short',
+      // 'invalid_letters' and 'missing_center' are the player breaking Hex
+      // Hive's own rules, not the word list being wrong, and 'already_found'
+      // means the word IS in the list.
+      if (result.status === 'not_a_word') {
+        recordRejectedWord('hexhive', currentGuess);
+      }
       setCurrentGuess('');
       return;
     }

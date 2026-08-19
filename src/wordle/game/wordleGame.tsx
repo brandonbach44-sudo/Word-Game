@@ -39,6 +39,7 @@ import {
 
 import { useTheme } from "../../shared/ThemeContext";
 import { getSemanticColors } from "../../shared/semanticColors";
+import { recordRejectedWord } from "../../shared/wordReports";
 import { HapticManager } from "../../shared/HapticManager";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
@@ -1302,6 +1303,10 @@ export default function WordleGame() {
     if (!VALID_GUESSES_SET.has(guessLower)) {
       HapticManager.furdle.invalidGuess();
       showMessageFn("Not in word list");
+      // Noted for a possible dictionary report. Fire-and-forget, and implausible
+      // strings are filtered out inside — the player's feedback is unchanged and
+      // nothing waits on storage.
+      recordRejectedWord('furdle', currentGuess);
       return;
     }
 

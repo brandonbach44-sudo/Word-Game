@@ -31,6 +31,7 @@ import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
 import DailyCalendar, { type CalendarHistory } from '../../shared/DailyCalendar';
 import { HapticManager } from '../../shared/HapticManager';
+import { recordRejectedWord } from '../../shared/wordReports';
 import { generateGrid } from '../utils/gridGenerator';
 import {
   buildWordGridDailyShareText,
@@ -358,6 +359,11 @@ export default function GameScreen() {
       } else {
         const alreadyFound = valid && foundWordSet.has(word);
         setFeedbacks((prev) => [...prev, { points: 0, success: false, alreadyFound, key }]);
+        // Only when the path was a legal chain of adjacent tiles but the word
+        // wasn't recognised. An already-found word is already in the list, and
+        // rapid guessing is the intended play pattern here, so the plausibility
+        // filter inside does the rest of the work.
+        if (!valid && !alreadyFound) recordRejectedWord('wordgrid', word);
         // Soft selection tick rather than a warning: rapid guessing is the
         // intended play pattern under a 60-second clock, so a miss is not a
         // mistake worth punishing.

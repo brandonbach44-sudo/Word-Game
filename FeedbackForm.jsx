@@ -6,13 +6,30 @@ import { View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityInd
 // each submission to the inbox configured on the form itself.
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/maewqwwd';
 
-const FeedbackForm = ({ visible, onClose }) => {
+// initialMessage / initialCategory let another screen open this form already
+// filled in — used by the missing-word report, so a player taps one line and
+// gets a ready-to-send message instead of being handed a blank box and asked to
+// remember which words the game rejected.
+// onSent fires only on a successful submit, so the caller can clear what it sent.
+const FeedbackForm = ({ visible, onClose, initialMessage = '', initialCategory = 'bug', onSent = () => {} }) => {
   const [rating, setRating] = useState(5);
-  const [category, setCategory] = useState('bug');
-  const [message, setMessage] = useState('');
+  const [category, setCategory] = useState(initialCategory);
+  const [message, setMessage] = useState(initialMessage);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // The component is mounted for the life of the screen, so useState's initial
+  // value applies exactly once. Re-seed whenever it opens, or the second report
+  // of the day would show the first one's words.
+  React.useEffect(() => {
+    if (visible) {
+      setMessage(initialMessage);
+      setCategory(initialCategory);
+      setError('');
+      setSuccess(false);
+    }
+  }, [visible, initialMessage, initialCategory]);
 
   const categories = [
     { label: 'Bug Report', value: 'bug' },
@@ -55,6 +72,7 @@ const FeedbackForm = ({ visible, onClose }) => {
       }
 
       setSuccess(true);
+      onSent();
       setTimeout(() => {
         setMessage('');
         setRating(5);

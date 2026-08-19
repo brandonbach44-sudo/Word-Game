@@ -32,6 +32,7 @@ import DailyCalendar, { type CalendarHistory } from '../../src/shared/DailyCalen
 
 // Shared Managers
 import { HapticManager } from '../../src/shared/HapticManager';
+import { recordRejectedWord } from '../../src/shared/wordReports';
 
 // Theme
 import { useTheme } from '../../src/shared/ThemeContext';
@@ -752,6 +753,9 @@ export default function WordBuilder() {
     } else {
       setMessage('Not a valid word!');
       HapticManager.invalidWord();
+      // Noted for a possible dictionary report — the tiles were valid, only the
+      // word wasn't recognised.
+      recordRejectedWord('wordsmith', currentWord);
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
       messageTimerRef.current = setTimeout(() => {
         setMessage('');
