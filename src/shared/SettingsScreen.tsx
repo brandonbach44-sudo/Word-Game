@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { useTheme } from './ThemeContext';
+import { HapticManager } from './HapticManager';
 import { BackgroundOption, COLORS, getLightBackgrounds } from './theme';
 import FeedbackForm from '../../FeedbackForm';
 import {
@@ -71,6 +72,11 @@ export const SettingsScreen: React.FC = () => {
   const [showWhatsNew, setShowWhatsNew] = React.useState(false);
   const [showFeedback, setShowFeedback] = React.useState(false);
   const [reminderPrefs, setReminderPrefs] = React.useState<ReminderPrefs | null>(null);
+  const [hapticsEnabled, setHapticsEnabled] = React.useState<boolean>(HapticManager.isEnabled());
+
+  React.useEffect(() => {
+    HapticManager.init().then(() => setHapticsEnabled(HapticManager.isEnabled()));
+  }, []);
 
   React.useEffect(() => {
     loadReminderPrefs().then(setReminderPrefs);
@@ -302,6 +308,32 @@ export const SettingsScreen: React.FC = () => {
             />
           </View>
           
+          {/* Haptics Toggle */}
+          <View style={[styles.settingRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, { color: background.textColor }]}>
+                Haptics
+              </Text>
+              <Text style={[styles.settingDescription, { color: background.secondaryText }]}>
+                Vibration feedback while playing
+              </Text>
+            </View>
+            <Switch
+              value={hapticsEnabled}
+              onValueChange={(next) => {
+                setHapticsEnabled(next);
+                HapticManager.setEnabled(next).then(() => {
+                  // Fire one tick when switching ON so the player immediately
+                  // feels what they just enabled.
+                  if (next) HapticManager.light();
+                });
+              }}
+              trackColor={{ false: '#9CA3AF', true: COLORS.accent }}
+              ios_backgroundColor="#9CA3AF"
+              thumbColor={hapticsEnabled ? '#ffffff' : '#f4f3f4'}
+            />
+          </View>
+
           {/* Color Blind Mode Toggle */}
           <View style={[styles.settingRow, { backgroundColor: background.cardColor, borderColor: background.borderColor }]}>
             <View style={styles.settingInfo}>

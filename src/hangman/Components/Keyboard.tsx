@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../shared/ThemeContext';
+import { HapticManager } from '../../shared/HapticManager';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -139,7 +140,13 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 return (
                   <Pressable
                     key={key}
-                    onPress={() => onKeyPress(key)}
+                    onPress={() => {
+                      // Letter selection only. Enter deliberately has no tick —
+                      // the correct/wrong feedback fires on commit instead, and
+                      // two pulses for one action is the pattern to avoid.
+                      HapticManager.hangman.letterTap();
+                      onKeyPress(key);
+                    }}
                     disabled={disabled || isGuessed}
                     style={({ pressed }) => [
                       styles.key,

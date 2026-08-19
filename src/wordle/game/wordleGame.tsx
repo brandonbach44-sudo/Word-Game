@@ -37,6 +37,7 @@ import {
 } from "../storage/wordleStorage";
 
 import { useTheme } from "../../shared/ThemeContext";
+import { HapticManager } from "../../shared/HapticManager";
 
 import WordleResultOverlay from "../components/wordleResultoverlay";
 import { WordleKey } from "../components/WordleKey";
@@ -1029,13 +1030,21 @@ export default function WordleGame() {
       }
 
       if (key === "BACK") {
-        setCurrentGuess((prev) => prev.slice(0, -1));
+        setCurrentGuess((prev) => {
+          // Nothing to delete — no tick.
+          if (prev.length === 0) return prev;
+          HapticManager.furdle.backspace();
+          return prev.slice(0, -1);
+        });
         return;
       }
 
       if (key.length === 1 && /[A-Z]/i.test(key)) {
         setCurrentGuess((prev) => {
+          // Row already full — no letter is added, so no tick either.
+          // Phantom feedback for a no-op action feels broken.
           if (prev.length >= COLS) return prev;
+          HapticManager.furdle.keyPress();
           setStats((s) => { const k = gameMode === "daily" ? "daily" : "practice"; return { ...s, [k]: { ...s[k], totalLettersTyped: s[k].totalLettersTyped + 1 } }; });
           return (prev + key.toLowerCase()).slice(0, COLS);
         });
@@ -1253,6 +1262,7 @@ export default function WordleGame() {
     }
 
     if (currentGuess.length < COLS) {
+      HapticManager.furdle.invalidGuess();
       showMessageFn("Not enough letters");
       return;
     }
@@ -1261,6 +1271,7 @@ export default function WordleGame() {
 
     // ✅ Case-insensitive membership (fixes sally/SALLY mismatches)
     if (!VALID_GUESSES_SET.has(guessLower)) {
+      HapticManager.furdle.invalidGuess();
       showMessageFn("Not in word list");
       return;
     }
@@ -1270,12 +1281,14 @@ export default function WordleGame() {
       for (const prevRow of evaluations) {
         for (let c = 0; c < COLS; c++) {
           if (prevRow[c].state === "correct" && guessLower[c] !== prevRow[c].letter) {
+            HapticManager.furdle.invalidGuess();
             showMessageFn(`Position ${c + 1} must be ${prevRow[c].letter.toUpperCase()}`);
             return;
           }
         }
         for (let c = 0; c < COLS; c++) {
           if (prevRow[c].state === "present" && !guessLower.includes(prevRow[c].letter)) {
+            HapticManager.furdle.invalidGuess();
             showMessageFn(`Must use ${prevRow[c].letter.toUpperCase()}`);
             return;
           }
@@ -1290,10 +1303,19 @@ export default function WordleGame() {
     setEvaluations((prev) => [...prev, evalRow]);
     setCurrentGuess("");
 
+    HapticManager.furdle.rowCommitted();
     revealRow(rowIndex);
 
     const didWin = evalRow.every((e) => e.state === "correct");
     const didLose = rowIndex === ROWS - 1 && !didWin;
+    // Land the outcome pulse as the last tile finishes flipping (stagger 80ms
+    // x 5 tiles + 260ms flip ≈ 580ms). Firing it immediately would both feel
+    // early and be swallowed by the shared throttle, since rowCommitted just
+    // fired in this same tick.
+    if (didWin || didLose) {
+      const outcome = didWin ? HapticManager.furdle.win : HapticManager.furdle.loss;
+      setTimeout(outcome, 600);
+    }
 
     if (didWin || didLose) {
       const elapsedSeconds =

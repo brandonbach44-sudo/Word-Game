@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lightbulb, FlagOff } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { HapticManager } from '../../shared/HapticManager';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
@@ -293,7 +294,9 @@ const LadderPlayScreen: React.FC<Props> = ({
     if (status !== 'playing') return;
     setError(null);
     const firstEmpty = currentCells.indexOf('');
+    // Row already full — no letter lands, so no tick.
     if (firstEmpty === -1) return;
+    HapticManager.wordLadder.keyPress();
     const next = [...currentCells];
     next[firstEmpty] = key;
     setCurrentCells(next);
@@ -303,18 +306,23 @@ const LadderPlayScreen: React.FC<Props> = ({
     if (status !== 'playing') return;
     setError(null);
     const next = [...currentCells];
+    let deleted = false;
     for (let i = next.length - 1; i >= 0; i--) {
       if (next[i] !== '') {
         next[i] = '';
+        deleted = true;
         break;
       }
     }
+    // Nothing to delete — no tick.
+    if (deleted) HapticManager.wordLadder.keyPress();
     setCurrentCells(next);
   };
 
   const handleSubmit = () => {
     if (status !== 'playing') return;
     if (currentCells.some((c) => c === '')) {
+      HapticManager.wordLadder.stepRejected();
       setError('Fill in all letters');
       return;
     }
@@ -322,18 +330,22 @@ const LadderPlayScreen: React.FC<Props> = ({
     const last = chain[chain.length - 1];
 
     if (guess === last) {
+      HapticManager.wordLadder.stepRejected();
       setError('That’s the same word');
       return;
     }
     if (chain.includes(guess)) {
+      HapticManager.wordLadder.stepRejected();
       setError('Already used that word');
       return;
     }
     if (!isOneLetterOff(last, guess)) {
+      HapticManager.wordLadder.stepRejected();
       setError('Change exactly one letter');
       return;
     }
     if (!isValidWord(guess)) {
+      HapticManager.wordLadder.stepRejected();
       setError('Not a real word');
       return;
     }
@@ -344,7 +356,12 @@ const LadderPlayScreen: React.FC<Props> = ({
     setError(null);
 
     if (guess === puzzle.end) {
+      // Target reached — the one success() in this game.
+      HapticManager.wordLadder.reachedTarget();
       finishGame('won', newChain, hintsUsed);
+    } else {
+      // Each accepted rung is a small proof of progress.
+      HapticManager.wordLadder.stepAccepted();
     }
   };
 

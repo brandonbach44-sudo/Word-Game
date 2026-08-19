@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlagOff, Lightbulb, Shuffle, SkipForward } from 'lucide-react-native';
 
 import { useTheme } from '../../shared/ThemeContext';
+import { HapticManager } from '../../shared/HapticManager';
 import { COLORS } from '../../shared/theme';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { ConfirmModal } from '../../shared/ConfirmModal';
@@ -233,11 +234,13 @@ const AnagramsPlayScreen: React.FC<Props> = ({
       // Brief pause with a green "solved" flash so the correct answer
       // actually registers before jumping to the next word.
       setSolved(true);
+      HapticManager.anagrams.roundSolved();
       setTimeout(() => {
         setSolved(false);
         advanceRound({ solved: true, skipped: false, timeSeconds, hintsUsed: hintsUsedThisRound, playerWord: guess.toLowerCase() });
       }, 550);
     } else {
+      HapticManager.anagrams.wrongSubmission();
       triggerShake();
     }
   }
@@ -255,6 +258,13 @@ const AnagramsPlayScreen: React.FC<Props> = ({
 
     setGuessSlots(nextSlots);
     setTray(nextTray);
+
+    // Only tick if this tap did NOT complete the word. When it does, the
+    // solved/wrong pulse fires immediately after and is the real feedback —
+    // two pulses for one tap is the pattern we're avoiding.
+    const completesWord = !nextSlots.some((slot) => slot === null);
+    if (!completesWord) HapticManager.anagrams.tileSelect();
+
     checkGuess(nextSlots, nextTray);
   };
 
@@ -269,6 +279,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     }
     if (lastFilled === -1) return;
     const id = guessSlots[lastFilled]!;
+    HapticManager.anagrams.tileDeselect();
     const nextSlots = [...guessSlots];
     nextSlots[lastFilled] = null;
     setGuessSlots(nextSlots);
@@ -353,6 +364,7 @@ const AnagramsPlayScreen: React.FC<Props> = ({
     savedRef.current = true;
 
     setRunStatus('complete');
+    HapticManager.anagrams.runComplete();
     const finalElapsed = Math.round((Date.now() - runStartTimeRef.current) / 1000);
     setRunElapsed(finalElapsed);
 

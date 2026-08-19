@@ -29,6 +29,7 @@ import GridWithGesture from '../components/GridWithGesture';
 import { FeedbackOverlay } from './FeedbackOverlay';
 import { DailyChallengeCard } from '../components/DailyChallengeCard';
 import DailyCalendar, { type CalendarHistory } from '../../shared/DailyCalendar';
+import { HapticManager } from '../../shared/HapticManager';
 import { generateGrid } from '../utils/gridGenerator';
 import {
   buildWordGridDailyShareText,
@@ -285,8 +286,11 @@ export default function GameScreen() {
           clearInterval(timerRef.current!);
           timerRef.current = null;
           setGameOver(true);
+          HapticManager.wordGrid.roundOver();
           return 0;
         }
+        // Single warning at exactly 10s left, not a repeating countdown buzz.
+        if (prev - 1 === 10) HapticManager.wordGrid.timeRunningOut();
         return prev - 1;
       });
     }, 1000);
@@ -316,9 +320,14 @@ export default function GameScreen() {
         setFoundWords((prev) => [{ word, points }, ...prev]);
         setFoundWordSet((prev) => new Set([...prev, word]));
         setFeedbacks((prev) => [...prev, { points, success: true, key }]);
+        HapticManager.wordGrid.wordFound();
       } else {
         const alreadyFound = valid && foundWordSet.has(word);
         setFeedbacks((prev) => [...prev, { points: 0, success: false, alreadyFound, key }]);
+        // Soft selection tick rather than a warning: rapid guessing is the
+        // intended play pattern under a 60-second clock, so a miss is not a
+        // mistake worth punishing.
+        HapticManager.wordGrid.invalidWord();
       }
     },
     [grid, foundWords, foundWordSet]

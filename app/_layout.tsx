@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../src/shared/ThemeContext';
 import { syncDailyReminder } from '../src/shared/dailyReminders';
+import { HapticManager } from '../src/shared/HapticManager';
 
 // Pre-warm the large shared word list (~41k entries) at app startup. Without
 // this, the first navigation to Word Ladder or Anagrams triggers construction
@@ -48,6 +49,11 @@ export default function RootLayout() {
     // comes back to the foreground — daily state (which games are still
     // unplayed) can only have changed while we were away.
     syncDailyReminder();
+
+    // Load the saved haptics preference once, at startup. This used to run
+    // only inside Wordsmith, so a player who never opened Wordsmith never had
+    // their preference applied in any other game.
+    HapticManager.init();
 
     // Pre-warm Word Ladder word buckets 2 seconds after the home screen
     // appears, while the player is still reading the menu. Wrapped in

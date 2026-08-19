@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { HapticManager } from '../../shared/HapticManager';
 import {
   getPhraseFromCategory,
   getRandomWord,
@@ -145,6 +146,9 @@ export const useHangman = () => {
         const allGuessed = uniqueLetters.every((l) => guessedNormalized.includes(l));
         if (allGuessed) {
           setStatus('won');
+          HapticManager.hangman.win();
+        } else {
+          HapticManager.hangman.correctLetter();
         }
       } else {
         const newIncorrectGuesses = [...incorrectGuesses, letter];
@@ -153,6 +157,12 @@ export const useHangman = () => {
         // Loss check
         if (newIncorrectGuesses.length >= maxAttempts) {
           setStatus('lost');
+          // The only error() in the app — at most once per game, and it *is*
+          // the loss.
+          HapticManager.hangman.finalMiss();
+        } else {
+          // The signature moment: another body part appears.
+          HapticManager.hangman.wrongLetter();
         }
       }
     },

@@ -16,6 +16,7 @@ import { Keyboard, Modal, Pressable, ScrollView, Share, StatusBar, StyleSheet, T
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Share2, X } from 'lucide-react-native';
 import { useTheme } from '../../shared/ThemeContext';
+import { HapticManager } from '../../shared/HapticManager';
 import { AchievementPopup } from '../../shared/AchievementPopup';
 import { maybeRequestReview } from '../../shared/reviewPrompt';
 import { syncDailyReminder, maybeFlagReminderOptIn } from '../../shared/dailyReminders';
@@ -223,6 +224,10 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
     const result = checkGuess(currentGuess, puzzle, foundSet);
 
     if (result.status !== 'valid') {
+      // Deliberately silent. Probing words that aren't in the list is normal
+      // play here — the median puzzle has ~105 findable words and players try
+      // far more than that. Buzzing every miss would punish the core loop.
+      // (HapticManager.hexHive.invalidWord/duplicateWord are intentional no-ops.)
       flashFeedback(
         result.status === 'already_found'
           ? 'already_found'
@@ -241,12 +246,24 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
     setFoundWords(newFound);
     setCurrentGuess('');
     flashFeedback(result.isPangram ? 'pangram' : 'valid');
+    // A pangram is rare and the best moment in the game — the one success()
+    // Hex Hive gets. Everything else is a light tick.
+    if (result.isPangram) {
+      HapticManager.hexHive.pangram();
+    } else {
+      HapticManager.hexHive.wordFound();
+    }
 
     // Compute the up-to-date score/rank including this word — `score`/`rank`
     // from render still reflect the pre-submit state since setFoundWords
     // hasn't re-rendered yet.
     const newScore = score + scoreWordForPuzzle(word, result.isPangram);
     const newRank = getRankProgress(newScore, targetScore);
+    // Climbing a rank is real progress — mark it, but only when it changes.
+    // Delayed so it reads as a separate beat from the word pulse just fired.
+    if (newRank.index > rank.index) {
+      setTimeout(() => HapticManager.hexHive.rankUp(), 220);
+    }
     // Since input is blocked the instant dailyWon flips true, reaching this
     // line with mode === 'daily' means the player hasn't won yet — so a
     // crossing here is always the first (and only) time it happens today.
@@ -318,10 +335,22 @@ export default function HexHivePlayScreen({ puzzle, mode, initialFoundWords, ini
 
   const handleLetterPress = (letter: string) => {
     if (gameOver) return;
-    setCurrentGuess((g) => (g.length < 20 ? g + letter : g));
+    setCurrentGuess((g) => {
+      if (g.length >= 20) return g; // buffer full — no letter, no tick
+      HapticManager.hexHive.hexTap();
+      return g + letter;
+    });
   };
-  const handleDelete = () => setCurrentGuess((g) => g.slice(0, -1));
-  const handleShuffle = () => setOuterLetters((prev) => shuffleLetters(prev));
+  const handleDelete = () =>
+    setCurrentGuess((g) => {
+      if (g.length === 0) return g; // nothing to delete — no tick
+      HapticManager.hexHive.hexTap();
+      return g.slice(0, -1);
+    });
+  const handleShuffle = () => {
+    HapticManager.hexHive.hexTap();
+    setOuterLetters((prev) => shuffleLetters(prev));
+  };
 
   // Rank ladder as a pip bar — same "climb visualized as blocks" idea as
   // the other games' shares, using the hive's own rank tiers instead of an

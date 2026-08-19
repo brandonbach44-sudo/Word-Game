@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/shared/ThemeContext';
+import { HapticManager } from '../shared/HapticManager';
 import { COLORS } from '../../src/shared/theme';
 import { WORD_SEARCH_THEMES, type WordSearchThemeId } from '../../src/wordsearch/data/themes';
 import type { PlacedWord, WordSearchPuzzle } from '../../src/wordsearch/utils/generator';
@@ -292,6 +293,9 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         // Auto-finish when countdown expires
         if (timeLimitRef.current && next >= timeLimitRef.current) {
           setTimeout(() => triggerFinishRef.current?.(), 0);
+        } else if (timeLimitRef.current && timeLimitRef.current - next === 10) {
+          // Single warning at exactly 10s left — not a repeating countdown buzz.
+          HapticManager.wordSearch.timeRunningOut();
         }
         return { ...prev, elapsedSeconds: next };
       });
@@ -378,6 +382,7 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         if (!cell) return;
         dragStart.current = cell;
         lastValidCell.current = cell;
+        HapticManager.wordSearch.cellCrossed();
         setGameState(prev => ({ ...prev, currentSelection: [cell] }));
       },
 
@@ -385,6 +390,13 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
         if (!dragStart.current) return;
         const cell = getCellFromPoint(evt.nativeEvent.pageX, evt.nativeEvent.pageY);
         if (!cell) return;
+        // Tick only when the selection enters a NEW cell. onPanResponderMove
+        // fires every gesture frame, so without this a slow drag inside one
+        // cell would buzz continuously.
+        const prevCell = lastValidCell.current;
+        if (!prevCell || prevCell.row !== cell.row || prevCell.col !== cell.col) {
+          HapticManager.wordSearch.cellCrossed();
+        }
         lastValidCell.current = cell;
         const line = buildSelectionLine(dragStart.current, cell, numRows, numCols);
         setGameState(prev => ({ ...prev, currentSelection: line }));
@@ -447,7 +459,12 @@ const PlayScreen: React.FC<PlayScreenProps> = ({
             }));
 
             if (newFoundWords.length === puzzleData.words.length) {
+              // Puzzle cleared — the one success() in this game. Delayed so it
+              // doesn't collide with the wordFound pulse just above.
+              setTimeout(() => HapticManager.wordSearch.allWordsFound(), 250);
               setTimeout(() => triggerFinish(), 500);
+            } else {
+              HapticManager.wordSearch.wordFound();
             }
             break;
           }
