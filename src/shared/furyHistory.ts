@@ -49,6 +49,20 @@ export interface FuryDay {
 export type FuryHistory = Record<string, FuryDay>;
 
 /**
+ * The first date each game has any record for — i.e. when it started keeping a
+ * history at all.
+ *
+ * This exists because the calendar cannot otherwise tell "you didn't play" from
+ * "nothing was recording yet", and it showed both as an empty row. Hex Hive has
+ * kept a history since early July; the other seven only started in mid-August.
+ * So a day in early August honestly shows one game out of eight — and reads,
+ * to the person who actually played six of them, as the screen being broken.
+ *
+ * A game absent from this map has no history at all.
+ */
+export type FuryFirstRecorded = Partial<Record<GameId, string>>;
+
+/**
  * A normalised view of one game's whole history: dateISO -> entry.
  *
  * Seven of the eight games already store exactly { dateISO, result, detail },
@@ -119,7 +133,12 @@ const HISTORY_LOADERS: Record<GameId, () => Promise<NormalisedHistory>> = {
  * a day before that game's history store existed, which is exactly why the UI
  * renders a zero-count day as neutral and never as a miss.
  */
-export async function loadFuryHistory(): Promise<FuryHistory> {
+export interface FuryHistoryResult {
+  history: FuryHistory;
+  firstRecorded: FuryFirstRecorded;
+}
+
+export async function loadFuryHistory(): Promise<FuryHistoryResult> {
   const perGame = await Promise.all(
     ALL_GAME_IDS.map(async (id) => {
       try {
@@ -132,6 +151,7 @@ export async function loadFuryHistory(): Promise<FuryHistory> {
   );
 
   const merged: FuryHistory = {};
+  const firstRecorded: FuryFirstRecorded = {};
   for (const [id, history] of perGame) {
     for (const [dateISO, entry] of Object.entries(history)) {
       // Guard the key itself: a corrupt store shouldn't put junk dates on a
@@ -141,9 +161,28 @@ export async function loadFuryHistory(): Promise<FuryHistory> {
       day.games[id] = entry;
       day.count += 1;
       merged[dateISO] = day;
+      // ISO dates sort lexicographically, so plain string comparison is enough.
+      const seen = firstRecorded[id];
+      if (!seen || dateISO < seen) firstRecorded[id] = dateISO;
     }
   }
-  return merged;
+  return { history: merged, firstRecorded };
+}
+
+/**
+ * Was this game keeping a history on this date?
+ *
+ * False means the blank row is a gap in our records, not a day the player
+ * skipped, and the UI must say so — labelling it the same as a miss is what
+ * made the screen look wrong to someone who knew they'd played.
+ */
+export function wasRecording(
+  firstRecorded: FuryFirstRecorded,
+  gameId: GameId,
+  dateISO: string
+): boolean {
+  const first = firstRecorded[gameId];
+  return !!first && dateISO >= first;
 }
 
 export interface FuryTotals {

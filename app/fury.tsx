@@ -42,6 +42,8 @@ import { loadRitualDisplay } from '../src/shared/dailyRitual';
 import {
   loadFuryHistory,
   summariseFuryHistory,
+  wasRecording,
+  type FuryFirstRecorded,
   type FuryHistory,
 } from '../src/shared/furyHistory';
 import { accentForGame } from '../src/shared/gameColors';
@@ -75,6 +77,9 @@ export default function FuryHistoryScreen() {
   const { background, colorBlindMode } = useTheme();
 
   const [history, setHistory] = useState<FuryHistory>({});
+  // When each game started keeping a history, so a blank row can say "not
+  // recorded" instead of looking like a day the player skipped.
+  const [firstRecorded, setFirstRecorded] = useState<FuryFirstRecorded>({});
   const [ritual, setRitual] = useState<{
     streak: number;
     bestStreak: number;
@@ -97,7 +102,8 @@ export default function FuryHistoryScreen() {
       (async () => {
         const [h, r] = await Promise.all([loadFuryHistory(), loadRitualDisplay()]);
         if (cancelled) return;
-        setHistory(h);
+        setHistory(h.history);
+        setFirstRecorded(h.firstRecorded);
         setRitual(r);
       })();
       return () => {
@@ -346,15 +352,38 @@ export default function FuryHistoryScreen() {
                   {selectedDay.count} / {ALL_GAME_IDS.length}
                 </Text>
               </View>
-              {selectedDay.count >= ALL_GAME_IDS.length && (
+              {selectedDay.count >= ALL_GAME_IDS.length ? (
                 <Text style={[styles.detailNote, { color: background.secondaryText }]}>
                   Perfect Day — every daily cleared
                 </Text>
+              ) : (
+                (() => {
+                  const notRecording = ALL_GAME_IDS.filter(
+                    (id) => !wasRecording(firstRecorded, id, selectedDate)
+                  ).length;
+                  if (notRecording === 0) return null;
+                  // Says plainly why the day looks emptier than it was, on the
+                  // day itself, rather than leaving it to a footnote nobody
+                  // connects to the row they're looking at.
+                  return (
+                    <Text style={[styles.detailNote, { color: background.secondaryText }]}>
+                      {notRecording === 1
+                        ? '1 game wasn\'t keeping a history yet on this date'
+                        : `${notRecording} games weren't keeping a history yet on this date`}
+                    </Text>
+                  );
+                })()
               )}
 
               {ALL_GAME_IDS.map((id: GameId, idx) => {
                 const entry = selectedDay.games[id];
                 const accent = accentForGame(id, colorBlindMode);
+                // A game that wasn't keeping a history on this date can't be
+                // reported as a miss. Hex Hive has recorded since early July,
+                // the rest only since mid-August, so early days genuinely have
+                // no data for most games -- and showing that as a dash read as
+                // "you skipped seven games" to someone who hadn't.
+                const recording = wasRecording(firstRecorded, id, selectedDate);
                 return (
                   <View
                     key={id}
@@ -380,11 +409,12 @@ export default function FuryHistoryScreen() {
                     <Text
                       style={[
                         styles.gameDetail,
+                        !entry && !recording && styles.gameDetailUnrecorded,
                         { color: background.secondaryText, opacity: entry ? 1 : 0.45 },
                       ]}
                       numberOfLines={1}
                     >
-                      {entry?.detail || '—'}
+                      {entry?.detail || (recording ? '—' : 'not recorded')}
                     </Text>
                   </View>
                 );
@@ -527,6 +557,7 @@ const styles = StyleSheet.create({
   gameDot: { width: 8, height: 8, borderRadius: 4 },
   gameName: { fontSize: 11.5, fontWeight: '700', width: 96 },
   gameDetail: { fontSize: 10.5, marginLeft: 'auto', textAlign: 'right', flexShrink: 1 },
+  gameDetailUnrecorded: { fontStyle: 'italic' },
 
   footnote: { fontSize: 10.5, lineHeight: 15, marginTop: 16, textAlign: 'center', opacity: 0.8 },
 });
