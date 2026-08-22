@@ -1,7 +1,7 @@
 // app/index.tsx
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -145,16 +145,102 @@ const COLORBLIND_GAME_COLORS: Record<string, { accentColor: string; bgColor: str
 
 const COMING_SOON: string[] = ['Crossword'];
 
+/**
+ * One queued dialog. Built at the moment the app decides to say something, so
+ * the copy captures the values that were true then rather than re-reading state
+ * later.
+ */
+interface HomeDialog {
+  key: string;
+  title: string;
+  message: string;
+  confirmText: string;
+  cancelText?: string;
+  hideCancel?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 export default function Home() {
   const { background, colorBlindMode } = useTheme();
   const [showSplash, setShowSplash] = useState(true);
-  const [showReminderOptIn, setShowReminderOptIn] = useState(false);
   const [ritual, setRitual] = useState<DailyRitualSummary | null>(null);
-  const [showPerfectDay, setShowPerfectDay] = useState(false);
-  const [showSkipIntro, setShowSkipIntro] = useState(false);
-  const [showSkipOffer, setShowSkipOffer] = useState(false);
-  const [skipRelief, setSkipRelief] = useState<string | null>(null);
   const resetsIn = useCountdownToMidnight();
+
+  // ── One dialog at a time, queued ──────────────────────────────────────────
+  // This screen can want to say several things at once: a Perfect Day landed,
+  // a Streak Skip is on offer, the first skip was just earned, the reminder
+  // opt-in is due. It used to render five separate <ConfirmModal>s, each with
+  // its own visible flag.
+  //
+  // React Native's Modal is a real native modal. Presenting one while another
+  // is still dismissing deadlocks UIKit and leaves an invisible full-screen
+  // view swallowing every touch — the app looks frozen, and the only way out
+  // is force-quitting it. Accepting a Streak Skip did exactly that: it hid the
+  // offer and showed the relief message in the same breath. Perfect Day plus a
+  // skip offer, or either plus the reminder prompt, could collide the same way.
+  //
+  // So: one Modal, ever. Dialogs queue, and the next is presented only after
+  // the previous has finished dismissing (onDismiss), with a timeout as a
+  // backstop so a missed callback can't wedge the queue forever.
+  const [dialogQueue, setDialogQueue] = useState<HomeDialog[]>([]);
+  const [activeDialog, setActiveDialog] = useState<HomeDialog | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const dismissFallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The key of whatever is on screen, in a ref so enqueueDialog can check it
+  // without being rebuilt every time the active dialog changes.
+  const activeKeyRef = useRef<string | null>(null);
+
+  const enqueueDialog = useCallback((dialog: HomeDialog) => {
+    // Keyed so the same message can't be queued twice — checking the ACTIVE
+    // dialog as well as the queue. A skip offer stays pending in storage until
+    // it's answered, so backgrounding the app with the offer on screen and
+    // returning re-runs the focus effect and would otherwise queue a second
+    // copy to appear right after the first was dismissed.
+    setDialogQueue((q) =>
+      activeKeyRef.current === dialog.key || q.some((d) => d.key === dialog.key)
+        ? q
+        : [...q, dialog]
+    );
+  }, []);
+
+  useEffect(() => {
+    if (activeDialog || dialogQueue.length === 0) return;
+    const next = dialogQueue[0];
+    activeKeyRef.current = next.key;
+    setActiveDialog(next);
+    setDialogQueue((q) => q.slice(1));
+    setDialogVisible(true);
+  }, [activeDialog, dialogQueue]);
+
+  const closeDialog = useCallback(() => {
+    setDialogVisible(false);
+    // onDismiss is iOS-only and, being a native callback, is not something to
+    // stake the whole queue on. If it hasn't fired by now the modal is gone
+    // anyway.
+    if (dismissFallback.current) clearTimeout(dismissFallback.current);
+    dismissFallback.current = setTimeout(() => {
+      activeKeyRef.current = null;
+      setActiveDialog(null);
+    }, 450);
+  }, []);
+
+  const handleDialogDismissed = useCallback(() => {
+    if (dismissFallback.current) {
+      clearTimeout(dismissFallback.current);
+      dismissFallback.current = null;
+    }
+    activeKeyRef.current = null;
+    setActiveDialog(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (dismissFallback.current) clearTimeout(dismissFallback.current);
+    },
+    []
+  );
 
   // Checked every time the player lands back on the home screen — this is
   // the natural, unhurried moment after a win, not mid-game. The flag can
@@ -163,9 +249,20 @@ export default function Home() {
   useFocusEffect(
     useCallback(() => {
       consumeReminderOptInPending().then((pending) => {
-        if (pending) setShowReminderOptIn(true);
+        if (!pending) return;
+        enqueueDialog({
+          key: 'reminderOptIn',
+          title: 'Keep your streak alive',
+          message:
+            "Get a gentle nudge in the evening if you've got an unplayed daily challenge, so your streak never resets by accident.",
+          cancelText: 'Not Now',
+          confirmText: 'Enable',
+          onConfirm: () => {
+            requestReminderPermission();
+          },
+        });
       });
-    }, [])
+    }, [enqueueDialog])
   );
 
   // Words the games rejected that look like real words. Collected silently
@@ -204,15 +301,70 @@ export default function Home() {
           // session, and it means none of the eight game screens need to know
           // this feature exists.
           if (summary.shouldCelebratePerfectDay) {
-            setShowPerfectDay(true);
+            enqueueDialog({
+              key: 'perfectDay',
+              title: 'Perfect Day',
+              message: `All 8 dailies cleared. That's ${summary.perfectDays} perfect ${
+                summary.perfectDays === 1 ? 'day' : 'days'
+              } — and a ${summary.streak}-day Fury Streak.`,
+              confirmText: 'Nice',
+              hideCancel: true,
+            });
             HapticManager.achievement();
           }
           // A live offer takes priority over the intro — it's time-sensitive
           // and the player is mid-decision about a streak they care about.
+          // Both can be queued in the same pass now; they simply show in turn
+          // instead of fighting over the one native modal slot.
           if (summary.pendingSkipOffer) {
-            setShowSkipOffer(true);
+            const atRisk = summary.pendingSkipOffer.streakAtRisk;
+            const gamesSaved = Object.values(summary.completion).filter(Boolean).length;
+            enqueueDialog({
+              key: 'skipOffer',
+              title: 'Missed a day',
+              message: `You didn't play yesterday. Use a Streak Skip to keep your ${atRisk}-day streak going?`,
+              cancelText: 'Let it reset',
+              confirmText: `Use skip — ${Math.max(0, summary.skipsAvailable - 1)} left`,
+              onCancel: () => {
+                declineSkipOffer()
+                  .then(() => refreshDailyRitual())
+                  .then(setRitual)
+                  .catch(() => {});
+              },
+              onConfirm: () => {
+                acceptSkipOffer()
+                  .then(() => refreshDailyRitual())
+                  .then((updated) => {
+                    setRitual(updated);
+                    // Name what was rescued — an abstract counter becomes
+                    // something concrete, and this is the message that teaches
+                    // the value of the next skip. Queued, so it appears only
+                    // once the offer has finished dismissing.
+                    enqueueDialog({
+                      key: 'skipRelief',
+                      title: 'Skip used',
+                      message:
+                        `Your ${atRisk}-day Fury Streak is safe` +
+                        (gamesSaved > 0
+                          ? `, along with ${gamesSaved} game streak${gamesSaved === 1 ? '' : 's'}.`
+                          : '.'),
+                      confirmText: 'Good',
+                      hideCancel: true,
+                    });
+                    HapticManager.achievement();
+                  })
+                  .catch(() => {});
+              },
+            });
           } else if (summary.shouldShowSkipIntro) {
-            setShowSkipIntro(true);
+            enqueueDialog({
+              key: 'skipIntro',
+              title: 'Streak Skip earned',
+              message:
+                "You've banked a Streak Skip. It covers one missed day and keeps every streak alive — you'll be asked before it's ever used.",
+              confirmText: 'Got it',
+              hideCancel: true,
+            });
             HapticManager.achievement();
           }
         })
@@ -220,7 +372,7 @@ export default function Home() {
       return () => {
         cancelled = true;
       };
-    }, [])
+    }, [enqueueDialog])
   );
 
   return (
@@ -490,128 +642,35 @@ export default function Home() {
         }}
       />
 
-      {/* ── STREAK SKIP OFFER ────────────────────────────────────────────────
-          Shown on returning home after playing on the comeback day. Never
-          auto-spent, never spent without asking: a missed day isn't resolved
-          at midnight, it's resolved when the player next opens the app, so the
-          choice can be offered retroactively when they can see what's at
-          stake. Declining is free and keeps the skip banked. */}
+      {/* ── THE ONE DIALOG ───────────────────────────────────────────────────
+          Every message this screen can raise — Perfect Day, a Streak Skip
+          offer, the relief after spending one, the first-skip explainer, the
+          reminder opt-in — comes through here, one at a time.
+
+          There used to be five separate <ConfirmModal>s. React Native's Modal
+          is a real native modal, and presenting one while another is still
+          dismissing deadlocks UIKit: an invisible full-screen view stays behind
+          and eats every touch, so the app appears frozen until it's force-quit.
+          Accepting a skip hid the offer and showed the relief in the same
+          breath, which is exactly that. */}
       <ConfirmModal
-        visible={showSkipOffer && !!ritual?.pendingSkipOffer}
-        title="Missed a day"
-        message={
-          ritual?.pendingSkipOffer
-            ? `You didn't play yesterday. Use a Streak Skip to keep your ${ritual.pendingSkipOffer.streakAtRisk}-day streak going?`
-            : ''
-        }
-        cancelText="Let it reset"
-        confirmText={`Use skip — ${Math.max(0, (ritual?.skipsAvailable ?? 1) - 1)} left`}
+        visible={dialogVisible}
+        title={activeDialog?.title ?? ''}
+        message={activeDialog?.message ?? ''}
+        confirmText={activeDialog?.confirmText ?? 'OK'}
+        cancelText={activeDialog?.cancelText}
+        hideCancel={activeDialog?.hideCancel}
         onCancel={() => {
-          setShowSkipOffer(false);
-          declineSkipOffer()
-            .then(() => refreshDailyRitual())
-            .then(setRitual)
-            .catch(() => {});
+          const dialog = activeDialog;
+          closeDialog();
+          dialog?.onCancel?.();
         }}
         onConfirm={() => {
-          const saved = ritual?.pendingSkipOffer?.streakAtRisk ?? 0;
-          const gamesSaved = ritual
-            ? Object.values(ritual.completion).filter(Boolean).length
-            : 0;
-          setShowSkipOffer(false);
-          acceptSkipOffer()
-            .then(() => refreshDailyRitual())
-            .then((updated) => {
-              setRitual(updated);
-              // Name what was rescued — an abstract counter becomes something
-              // concrete, and this is the screen that teaches the value of the
-              // next skip.
-              setSkipRelief(
-                `Your ${saved}-day Fury Streak is safe` +
-                  (gamesSaved > 0
-                    ? `, along with ${gamesSaved} game streak${gamesSaved === 1 ? '' : 's'}.`
-                    : '.')
-              );
-              HapticManager.achievement();
-            })
-            .catch(() => {});
+          const dialog = activeDialog;
+          closeDialog();
+          dialog?.onConfirm?.();
         }}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
-        destructiveColor={COLORS.accent}
-      />
-
-      {/* The relief — shown immediately after a skip is spent. */}
-      <ConfirmModal
-        visible={!!skipRelief}
-        title="Skip used"
-        message={skipRelief ?? ''}
-        confirmText="Good"
-        hideCancel
-        onCancel={() => setSkipRelief(null)}
-        onConfirm={() => setSkipRelief(null)}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
-        destructiveColor={COLORS.accent}
-      />
-
-      {/* One-time explainer, shown at the moment the first skip is banked —
-          players learn the feature by receiving it, not from onboarding. */}
-      <ConfirmModal
-        visible={showSkipIntro}
-        title="Streak Skip earned"
-        message="You've banked a Streak Skip. It covers one missed day and keeps every streak alive — you'll be asked before it's ever used."
-        confirmText="Got it"
-        hideCancel
-        onCancel={() => setShowSkipIntro(false)}
-        onConfirm={() => setShowSkipIntro(false)}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
-        destructiveColor={COLORS.accent}
-      />
-
-      {/* Perfect Day — fires once per day, guarded by lastPerfectDateISO in the
-          ritual store. Shown here rather than inside whichever game happened to
-          be the eighth, so none of the eight game screens need to know this
-          feature exists. */}
-      <ConfirmModal
-        visible={showPerfectDay}
-        title="Perfect Day"
-        message={
-          ritual
-            ? `All 8 dailies cleared. That's ${ritual.perfectDays} perfect ${
-                ritual.perfectDays === 1 ? 'day' : 'days'
-              } — and a ${ritual.streak}-day Fury Streak.`
-            : 'All 8 dailies cleared.'
-        }
-        confirmText="Nice"
-        hideCancel
-        onCancel={() => setShowPerfectDay(false)}
-        onConfirm={() => setShowPerfectDay(false)}
-        backgroundColor={background.cardColor}
-        textColor={background.textColor}
-        secondaryText={background.secondaryText}
-        borderColor={background.borderColor}
-        destructiveColor={COLORS.accent}
-      />
-
-      <ConfirmModal
-        visible={showReminderOptIn}
-        title="Keep your streak alive"
-        message="Get a gentle nudge in the evening if you've got an unplayed daily challenge, so your streak never resets by accident."
-        cancelText="Not Now"
-        confirmText="Enable"
-        onCancel={() => setShowReminderOptIn(false)}
-        onConfirm={() => {
-          setShowReminderOptIn(false);
-          requestReminderPermission();
-        }}
+        onDismiss={handleDialogDismissed}
         backgroundColor={background.cardColor}
         textColor={background.textColor}
         secondaryText={background.secondaryText}

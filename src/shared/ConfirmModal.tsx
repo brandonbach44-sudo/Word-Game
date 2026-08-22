@@ -28,6 +28,13 @@ interface ConfirmModalProps {
    * "cancel" is meaningless.
    */
   hideCancel?: boolean;
+  /**
+   * Fires after the modal has FINISHED dismissing (iOS). Presenting a second
+   * native modal before the first has finished going away deadlocks UIKit, so
+   * anything that queues dialogs needs this to know when it's safe to show the
+   * next one.
+   */
+  onDismiss?: () => void;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -44,6 +51,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   borderColor,
   destructiveColor = '#e94560',
   hideCancel = false,
+  onDismiss,
 }) => {
   return (
     <Modal
@@ -53,6 +61,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       statusBarTranslucent
       presentationStyle="overFullScreen"
       onRequestClose={onCancel}
+      onDismiss={onDismiss}
     >
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />

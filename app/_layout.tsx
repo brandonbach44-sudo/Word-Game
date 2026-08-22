@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -20,14 +20,29 @@ import '../src/shared/words';
 import { getWordsOfLength, getNeighbors } from '../src/wordladder/utils/wordGraph';
 
 // Sends the player straight into the game a reminder notification was
-// about, instead of dropping them at the home grid to go find it — pulled
-// out so both the cold-start check and the live listener below can share it.
-function routeFromNotification(notification: Notifications.Notification | undefined) {
+// about, instead of dropping them at the home grid to go find it.
+//
+// Returns the route rather than navigating, because navigating is the part that
+// has to wait. See the pendingRoute handling in RootLayout below.
+function routeFromNotification(
+  notification: Notifications.Notification | undefined
+): string | null {
   const route = notification?.request.content.data?.route;
-  if (typeof route === 'string') {
-    router.push(route as any);
-  }
+  return typeof route === 'string' ? route : null;
 }
+
+/**
+ * How recent a cold-start notification response has to be for us to act on it.
+ *
+ * getLastNotificationResponseAsync() returns the last tap the OS recorded, and
+ * it PERSISTS — days later, on a launch where nobody touched a notification, it
+ * still hands back that old tap. Without this window, opening the app normally
+ * could fling the player into a game for no reason they could see.
+ *
+ * A tap that actually launched the app is seconds old, so a couple of minutes
+ * is generous.
+ */
+const NOTIFICATION_TAP_MAX_AGE_MS = 2 * 60 * 1000;
 
 // Called once at module load — this just tells iOS how to present a
 // notification if it arrives while the app happens to already be open
@@ -43,6 +58,18 @@ Notifications.setNotificationHandler({
 
 export default function RootLayout() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
+
+  // A notification tap can arrive before the router exists. Hold the route and
+  // perform it when the navigator reports itself ready.
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
+  const navigationState = useRootNavigationState();
+  const navigatorReady = !!navigationState?.key;
+
+  useEffect(() => {
+    if (!pendingRoute || !navigatorReady) return;
+    setPendingRoute(null);
+    router.push(pendingRoute as any);
+  }, [pendingRoute, navigatorReady]);
 
   useEffect(() => {
     // Recompute today's reminder on cold start, and every time the app
@@ -76,16 +103,28 @@ export default function RootLayout() {
       }
     }, 2000);
 
-    // App was launched by tapping a reminder notification (was fully
-    // killed, not just backgrounded) — route in once navigation is ready.
+    // App was launched by tapping a reminder notification (fully killed, not
+    // just backgrounded). This resolves during the very first render pass, when
+    // the navigator does not exist yet, so it CANNOT navigate here — it records
+    // the route and the effect below performs it once navigation is ready.
+    // Calling router.push() before the root navigator mounts is what made
+    // tapping the banner leave the app sitting on a blank screen.
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      routeFromNotification(response?.notification);
+      const notification = response?.notification;
+      if (!notification) return;
+      const age = Date.now() - (notification.date ?? 0);
+      if (age > NOTIFICATION_TAP_MAX_AGE_MS) return;
+      const route = routeFromNotification(notification);
+      if (route) setPendingRoute(route);
     });
 
     // App was already running (foreground or background) when the
-    // notification was tapped.
+    // notification was tapped. Routed through the same pending-route path so
+    // there is only one place that navigates, and so a tap that arrives during
+    // a cold start still waits for the navigator.
     const tapSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      routeFromNotification(response.notification);
+      const route = routeFromNotification(response.notification);
+      if (route) setPendingRoute(route);
     });
 
     const appStateSubscription = AppState.addEventListener('change', (nextState) => {
